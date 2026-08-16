@@ -388,12 +388,17 @@ function stainTally(group, key) {
    with textContent on update and dropped into innerHTML on first render without
    one of the two coming out literal. The double space is held by
    `white-space: pre` on .stainTally; it separates what you counted from what it
-   works out to. */
+   works out to.
+
+   ALWAYS "5+ 7-", never the bound keys. It used to echo stainActiveKeys, and
+   with positive rebound to '4' a count of five read as the number 54. The keys
+   are how you TYPE a cell; +/- are what the counts MEAN, and the readout
+   speaks meaning. The tape and its placeholder keep the real keys — they are
+   about typing. */
 function stainTallyText(tally) {
     const pct = tally.total && tally.positive
         ? Math.round(100 * tally.positive / tally.total) + '%' : '—';
-    return `${tally.positive}${stainActiveKeys.positive} ` +
-        `${tally.negative}${stainActiveKeys.negative}  ${pct}`;
+    return `${tally.positive}+ ${tally.negative}-  ${pct}`;
 }
 
 
