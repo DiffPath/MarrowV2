@@ -1,0 +1,7 @@
+# Verbatim WHO-HAEM5 chapters and the full ICC 2022 paper — copyrighted source
+# text pasted for development reference. Kept out of the public repo; the local
+# copies remain the working reference and should be backed up privately.
+docs/who/
+
+# Editor/backup clutter
+*.bak

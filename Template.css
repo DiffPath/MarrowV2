@@ -1,0 +1,3780 @@
+/* ============================================================================
+   Report-builder template — layout stylesheet (skeleton)
+
+   Section 1 = the app shell. Everything the skeleton's markup actually uses.
+   Section 2 = generic primitives kept for rebuilding forms on top of the shell.
+
+   Styles that existed only to serve stripped-out features (the differential
+   counter grid, CBC table, NGS panel, diagnosis segmented toggle, the green
+   "needsSelection" highlight cue, settings tables) are intentionally gone.
+   ========================================================================= */
+
+
+/* ============================================================================
+   1. APP SHELL
+   ========================================================================= */
+
+/* THE PAGE NEVER SCROLLS; THE PANELS DO.
+
+   The whole app is exactly one viewport tall and stays there, so the only
+   scrollbars are the panels' own. That is a chain, and every link below is
+   load-bearing — body locks the height, .panelContainer takes what is left
+   under the header, .panel is a column, and .panelBody is the one part that
+   grows and overflows.
+
+   `min-height: 0` appears at every link and is the least obvious of them: a
+   flex item's default `min-height: auto` refuses to shrink below its content,
+   so without it a tall panel pushes the chain open from the inside and the
+   PAGE scrolls instead of the panel. That is the bug this replaced. */
+body {
+    font-family: Arial;
+    background-color: #F4F6F4;
+    margin: 0;
+
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+a {
+    color: #FFFFFF;
+}
+
+a:link,
+a:visited,
+a:hover,
+a:active {
+    text-decoration: none;
+}
+
+/* --- Header bar ---------------------------------------------------------- */
+
+.header {
+    display: grid;
+    grid-template-columns: 25% 50% 25%;
+    align-items: center;
+    background-color: #2c3c4e;
+    color: #FFFFFF;
+    padding: 4px 6px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    /* Keeps the shadow rendering above the panels below it. */
+    position: relative;
+    z-index: 10;
+}
+
+.title {
+    text-align: center;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: 0.4px;
+    padding: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pagebar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 2px;
+}
+
+/* Active page gets a soft cyan pill behind its icon; the others get a neutral
+   hover target. Scoped to .pagebar so tab-bar rules stay unaffected. */
+.pagebar .pageTab.clicked {
+    background-color: rgba(44, 237, 241, 0.14);
+}
+
+.pagebar .pageTab.unclicked:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* --- Slide-out nav drawer + its dimmer ----------------------------------- */
+
+#overlay {
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 150;
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+#overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 200;
+    width: 250px;
+    height: 100%;
+    background-color: #2c3c4e;
+    color: #FFFFFF;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.35);
+
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+#navbar.open {
+    transform: translateX(0);
+}
+
+.navHeader {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 8px;
+}
+
+.navItem {
+    cursor: pointer;
+    font-size: 16px;
+    border-left: 3px solid transparent;
+
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.navItem a {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: bold;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.navItem:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-left-color: rgba(44, 237, 241, 0.5);
+}
+
+.navItem:hover a {
+    color: #FFFFFF;
+}
+
+.navItem .headerIcon {
+    margin-right: 12px;
+    width: 20px;
+    text-align: center;
+}
+
+/* Current page: cyan accent bar + tint, matching the active-tab color. */
+.navItem.active {
+    background-color: rgba(44, 237, 241, 0.08);
+    border-left-color: #2CEDF1;
+}
+
+.navItem.active a {
+    color: #2CEDF1;
+}
+
+/* --- Panels -------------------------------------------------------------- */
+
+/* Fills whatever the header leaves. No `align-items: flex-start`: the panels
+   stretch to a common full height, which is what gives each one a scroll region
+   of a fixed, known size rather than one that depends on its own content. */
+.panelContainer {
+    display: flex;
+    justify-content: space-evenly;
+    gap: 10px;
+    margin: 10px;
+
+    flex: 1;
+    min-height: 0;
+}
+
+.panel {
+    background-color: #FFFFFF;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+    border-radius: 10px 10px 3px 3px;
+    flex-grow: 1;
+    flex-basis: 0;
+
+    /* A column of [header, body] so the body can be the part that grows. */
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* The shell's mount points for the tabbed bodies sit BETWEEN .panel and
+   .panelBody, so they have to pass the height through — a plain div here would
+   size to its content and the .panelBody inside it would never know how tall it
+   was allowed to be. */
+#inputBodies,
+#settingBodies {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* The one scrolling element in the app. Takes the height its panel has left and
+   overflows inside it — never a max-height guessed from the viewport, which is
+   what the chrome above it costing 8px more than the guess used to turn into a
+   page scrollbar. */
+.panelBody {
+    padding: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    flex: 1;
+    min-height: 0;
+}
+
+/* ONE HEADER BAR IN TWO VARIANTS. The tab bar over the input panel and the copy
+   bar over the report are the same dark strip; they sit side by side at the same
+   y, so any difference in height or type reads as a mistake rather than as a
+   distinction. Every number that has to agree is therefore declared once, here,
+   instead of in two rules free to drift — which is exactly what had happened: the
+   copy bar carried 16px text where the tabs carry 13px, which wrapped "Copy
+   Microscopic" onto a second line and left the bar 14px taller than the one
+   beside it.
+
+   The bar is dark; inactive tabs sit slightly recessed on it; the active tab is
+   white with rounded top corners so it reads as connected to the panel body.
+
+   --headerBarPad is the strip of bar ABOVE the tabs, which is what makes them
+   look inset on it. The copy buttons do not sit on the bar, they ARE the bar
+   from top to bottom, so that strip becomes part of their own padding instead of
+   the container's. Written as a sum of the same two variables rather than as
+   14px, which is how the two bars stay the same height and — because the extra
+   is all above the text — how the two bars' TEXT lands on the same line. */
+:root {
+    --headerBarPad: 6px;
+    --headerItemPadY: 8px;
+}
+
+.panelHeader,
+.copyHeader {
+    background-color: #2c3c4e;
+    display: flex;
+    color: #FFFFFF;
+    /* Matches .panel's top radius so the dark bar doesn't poke out square. */
+    border-radius: 10px 10px 0 0;
+    /* A header is not the part that gives. Both bars are flex items of a .panel
+       column, so both would shrink under a short viewport — and they shrank by
+       DIFFERENT amounts, since the copy button's height is padding it can be
+       squeezed out of while a tab's is its content. .panelBody is the thing that
+       is supposed to absorb it, and it already scrolls. */
+    flex: none;
+}
+
+/* Tabs hang off the bottom edge with air above and between them — that is the
+   tab shape. */
+.panelHeader {
+    align-items: flex-end;
+    gap: 4px;
+    padding: var(--headerBarPad) var(--headerBarPad) 0;
+}
+
+/* NO PADDING AT ALL: the buttons run the bar's full height and its full width,
+   so their dividers reach the top edge and the two end buttons reach the left and
+   right edges. Combined with `overflow: hidden`, that is what makes a hover on
+   the first or last button take the bar's ROUNDED CORNER rather than stopping
+   short of it as a rectangle — the highlight is the shape of the bar's end, not a
+   block sitting inside it. The tab bar keeps its --headerBarPad inset, because
+   there the point is the opposite: tabs are meant to look laid ON the bar. */
+.copyHeader {
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* The bar's ITEMS, tab or button. Scoped to their bars so the page-tab icons in
+   the navbar keep their own styling, and specific enough to beat the generic
+   .underline / .clicked / .unclicked rules further down.
+
+   The transparent top border reserves the tab accent stripe's space so a tab
+   does not change height when it is activated. The copy buttons have no stripe
+   and keep the border anyway: sharing the whole box model is what makes the two
+   bars provably the same height, where matching padding by arithmetic is a sum
+   somebody has to redo every time either one changes. */
+.panelHeader .headerTab,
+.copyHeader .copyButton {
+    flex: 1 1 0;
+    width: 0;
+    box-sizing: border-box;
+    text-align: center;
+    padding: var(--headerItemPadY) 6px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    border-top: 3px solid transparent;
+
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Hover is the same wash on both: come up to full white. Where it is PAINTED is
+   not the same, and should not be — see the copy button's own rule below. */
+.panelHeader .headerTab.unclicked:hover,
+.copyHeader .copyButton:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+    color: #FFFFFF;
+}
+
+.panelHeader .headerTab {
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+}
+
+.panelHeader .headerTab.unclicked {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.panelHeader .headerTab.clicked {
+    background-color: #FFFFFF;
+    color: #2c3c4e;
+    font-weight: bold;
+    border-top: 3px solid #2CEDF1;
+}
+
+/* NOT tabs, so no tab shape: no recessed background at rest, no rounded top
+   corners, nothing that would suggest one of them is the one you are on. They
+   are five equal actions, and a hairline between them is all the separation five
+   equal actions need — the tab bar's 4px gap would read as five loose tabs.
+
+   EVERY button carries the left border and the first one's is transparent, which
+   is the same move as the accent stripe above and is here for the same reason.
+   Putting it only on `+ .copyButton` made the four bordered ones 1px wider than
+   the first (measured: 144.8 against 145.8) — `flex: 1 1 0` shares out the space
+   between the borders, so a border only some items have is a width only some
+   items have. Reserving it on all five makes them equal by construction.
+
+   The extra top padding is --headerBarPad: the strip of bar the tabs are inset
+   below becomes part of the button, so the button spans the bar top to bottom
+   and its divider reaches the top edge. */
+.copyHeader .copyButton {
+    border-left: 1px solid transparent;
+    padding-top: calc(var(--headerItemPadY) + var(--headerBarPad));
+}
+
+.copyHeader .copyButton + .copyButton {
+    border-left-color: rgba(255, 255, 255, 0.18);
+}
+
+/* NO RADIUS ON HOVER. A rounded top on a highlighted cell is the tab shape, and
+   these are not tabs — it read as "this one is selected" on a bar where nothing
+   ever is. The wash fills the cell corner to corner instead: full bar height,
+   full column width, square. The bar's own rounded corners still clip it at the
+   two ends, which is what .copyHeader's overflow: hidden is for. */
+.copyHeader .copyButton:hover {
+    border-radius: 0;
+}
+
+/* --- Tabs and icons ------------------------------------------------------ */
+
+.titleIcon {
+    font-size: 18px;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 8px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.navbarIcon:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.headerIcon {
+    padding-right: 5px;
+}
+
+/* CHROME IS NOT PROSE, so none of it takes a text selection.
+
+   A tab, a copy button and a drawer link are all <div>s and <a>s — clickable
+   things that happen to be made of text — and a double-click on one selects its
+   label instead of doing anything, which then sits highlighted until you click
+   elsewhere. Tabs are where it shows up most because a second click on the tab
+   you are already on is a natural thing to do.
+
+   Not a new idea in this file, just an unfinished one: every other click target
+   here already says this (`.chip`, `.toggleSwitch`, `.toggleText`). The category
+   is "you click it, you never read from it", and everything in it should be in
+   this rule. Real prose — the report panel, the help text — must stay selectable,
+   which is why this names the three chrome classes rather than reaching for
+   something broad like `body`.
+
+   Keyed on `.headerTab` because that is the class every tab in every group
+   already carries as the switcher's contract (see Template.js), so a tab added
+   later is covered without anyone remembering this rule exists. */
+.headerTab,
+.copyButton,
+.navItem {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.underline {
+    padding: 5px;
+    cursor: pointer;
+    flex: 1 1 0;
+    width: 0;
+    text-align: center;
+    border-bottom: 4px solid #2CEDF1;
+}
+
+.clicked {
+    color: #2CEDF1;
+}
+
+.unclicked {
+    color: white;
+    border-bottom: none;
+}
+
+.unclicked:hover {
+    color: #2CEDF1;
+}
+
+/* Everything a copy button looks like now lives with the header bars above, so
+   the two bars cannot drift apart again. Nothing left here. */
+
+/* --- Toast notification -------------------------------------------------- */
+
+#alert {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background-color: #ffffff;
+    color: #333333;
+    padding: 16px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-left: 5px solid #28a745;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 9999;
+
+    transform: translateY(150px);
+    opacity: 0;
+    pointer-events: none;
+
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                opacity 0.4s ease;
+}
+
+#alert.error {
+    border-left: 5px solid #dc3545;
+}
+
+#alert.show {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+
+/* ============================================================================
+   2. REUSABLE PRIMITIVES
+   Nothing in the skeleton uses these yet. They are the generic building blocks
+   the report forms were made of, kept so rebuilt forms inherit the same look.
+   ========================================================================= */
+
+.flex {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+/* Label column + control column — the standard two-column form row. */
+.lowerGrid {
+    display: grid;
+    grid-template-columns: 200px auto;
+    column-gap: 20px;
+}
+
+.panelFormat {
+    background-color: #FFFFFF;
+    font-size: 10pt;
+}
+
+/* Key-input cue: a green box round the inputs the current workup turns on, set
+   by the template-type map in MarrowReport.js on any [data-key] element. The
+   old app's green, because it was the right colour for it — this is the same
+   "look here" and reads as such at a glance.
+
+   Round the INPUTS, never the label: the box points at what you are being asked
+   to fill, and a box round the word "Hemoglobin" points at nothing.
+
+   Purely advisory: nothing is hidden or disabled. It clears the moment anything
+   inside is answered — see the :has() rule below.
+
+   THE BOX IS A SHADOW, NOT A BORDER, and that is load-bearing. A border plus
+   padding would need a negative margin to cancel it (the old app did exactly
+   that), and on .matrixControls — a subgrid — padding would shift its tracks and
+   pull every chip in the row out of line with the rows above. A spread shadow
+   draws entirely outside the box model: two rings, the tint first and the green
+   edge past it, so it cannot move anything it is drawn on. The highlighted set
+   changes under the cursor as you pick a template type; nothing may jump when it
+   does.
+
+   `[data-key]` is in the selector to win on specificity rather than source
+   order, from wherever this sits in the file. */
+/* The box reaches 3px past its element — 2px of tint and the green edge at 3px,
+   which is the old app's 2px padding + 1px border. It MUST stay inside half the
+   row gap (8px, so 3 + 3 leaves 2px of air): a shadow ignores layout, so a box
+   bigger than the gap silently overlaps the row above and below, and "general"
+   lights three consecutive rows. */
+[data-key].keyInput {
+    background-color: #d4f4dd;
+    border-radius: 3px;
+    box-shadow: 0 0 0 2px #d4f4dd, 0 0 0 3px #3a9d5d;
+
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Answered, so the cue has done its job and gets out of the way. It fades
+   rather than vanishing: the eye is on the chip you just clicked, and something
+   disappearing beside it is a flinch you have to look up to explain.
+
+   CSS, not JS, and that is the point: the box clears however the answer arrived
+   — a click, a pasted CBC filling half the tab at once, anything later. The
+   alternative is re-running a check from every place that can touch an input,
+   which is a list that only grows and is only ever noticed when something is
+   missing from it. The same reason .chipWrap:has() reveals the qualifier chips.
+
+   A <select> always has a checked option — the empty "—" is one — so it cannot
+   ask :has(:checked) whether it has been answered. It has to ask whether the
+   checked option is a real one, which is what excluding [value=""] does.
+
+   .chipQualInput is excluded because A QUALIFIER IS NOT AN ANSWER: "mild" does
+   not answer "is there anemia?". It also outlives the answer it graded — the
+   severity is hidden rather than cleared when its count goes, and a descriptor's
+   qualifier stays checked behind a display:none when the descriptor is unticked
+   — so counting one would leave a row looking answered by a chip that is not
+   even on screen. Click Anemia, click Mild, click Anemia off: the box comes
+   back, because Mild was never the answer. */
+[data-key].keyInput:has(input:checked:not(.chipQualInput)),
+[data-key].keyInput:has(option:not([value=""]):checked) {
+    background-color: transparent;
+    box-shadow: none;
+}
+
+/* .findingChips fills its 1fr column, so its box would span the panel rather
+   than hug the chips. Shrinking it moves nothing: the chips are flex-start, and
+   nothing sits to their right. The matrix rows need no such thing — their
+   columns are content-sized, so the span already hugs. */
+.findingChips.keyInput {
+    width: fit-content;
+    max-width: 100%;
+}
+
+/* A subdivision of one row: the platelet row asks TWO questions on one line —
+   how many, and what they look like — so it takes two boxes rather than one
+   spanning both. See the note on the lineage matrix (.matrixControls), which
+   splits the same way for the same reason.
+
+   The COUNT half only — the morphology half wears .matrixMorph, the same class
+   as every lineage's, so the two cannot be formatted differently. This is the
+   counterpart of .matrixControls, and centres for the same reason that one
+   baselines: it holds one row of equal-height chips and nothing that grows.
+
+   No `width: fit-content` needed, unlike .findingChips above: this is a flex
+   child, so it is already sized by its contents. */
+.chipSet {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* --- Form sections ------------------------------------------------------- */
+
+/* Stacked section label. Preferred over .lowerGrid where the controls want the
+   panel's full width — .lowerGrid spends a fixed 200px on the label column. */
+.fieldBlock {
+    margin-bottom: 18px;
+}
+
+.fieldLabel {
+    font-weight: bold;
+    font-size: 13px;
+    color: #2c3c4e;
+    margin-bottom: 7px;
+}
+
+/* --- Toggle chips -------------------------------------------------------- */
+
+/* A checkbox/radio rendered as a click-anywhere pill: a much larger hit target
+   than a ~13px native box, and it lays out horizontally instead of stacking.
+   Structure is <input class="chipInput"><label class="chip">, which must stay
+   ADJACENT — the styling keys on the + combinator and on :checked.
+
+   The input is taken out of flow rather than display:none'd, which would drop
+   it from the accessibility tree and from keyboard focus. */
+.chipRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.chipInput {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+    margin: 0;
+}
+
+/* Padding is a third of the chip, not half of it. At 7px/13px a chip was 31.6px
+   tall to carry 15.6px of text — more empty space than content, and half again
+   the height of the dropdown sitting next to it in the same row. It is still a
+   far bigger target than the ~13px native box it replaces, which is the only
+   thing the padding was ever for: ~24px tall and ~20px wider than its label,
+   against a native checkbox's 13px square. Being generous past that point buys
+   nothing and costs a row of the panel every few questions. */
+.chipInput + .chip {
+    display: inline-block;
+    padding: 3px 9px;
+    border: 1px solid #C7D0DA;
+    border-radius: 999px;
+    background-color: #FFFFFF;
+    color: #2c3c4e;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.chipInput + .chip:hover {
+    border-color: #2c3c4e;
+    background-color: #EEF1F4;
+}
+
+.chipInput:checked + .chip {
+    background-color: #2c3c4e;
+    border-color: #2c3c4e;
+    color: #FFFFFF;
+}
+
+/* Partial state, used by the "All" chip when only some parts are checked.
+   Scoped to checkboxes on purpose: a radio group with nothing selected also
+   matches :indeterminate, which would grey out every untouched radio chip. */
+input[type="checkbox"].chipInput:indeterminate + .chip {
+    background-color: #DCE3EA;
+    border-color: #8FA2B5;
+    color: #2c3c4e;
+}
+
+.chipInput:focus-visible + .chip {
+    outline: 2px solid #0075FF;
+    outline-offset: 2px;
+}
+
+/* --- Segmented toggle group ---------------------------------------------- */
+
+/* A TOGGLE GROUP renders as one segmented control — "Anemia | Adequate |
+   Polycythemia" as a single pill divided by hairlines, not three pills with air
+   between them. Two things it buys, and the second is the bigger one:
+
+   Horizontally, a group stops paying for the gaps between its own members and
+   for the doubled borders where two of them meet — (n-1) * (gap + 1px) back per
+   group, on a panel whose rows are measured in what fits on one line.
+
+   And it says what a gap could not: these are ALTERNATIVES. One box means one
+   answer, so a group cannot be mistaken for a run of independent switches — the
+   exact confusion the aspirate's two unrelated pills caused when they shared a
+   row. Membership is now drawn rather than merely meant.
+
+   Only for chips that are ONE data-toggle group and CONTIGUOUS siblings. A
+   multi-select set (a stop chip and its descriptors) must stay separate pills:
+   segmenting it would promise an exclusivity it does not have. So this class is
+   applied by the toggle-row helpers, never by hand — a chip emitted on its own
+   (bloodToggleChip into a .matrixCell) never reaches it. See the matrix note in
+   .matrixCell > .chip for why those stay loose.
+
+   The separator IS the shared border: -1px pulls each segment onto its
+   neighbour's edge so the two 1px borders paint as one hairline, which is also
+   what keeps a segmented group from being (n-1)px wider than it looks. */
+.chipGroup {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+}
+
+/* THE SEGMENT SHAPE, stated once for both ways a group is laid out.
+
+   A group is inline (.chipGroup, a flex run of input+label pairs) or it is a
+   MATRIX ROW, whose chips are grid cells in .matrixControls and cannot be
+   wrapped — a wrapper would be one cell where there were three, and the columns
+   that let you scan "which lineages did I comment on" down the panel would go
+   with it. So the matrix is segmented STRUCTURALLY instead: an inner edge is
+   wherever two .matrixCells are ADJACENT SIBLINGS.
+
+   Stating it that way is what makes the sparse rows come out right without
+   knowing anything about them. Monocytes offer Low and High but no Normal, so
+   the row is cell, empty div, cell: neither chip has a .matrixCell beside it,
+   both keep both round ends, and the hole between them stays a hole. Blasts
+   offer all five and come out as one control. Nothing had to be told which rows
+   are which — and a lineage that gains or loses an option is still right. */
+.chipGroup > .chipInput:not(:first-of-type) + .chip,
+.matrixCell + .matrixCell > .chip {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.chipGroup > .chipInput:not(:last-of-type) + .chip,
+.matrixCell:has(+ .matrixCell) > .chip {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* THE SEPARATOR IS ONE SHARED BORDER, reached two different ways because the two
+   layouts are two different things — not because anything drifted.
+
+   Inline, the segments are FLEX items laid out by flow, so -1px genuinely pulls
+   each onto its neighbour's edge: the two 1px borders paint as one hairline and
+   the group ends up (n-1)px narrower, which is width actually saved.
+
+   In the matrix they are GRID items sitting in fixed tracks. A negative margin
+   there saves nothing — column-gap: 0 already closed the tracks up — and it
+   knocks the item 1px off its column, which measured as the High chips landing
+   at x=218 on the rows that offer Low|Normal|High and x=219 on the rows that
+   start their run at High. One pixel, invisible, and still the exact thing the
+   columns exist to prevent. So the matrix drops the doubled border instead and
+   lets the neighbour's right border be the seam: every chip stays on its track
+   to the pixel. */
+.chipGroup > .chipInput:not(:first-of-type) + .chip {
+    margin-left: -1px;
+}
+
+.matrixCell + .matrixCell > .chip {
+    border-left: 0;
+}
+
+/* A SEAM HAS ONE LINE AND IT BELONGS TO THE CHIP ON ITS LEFT, so a chip that
+   asserts itself — hovered, or checked — cannot colour its own left edge: it does
+   not have one. Without these two rules such a chip shows its dark outline on
+   three sides and a stale pale line on the fourth, which is what a hovered
+   template option looked like.
+
+   So the neighbour lends its right border for the duration. `:has(+ …)` is what
+   makes that expressible — it selects the chip BEFORE the one in the state, which
+   no combinator can do. The alternatives are both worse: restoring border-left
+   would put a second 1px line at the seam and shove the label half a pixel, and
+   an inset shadow or an outline would draw the dark line INSIDE this chip while
+   the neighbour's pale one still sits outside it — a 2px seam either way. Lending
+   the existing line keeps every seam exactly 1px, in exactly one place, and
+   changes no geometry at all.
+
+   Inline groups need none of this: their segments keep all four borders and
+   overlap by -1px, so a hovered one lifts on z-index and paints its own ring. */
+.matrixCell:has(+ .matrixCell > .chip:hover) > .chip {
+    border-right-color: #2c3c4e;
+}
+
+.matrixCell:has(+ .matrixCell > .chipInput:checked) > .chip {
+    border-right-color: #2c3c4e;
+}
+
+/* With the borders overlapped, whichever segment paints LAST owns the shared
+   hairline — and source order gives that to the one on the right, so a checked
+   or hovered segment would have its own outline cut off by an inert neighbour.
+   Both states lift out of the flow's paint order to take it back; focus sits
+   above both, so the ring is never clipped by either. */
+.chipGroup > .chipInput:checked + .chip,
+.chipGroup > .chipInput + .chip:hover,
+.matrixCell > .chipInput:checked + .chip,
+.matrixCell > .chipInput + .chip:hover {
+    position: relative;
+    z-index: 1;
+}
+
+.chipGroup > .chipInput:focus-visible + .chip,
+.matrixCell > .chipInput:focus-visible + .chip {
+    position: relative;
+    z-index: 2;
+}
+
+/* Separates a chip from the group it governs (e.g. "All" from the parts). */
+.chipDivider {
+    width: 1px;
+    height: 24px;
+    background-color: #D6DEE6;
+    margin: 0 3px;
+}
+
+/* --- Toggle switch ------------------------------------------------------- */
+
+/* A checkbox rendered as a sliding switch, for on/off preferences (settings).
+   Same contract as chips: <input class="toggleInput"><label class="toggleSwitch">
+   must stay ADJACENT siblings, and the input is moved out of flow rather than
+   display:none'd so it keeps keyboard focus and accessibility.
+   The label's ::before is the track, ::after the knob. */
+.toggleInput {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+    margin: 0;
+}
+
+.toggleInput + .toggleSwitch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    color: #2c3c4e;
+    padding: 4px 0;
+}
+
+.toggleInput + .toggleSwitch::before {
+    content: "";
+    flex: none;
+    width: 38px;
+    height: 20px;
+    border-radius: 999px;
+    background-color: #C7D0DA;
+    transition: background-color 0.15s ease;
+}
+
+.toggleInput + .toggleSwitch::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #FFFFFF;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    transform: translateY(-50%);
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.toggleInput + .toggleSwitch:hover::before {
+    background-color: #B3BFCC;
+}
+
+.toggleInput:checked + .toggleSwitch::before {
+    background-color: #2c3c4e;
+}
+
+.toggleInput:checked + .toggleSwitch:hover::before {
+    background-color: #3d536b;
+}
+
+.toggleInput:checked + .toggleSwitch::after {
+    transform: translate(18px, -50%);
+    background-color: #2CEDF1;
+}
+
+.toggleInput:focus-visible + .toggleSwitch::before {
+    outline: 2px solid #0075FF;
+    outline-offset: 2px;
+}
+
+/* --- Toggle field: a statement, then its switch --------------------------- */
+
+/* The settings toggle above puts the switch FIRST and carries its text inside
+   the same label. A switch on an INPUT TAB reads the other way round: it is a
+   statement about the case ("Performed on touch preparation") and the switch is
+   the answer to it, so the text leads and the switch follows it.
+
+   That cannot be had by reversing .toggleSwitch. The knob (::after) is positioned
+   from the LABEL's left edge, which coincides with the track's only while the
+   track is the first thing in the label — flex-direction: row-reverse moves the
+   track to the right and leaves the knob behind, on its own at the left. So the
+   text moves OUT into a label of its own and .toggleSwitch stays empty and
+   unreversed, still owning both track and knob.
+
+   TWO labels, ONE input: both are hit targets, so the text still toggles the
+   switch — the thing a bare <span> would have quietly cost. The input stays
+   ADJACENT to .toggleSwitch, which is the contract every rule above keys on;
+   only the text label may come before it. */
+.toggleFieldRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    /* Centred in the panel: these two switches are the tab's preamble, not part
+       of the labelled form below, so they read as a header rather than lining up
+       under the label column. */
+    justify-content: center;
+    /* Two statements share this line, so the gap BETWEEN a pair and the next has
+       to beat the gap INSIDE a pair — otherwise the middle switch sits equidistant
+       from both texts and reads as belonging to either. That is the whole reason
+       these two numbers are not the same number. */
+    column-gap: 28px;
+    row-gap: 0;
+}
+
+.toggleField {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Matches .toggleInput + .toggleSwitch's type spec — it is the same text, only
+   now in its own element. */
+.toggleText {
+    font-size: 13px;
+    color: #2c3c4e;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* --- Report data table (shared) ------------------------------------------ */
+
+/* The report-side table shape, shared by every collapsible result block: the
+   CBC/auto-differential pair and the manual differential counter, with the
+   aspirate differential to follow. Name / value / unit in three columns under
+   a dark header row whose first cell doubles as the collapse toggle.
+
+   The split from the .cbc* rules below falls on a real seam: everything here
+   is "a table of results", everything there is CBC-specific (its two-up grid,
+   the collected date, the H/L abnormal flags — a differential has no H/L).
+
+   All styling lives on .dataTable. The WRAPPER class is deliberately NOT
+   shared: each consumer keeps its own (.cbcGroup, .counterGroup), because
+   that is what the delegated collapse handlers key on. Sharing it would make
+   every block's handler toggle every other block. */
+
+/* Collapse/expand toggle, living inside the table's dark header cell. A real
+   <button> so the toggle is keyboard- and screen-reader-operable; clicks
+   anywhere else on the table reach the same delegated handler. Styled back
+   down to plain header text. */
+.dataToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0;
+    background: none;
+    border: none;
+    font-family: inherit;
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
+}
+
+.dataToggle:hover .dataCaption {
+    text-decoration: underline;
+}
+
+.dataToggle:hover .dataChevron {
+    color: #FFFFFF;
+}
+
+.dataToggle:focus-visible {
+    outline: 2px solid #0075FF;
+    outline-offset: 2px;
+}
+
+.dataChevron {
+    font-size: 10px;
+    width: 10px;
+    color: #A9B6C3;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+
+/* Points down when open, right when closed. */
+.dataToggle[aria-expanded="false"] .dataChevron {
+    transform: rotate(-90deg);
+}
+
+.dataCaption {
+    font-weight: bold;
+    font-size: 11px;
+}
+
+/* table-layout: fixed + the percentage widths on the value/unit headers below
+   give side-by-side tables identical column widths whenever their wrappers are
+   equally wide. The whole table is a click target for collapse/expand, hence
+   the pointer. */
+/* Square, not rounded — every result block, CBC and differential alike. These
+   are tables of numbers being read against each other, and a square corner is
+   what lets two of them sit edge to edge and read as one grid. (The rounding
+   needed `overflow: hidden` to clip the header's corners; with no radius there
+   is nothing to clip, so both go.) The chips and tiles on the input side keep
+   their radius: those are things you press, and these are not. */
+.dataTable {
+    table-layout: fixed;
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+}
+
+/* The block name doubles as the first column's header, saving a row. */
+.dataTable th {
+    background-color: #2c3c4e;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: bold;
+    text-align: left;
+    padding: 5px 8px;
+    white-space: nowrap;
+}
+
+/* The first column is not sized for the row names — it is sized for the BLOCK
+   HEADER sitting in it, which is the longest thing in every one of these
+   tables. "Differential 03/14/2026 09:12" and "Manual Differential (1000
+   cells)" both run past 200px; the longest row name ("Absolute Immature
+   Granulocytes") is about the same; and none of it wraps, because th and .dataName
+   are nowrap under `table-layout: fixed` — so a first column that is too narrow
+   does not reflow, it spills or ellipsizes.
+
+   Which leaves 20% each for the other two, and that is plenty: the values here
+   are "11.4 H" and "45.0%", and the units "K/uL" and "34 - 73%". The old 27%
+   split gave the widest column to the narrowest content.
+
+   Percentages rather than pixels, so two tables sharing a row match each
+   other — and so the manual differential below them matches both. */
+.dataValueHead,
+.dataUnitHead {
+    width: 20%;
+}
+
+/* Belt and braces: UA tbody[hidden] should hide on its own, but keep the
+   collapse working even if a display rule is ever added for tbody. */
+.dataTable tbody[hidden] {
+    display: none;
+}
+
+.dataTable td {
+    padding: 3px 8px;
+    border-bottom: 1px solid #EDF1F4;
+    white-space: nowrap;
+}
+
+/* Fixed layout means the name column no longer sizes to its content; ellipsis
+   instead of clipping if the panel gets too narrow for the longest names. */
+.dataName {
+    color: #2c3c4e;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Left-aligned like everything else; tabular figures so digits still line up
+   down the column. */
+.dataValue {
+    font-variant-numeric: tabular-nums;
+    font-weight: bold;
+    color: #2c3c4e;
+}
+
+.dataUnit {
+    color: #7A8794;
+    font-size: 11px;
+}
+
+/* --- CBC table (CBC-specific) -------------------------------------------- */
+
+/* Collected date, shown beside each group name so a mismatched draw (e.g. a
+   newer CBC without a differential) is visible per table. */
+.cbcDate {
+    font-weight: normal;
+    font-size: 10px;
+    color: #C9D4DE;
+}
+
+/* The report's result blocks share one width and one gutter, declared here
+   because the manual differential is sized FROM them: it sits under the
+   automated differential and has to be a column of the same grid, not a slab of
+   its own width. See .counterGroup. */
+:root {
+    --reportBlock: 780px;
+    --reportGap: 14px;
+}
+
+/* The two groups (CBC | Differential) sit side by side: halves the block's
+   height and spends width the report panel has spare. Wraps back to stacked
+   if the panel gets narrow.
+
+   The margin-bottom is the on-screen gap between the CBC block and the
+   differential count tables that follow it. It sits HERE, not on the tables:
+   they are report output copied verbatim (their spacing is the trailing <br>
+   the old app used), where this block is screen chrome and free to carry
+   layout. */
+.cbcGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--reportGap);
+    align-items: flex-start;
+    max-width: var(--reportBlock);
+    margin-bottom: var(--reportGap);
+}
+
+/* Also the hook the CBC collapse handler keys on — see the wrapper note above. */
+.cbcGroup {
+    flex: 1 1 300px;
+    min-width: 0;
+}
+
+/* Abnormal rows are tinted end to end and carry a colored leading edge, so an
+   elevated/decreased value is findable without reading any of them. Applied to
+   the cells rather than the row: cell backgrounds paint over row backgrounds,
+   so this can't be undercut by any row-level rule added later.
+
+   Color is never the only cue — the H/L letter survives grayscale and
+   color-vision deficiency. */
+.dataTable tr.cbcRowHigh td {
+    background-color: #FCEBE9;
+}
+
+.dataTable tr.cbcRowLow td {
+    background-color: #E9F0FC;
+}
+
+/* inset shadow rather than border-left: no 3px layout shift on the cell. */
+.dataTable tr.cbcRowHigh td:first-child {
+    box-shadow: inset 3px 0 0 #C0392B;
+}
+
+.dataTable tr.cbcRowLow td:first-child {
+    box-shadow: inset 3px 0 0 #1F6FEB;
+}
+
+.dataValue.cbcHigh {
+    color: #C0392B;
+}
+
+.dataValue.cbcLow {
+    color: #1F6FEB;
+}
+
+.cbcFlag {
+    display: inline-block;
+    min-width: 9px;
+    margin-left: 5px;
+    font-size: 10px;
+}
+
+/* --- Differential counter ------------------------------------------------ */
+
+/* Built for one posture: eye at the microscope, hand on the keyboard. The
+   screen matters for three moments only — learning the bindings, checking
+   progress, reading the final numbers — and the layout is ordered by those.
+
+   The pad and its side rail (running count over the target picker) sit as one
+   centered row; the tape spans the full panel width below them. */
+.counterMain {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+/* Current count over desired count, beside the pad — one line each, label then
+   value. Both are labeled: the pair is only readable at a glance if you never
+   have to work out which number is which. Kept at text size — the count is
+   checked between fields, not read from across the room, and a display-size
+   number just steals width from the pad.
+
+   Two columns rather than four stacked cells, so the two values line up under
+   each other instead of each starting wherever its label happens to end — the
+   count and the target are the same kind of thing and have to read as a pair.
+
+   The ROW template and row-gap are the pad's own, set inline from the layout
+   data (see rowTemplate() in MarrowCounter.js), so each line is exactly one
+   tile tall and sits ON a tile's row rather than near it; only the column gap
+   belongs to this rule, which is why the inline style sets row-gap and not the
+   gap shorthand. `align-items: center` is what puts each line's text on its
+   row's centerline; without it they would stretch and the text would ride the
+   row's top edge. */
+.counterSide {
+    display: grid;
+    grid-template-columns: auto auto;
+    /* Reads wider than it looks: the values carry 7px of their own left inset
+       (border + padding, the thing that lines them up), which is part of the
+       gap the eye actually sees. */
+    column-gap: 6px;
+    justify-items: start;
+    align-items: center;
+}
+
+.counterStatLabel {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #A9B6C3;
+    white-space: nowrap;
+}
+
+/* The two values must read as the same KIND of thing, so the count and the
+   target select share one type spec — see .counterCount, .counterTarget. One
+   is static text and the other a <select>, which is exactly why this is spelled
+   out on both rather than inherited: a <select> does not inherit font from its
+   container.
+
+   THE BOX MODEL IS SHARED FOR THE SAME REASON THE FONT IS. The two numbers sit
+   in one column and must start at the same x — one under the other, or the pair
+   stops reading as a pair. A number's left edge is border-left + padding-left,
+   so those two values are declared HERE, once, for both. The count's border is
+   transparent and exists only to reserve the width of the select's: it is what
+   the alignment is made of, not decoration, and dropping it slides the two
+   numbers 1px out of true. Anything either rule below adds must leave both
+   untouched — .counterTarget's own padding-right (chevron room) is fine
+   precisely because the right edge is not what lines up. */
+.counterCount,
+.counterTarget {
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: bold;
+    line-height: 1.2;
+    color: #2c3c4e;
+    font-variant-numeric: tabular-nums;
+
+    box-sizing: border-box;
+    margin: 0;
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+}
+
+/* Target reached. A peripheral-vision signal — catchable without looking away
+   from the scope. Same accent the old progress bar used when it filled. */
+.counterCount.done {
+    color: #2CEDF1;
+}
+
+/* Outlined like a key tile — same border, same radius, same white — because it
+   sits on a tile's row among tiles, and a value you can change should look like
+   the things around it rather than like a form control that wandered in.
+   Deliberately NOT .select (fixed 200px, for full-width form rows).
+
+   `appearance: none` is not a preference here, it is the price of both of the
+   above: a native menulist ignores border and background-color outright on
+   macOS, and insets its own text by an amount no author rule can predict or
+   match — so the outline could not be drawn and the number could not be lined
+   up. Turning it off means the box is ours: border + padding and nothing else,
+   which is exactly what the shared rule above assumes. The chevron is then ours
+   to draw too, hence the inline SVG (a data URI, so the page stays
+   self-contained) and the padding-right that reserves its corner. */
+.counterTarget {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: auto;
+    padding-right: 24px;
+    border-color: #C7D0DA;
+    background-color: #FFFFFF;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235A6B7D' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 9px;
+    cursor: pointer;
+
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.counterTarget:hover {
+    border-color: #2c3c4e;
+    background-color: #F5F8FA;
+}
+
+.counterTarget:focus {
+    outline: none;
+    border-color: #2c3c4e;
+    box-shadow: 0 0 0 3px rgba(44, 60, 78, 0.12);
+}
+
+/* grid-template-columns and gap are set INLINE from the layout data
+   (KEY_WIDTH / KEY_GAP in MarrowCounter.js), not here: the column count is
+   user-configurable, which is exactly why .chipMatrix (hard coded to
+   `auto repeat(4, auto)`) cannot be reused for this. */
+.keypad {
+    display: grid;
+    justify-content: start;
+}
+
+/* A gap in the layout. Empty, but present, so the grid keeps its shape. */
+.keyBlank {
+    display: block;
+}
+
+/* The tile, in both its forms: .key on the counter, .keyEdit in the settings.
+   One box rule because they are meant to be the same object seen twice — the
+   settings pad IS the counter's pad with each label turned into a picker, and a
+   second box here would let them drift apart at the first tweak.
+
+   No width or height: the tile stretches to its grid track, so KEY_WIDTH /
+   KEY_HEIGHT in MarrowCounter.js are the only place the pad's geometry is
+   stated and there is nothing to keep in step. */
+.key,
+.keyEdit {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    gap: 6px;
+    padding: 4px 7px;
+    border: 1px solid #C7D0DA;
+    border-radius: 7px;
+    background-color: #FFFFFF;
+}
+
+/* .key only: a READOUT, not a control. Counting is keyboard-only, so nothing on
+   the COUNTER's tile may promise a click: no <button>, no cursor: pointer, no
+   :hover, no :active. A tile that responds to the mouse invites a mis-aimed
+   click, and a mis-aimed click is a silent miscount. (The old app had the
+   opposite failure: an <input> that looked editable and did nothing.) The
+   settings tile is the one place the mouse is welcome — there, changing a
+   binding IS the job, and no count can be corrupted by it.
+
+   One line: cap, name, percent. Labels are abbreviated on purpose, but the
+   abbreviation must always be whole — "Promyelo", never "Prom…" — which is what
+   KEY_WIDTH is sized for. The name flexes and the percent is pinned right at a
+   fixed width, so the percents form a clean column down the pad even though the
+   names are ragged. */
+
+/* The key character, on a tinted plate so it reads as "the thing you press"
+   rather than as a number among the data. Set heavy and dark: this is what you
+   match against the keyboard while learning the bindings, so it outranks the
+   percent beside it. Fixed width, not min-width — 'P'/'A'/'O' are wider glyphs
+   than the digits, and the caps must still line up in a column. */
+.keyCap {
+    flex: none;
+    width: 18px;
+    padding: 1px 0;
+    border-radius: 3px;
+    background-color: #E4EBF1;
+    color: #2c3c4e;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.keyName {
+    flex: 1;
+    overflow: hidden;
+    font-size: 12px;
+    color: #2c3c4e;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The percent only — the running count lives in the side rail, not thirteen
+   times over on the pad. Fixed width + tabular figures so "8.4%" and "34.2%"
+   occupy the same box and the column never shifts as counts climb. Wide enough
+   for the NRBC value, which renders bare and can reach three digits per 100
+   WBC where the others cannot exceed "100.0%". */
+.keyPct {
+    flex: none;
+    width: 42px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #2c3c4e;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+/* An uncounted cell still shows its "0.0%" — it IS zero percent, and a dash
+   would make you decide whether the pad had started working. Muted rather than
+   hidden, so the eye lands on the cells that actually have counts; usually 8 of
+   13 are zero. */
+.isZero {
+    color: #C7D0DA;
+    font-weight: normal;
+}
+
+
+/* Report side: the differential tables carry NO class. They are the old app's
+   tables, inline-styled end to end (COUNTER_TABLE_* in MarrowCounter.js), so
+   they copy into Epic/Word exactly as they render. The .counterGroup /
+   .counterMeta / .counterTotal rules that used to dress them left with them;
+   .dataTable and the collapse rules above stay for the CBC block. */
+
+/* --- Counter settings ---------------------------------------------------- */
+
+/* One block per counter instance, appended to whichever settings panel the
+   instance's config names — blood today, the aspirate beside it later, sharing
+   the panel and its Save button with no coordination between them. Hence the
+   title: with two blocks in one panel, "Key bindings" alone would not say
+   whose. */
+.counterSettings {
+    max-width: 900px;
+    margin-bottom: 26px;
+}
+
+.counterSettingsTitle {
+    font-weight: bold;
+    font-size: 15px;
+    color: #2c3c4e;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #E4EBF1;
+}
+
+/* The editor IS the pad: it reuses .keypad, and its tracks are set inline from
+   the same KEY_WIDTH / KEY_GAP and the same rowTemplate() the counter's pad
+   uses, so the two cannot be laid out differently. What you arrange here is
+   what you look at down the scope, in the same shape, in the same place.
+
+   Tighter padding than .key: the tile has to hold a <select> in the same
+   KEY_HEIGHT the counter's text sits in. */
+.keyEdit {
+    padding: 4px 6px;
+}
+
+/* A free slot. Dashed rather than absent, because an empty tile is the thing
+   you are being invited to fill — that is what choosing 'Expanded' is FOR. The
+   counter draws no tile here at all; nothing to count is not nothing to
+   assign. */
+.keyEdit.isEmpty {
+    border-style: dashed;
+}
+
+.keyEdit.isEmpty .keyCell {
+    color: #A9B6C3;
+}
+
+/* Which cell this key means. Chromeless like .counterTarget, and for the same
+   reason: it should read as the tile's label — the thing the counter shows —
+   that happens to be editable, not as a form control that happens to sit on a
+   tile. */
+.keyCell {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 2px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background-color: transparent;
+    font-family: inherit;
+    font-size: 12px;
+    color: #2c3c4e;
+    cursor: pointer;
+
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.keyCell:hover {
+    border-color: #C7D0DA;
+    background-color: #F5F8FA;
+}
+
+.keyCell:focus {
+    outline: none;
+    border-color: #2c3c4e;
+}
+
+/* Keys with no tile in the current layout — P/A/O on the default pad, and
+   whatever the chosen preset leaves out. They still count when typed; they are
+   simply not on the pad, so they sit below it rather than in it. Same tile, same
+   width (tracks set inline from KEY_WIDTH), so the row reads as the pad's
+   overflow rather than as a different kind of thing. Watching keys move up into
+   the pad as the layout grows is the clearest statement of what that chip does. */
+.counterOffPad {
+    display: grid;
+    justify-content: start;
+}
+
+/* The way back from a scrambled pad. Deliberately quieter than .saveButton —
+   it reverts the controls, it does not commit anything, and Save is still the
+   only thing that writes. */
+.counterReset {
+    margin-top: 12px;
+    padding: 6px 12px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    color: #5A6B7D;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.counterReset:hover {
+    background-color: #EEF1F4;
+    border-color: #2c3c4e;
+    color: #2c3c4e;
+}
+
+/* --- Findings form ------------------------------------------------------- */
+
+/* The compact question-and-answer grid the Blood tab is built from, and the
+   reason it fits where the original's did not.
+
+   .lowerGrid spends a fixed 200px on its label column; this spends 88px, and
+   hands the rest to the chips. That is not a cosmetic saving: chips only stay
+   on one line if there is width for them, and every line they don't wrap onto
+   is ~32px of panel height the next question gets to use. Label column sized to
+   the longest label ("Lymphocytes") and no further. */
+/* ONE label column for every labelled row on the tab, whichever grid draws it —
+   .findingGrid for a one-off question, .countMatrix / .presenceMatrix for the
+   ones that repeat. Declared once because it only works if all three agree: the
+   labels share a left edge and the controls share a left edge, so the eye has
+   one line to follow down the panel instead of a new one per group.
+
+   Wide enough for the longest label, MEASURED — and the longest label is not the
+   one this comment used to name. 88px was sized for Blood's "Lymphocytes" (76px)
+   and was right for Blood; the aspirate and the core then added "Megakaryocytes"
+   (94.7px) and nothing re-checked the column, so it ran under its own chips on
+   two tabs. There is nothing to see when this goes wrong — .findingLabel has no
+   background and does not clip, so an over-long label just quietly slides beneath
+   the control beside it. Re-measure this when a label is added; the widest that
+   fits at 100px is "Megakaryocytes" with 5px to spare.
+
+   100 rather than the 95 that would just clear it: a label column is charged to
+   every row on every tab, so it should be bumped once with slack in it rather
+   than trimmed to the exact pixel and bumped again by the next long word.
+
+   Both grids take their column gap from here too, and must: the controls start
+   at label + gap, so the gap is half of what puts them on a common edge.
+   .chipMatrix has a 6px gap of its own, but that one is the Specimen tab's as
+   much as this tab's — matching it by coincidence is not the same as saying
+   these two agree. */
+:root {
+    --findingLabel: 100px;
+    --findingGap: 6px;
+    /* Also the highlight box's clearance — see [data-key].keyInput. */
+    --findingRowGap: 8px;
+}
+
+/* THE CORE TAB BUYS ITS OWN LABEL COLUMN, 8px wider than everyone else's.
+
+   "Myeloid/Erythroid" needs 100.4px and is the longest label in the app by a
+   clear margin — the next is "Megakaryocytes" at 94.7px. Widening :root to hold
+   it would charge those 8px to every row of every tab to seat one label on one
+   tab, which is the trade the 100px note above refuses. A custom property
+   INHERITS, so overriding it on the panel re-columns that tab and only that tab,
+   and .findingGrid needs no idea this happened.
+
+   What it costs, stated plainly: the tabs no longer share a left edge for their
+   controls — Blood's chips start at 106px, the core's at 114px — so switching to
+   the core shifts its controls 8px right of where the previous tab's sat. That is
+   a real thing to lose and it is the reason one shared column was the default.
+   It is affordable HERE because the tabs are never on screen together: you see
+   one panel at a time, and within the core every label and every control still
+   shares an edge, which is what the eye actually follows down a panel.
+
+   The alternative, if this is ever regretted, is to shorten the label rather than
+   re-widen the world: "Precursors" (63px) fits the shared 100px with room over.
+   Report strings are untouchable; on-screen labels are not. */
+#corePanel {
+    --findingLabel: 108px;
+}
+
+.findingGrid {
+    display: grid;
+    grid-template-columns: var(--findingLabel) 1fr;
+    align-items: baseline;
+    column-gap: var(--findingGap);
+    /* Wide enough for two highlight boxes to face each other with air between:
+       the cue reaches 3px past its row and ignores layout while doing it, so a
+       gap under 6px is a gap it overlaps. See [data-key].keyInput. */
+    row-gap: var(--findingRowGap);
+}
+
+/* Groups sit HARD against each other with only a hairline between them. There
+   are no section headings: a rule says "different thing now" without spending a
+   row saying it, and every row is already labelled with what it is. The old
+   app's `<b>Absolute Neutrophils:</b>` over a row of three radios was two lines
+   to ask one question. */
+.findingGroup + .findingGroup {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #E4EBF1;
+}
+
+/* Deliberately identical to .chipMatrixLabel: these two classes label the same
+   kind of row in two different grids, and "Hemoglobin" has no business looking
+   different from "Neutrophils" three rows below it. Left, like everything else
+   in the column — a right-aligned label puts its first letter somewhere new on
+   every row, which is the one thing a label column exists to prevent. (Not
+   merged into one class only because .chipMatrixLabel also serves the Specimen
+   tab's template matrix, which is not this.) */
+.findingLabel {
+    font-size: 13px;
+    color: #5A6B7D;
+}
+
+.findingChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+/* A row carrying a morphology cell grows downward as the list is named, so its
+   chips align like the lineage matrix's do (align-items: baseline) rather than
+   centring: centred, the platelet count chips would slide toward the middle of
+   the row as the dropdowns stacked up, while the neutrophil ones two rows above
+   stayed at the top. Baseline reaches through both flex children to their first
+   chip — the counts and the "Unremarkable" over the dropdowns — so the row's two
+   questions are asked on one line however tall the answer to the second gets.
+
+   NOWRAP for the same reason. This row is a flex line where a lineage row is a
+   grid, and the two ran out of room differently: a grid squeezes its auto columns,
+   so a narrow panel compresses the lineage's Low|Normal|High chips and leaves the
+   dropdown where it is — but a wrapping flex line drops its last item to a new
+   line that starts at the row's left edge, i.e. directly UNDER those chips. Below
+   ~1536px of viewport (a 1920 screen at Windows' 125% scaling — the common
+   default, and 384 CSS px narrower than the panel arithmetic assumes) naming a
+   platelet morphology threw the dropdown under the counts. Without wrap the chips
+   compress instead, exactly as the lineage rows do; they stop at min-content, so
+   the words stay readable, and .descRow's own wrap is the next give after that.
+
+   Every other .findingChips holds one row of equal-height chips that never grows,
+   where centring and baseline are indistinguishable and there is nothing to wrap
+   — hence :has() rather than changing the rule above, and it applies itself to
+   any later row that grows the same way. */
+.findingChips:has(.matrixMorph) {
+    align-items: baseline;
+    flex-wrap: nowrap;
+}
+
+/* Separates a chip from the group it governs, or one question's chips from a
+   sub-question's — "Anemia|Adequate|Polycythemia" from "Mild|Marked". Narrower
+   than .chipDivider's rule, which would be a lot of vertical lines at this
+   density. */
+.chipGap {
+    width: 10px;
+}
+
+/* Chips that qualify the chips before them. Grouped so they read as a
+   dependent answer rather than a fourth option, and hidden — not removed — when
+   the question they answer is not being asked, so no row moves under the
+   cursor. */
+.chipSub {
+    display: inline-flex;
+    gap: 4px;
+}
+
+/* --- Core cellularity fields --------------------------------------------- */
+
+/* The three percent entries (absolute / range / variable) on the Core tab. Each
+   is a label wrapping its own small text box(es); they wrap as a group so the
+   row degrades to two lines on a narrow panel rather than overflowing. */
+.cellPctGroup {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+}
+
+.cellField {
+    font-size: 13px;
+    color: #5A6B7D;
+    white-space: nowrap;
+}
+
+/* "or" between Absolute and Range: they are mutually exclusive, one overall
+   cellularity stated two ways. Muted, since it labels a relationship not a
+   control. */
+.cellOr {
+    font-size: 12px;
+    font-style: italic;
+    color: #A9B6C3;
+}
+
+/* A hairline before "Variable", which is a separate statement (how much the
+   cellularity varies) rather than another way to give the overall value. */
+.cellDivider {
+    width: 1px;
+    align-self: stretch;
+    background-color: #E4EBF1;
+    margin: 0 2px;
+}
+
+/* Two or three characters of percentage, no more — sized to its content so the
+   three fields stay compact side by side. Styled like the descriptor dropdowns
+   (same border and radius) so the tab reads as one set of controls. */
+.cellNum {
+    width: 34px;
+    box-sizing: border-box;
+    padding: 3px 4px;
+    margin: 0 2px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    text-align: center;
+    color: #2c3c4e;
+}
+
+.cellNum:focus {
+    outline: none;
+    border-color: #2c3c4e;
+    box-shadow: 0 0 0 3px rgba(44, 60, 78, 0.12);
+}
+
+/* Out of 0-100, or a range low above its high — the autofill will not derive
+   from it, and the red says why. The original's rgb(255, 95, 95). */
+.cellNum.cellNumBad {
+    background-color: #FF5F5F;
+    border-color: #FF5F5F;
+}
+
+/* --- Threshold settings -------------------------------------------------- */
+
+/* The CBC autofill's grading bounds. Reuses .findingGrid and .findingLabel, so
+   the settings tab reads like the tab it configures. */
+.thresholdRow {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* The bound is spelled out ("Mild ≥") rather than implied by position: which
+   side of the number a grade falls on is not guessable, and getting it backwards
+   is silent — the grade simply never fires. */
+.thresholdOp {
+    font-size: 11px;
+    color: #7A8794;
+    white-space: nowrap;
+}
+
+.thresholdOp + .thresholdInput {
+    margin-right: 8px;
+}
+
+.thresholdInput {
+    width: 64px;
+    padding: 3px 6px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    font-family: inherit;
+    font-size: 12px;
+    color: #2c3c4e;
+
+    transition: border-color 0.15s ease;
+}
+
+.thresholdInput:hover {
+    border-color: #2c3c4e;
+}
+
+.thresholdInput:focus {
+    outline: none;
+    border-color: #2c3c4e;
+    box-shadow: 0 0 0 3px rgba(44, 60, 78, 0.12);
+}
+
+.thresholdUnit {
+    font-size: 11px;
+    color: #A9B6C3;
+}
+
+/* --- Descriptor list (the growing dropdown) ------------------------------ */
+
+/* The width of the descriptor column — the dropdown, and the "Unremarkable" chip
+   standing above it. Declared once because the two must AGREE: they are one
+   column of one control, and two rules each saying 160px is two rules that drift
+   the first time one is edited. See .descSelect for where the number comes from. */
+:root {
+    --descWidth: 160px;
+    /* The Ancillary tab's abnormality dropdown. Its own number, measured against
+       its own longest option — see .ancAbnSelect for why it is not --descWidth.
+       197px is what Chrome reports; the estimate that preceded it said 224, which
+       is 27px of dead space and the third time arithmetic has been wrong in this
+       file. Measure. */
+    --abnWidth: 197px;
+}
+
+/* One row per morphology you have named, and one empty select waiting. The
+   group costs the height of what you have actually said — which is the whole
+   reason this is a dropdown and not a row of chips: seventeen red cell
+   morphologies as chips are three rows of the panel forever, named or not.
+
+   A column, not a wrap: the rows stack under each other so the selects line up
+   and each qualifier stays beside its own descriptor. */
+.descList {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: flex-start;
+}
+
+/* Wraps, so a row too cramped for its qualifiers drops them to the next line
+   rather than taking the width out of the dropdown — see .descSelect below. The
+   dropdown's width is a contract and the chips' position depends on it; a
+   wrapped row still keeps both. */
+.descRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+/* One width for every descriptor dropdown on the tab. Auto-width sized each
+   group to ITS OWN longest option, so the monocyte list came out half the width
+   of the lymphocyte one and five controls that do the same job sat at five
+   different sizes down the panel. The dropdown that OPENS is sized by the
+   browser to its content regardless, so nothing is lost by the closed one being
+   uniform.
+
+   160px, and the number is measured rather than guessed: Chrome puts the widest
+   group's intrinsic width — the longest option plus the native arrow plus the
+   padding — at 159px ("Hypersegmented forms" for neutrophils, "Predominantly
+   CLL-like" for lymphocytes, dead level). It was 176px from an estimate of
+   "~168px with its arrow" that was 17px out, and 17px of dead space to the right
+   of the longest text is 17px the qualifier chips beside it do not get. Re-measure
+   with scratchpad/selwidth.js before changing it; a guess is what put it here.
+
+   Deliberately NOT .select (fixed 200px, for full-width form rows). Styled like
+   the tiles and the target select — same border, same radius — so the tab reads
+   as one set of controls rather than as chips plus some browser furniture.
+
+   `flex-shrink: 0` IS THE WIDTH. Without it `width: 176px` is only a preference:
+   a flex item shrinks by default, so a row gave up dropdown width whenever it
+   could not fit — and how much it gave up depended on what sat beside it. A
+   descriptor with three qualifiers ("Rare | Occasional | Frequent") squeezed its
+   select harder than one with none, so down a single list the dropdowns came out
+   at several widths and every qualifier row started at a different x. Uniform
+   width is the entire point of the rule above; a flexible one is the same bug it
+   was written to fix, arriving from the other side.
+
+   `max-width` is deliberately absent for the same reason. A percentage cap
+   resolves against each row's own container, so it is one more way for two
+   dropdowns to disagree — silently, and only at some panel widths. .descRow
+   wraps instead: too little room moves the chips down, never the edge they line
+   up on. */
+.descSelect {
+    width: var(--descWidth);
+    flex-shrink: 0;
+    padding: 3px 6px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    font-family: inherit;
+    font-size: 12px;
+    color: #2c3c4e;
+    cursor: pointer;
+
+    transition: border-color 0.15s ease;
+}
+
+.descSelect:hover {
+    border-color: #2c3c4e;
+}
+
+.descSelect:focus {
+    outline: none;
+    border-color: #2c3c4e;
+    box-shadow: 0 0 0 3px rgba(44, 60, 78, 0.12);
+}
+
+/* The red cell descriptors, which live in the morphology cell under the chips
+   they belong to rather than in a row of their own — a row would need a label,
+   and the label would just repeat the chip above it. */
+.descBlock {
+    flex-basis: 100%;
+    margin-top: 3px;
+}
+
+/* --- Chip with an inline qualifier --------------------------------------- */
+
+/* A descriptor and its qualifier as ONE control: "Schistocytes" alone until you
+   pick it, "Schistocytes | Rare Occasional Frequent" once you have.
+
+   This is what replaces the old app's per-descriptor <select> row plus its
+   qualifier radio row — the qualifier costs nothing until it is wanted, and
+   then it appears attached to the thing it qualifies rather than beside it. An
+   unpicked list of seventeen descriptors is seventeen small chips; a picked one
+   grows in place, so the row count never depends on how much you found. */
+.chipWrap {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* The qualifier only exists once its descriptor is chosen. :has() rather than a
+   class toggled in JS, for the same reason .chipInput:checked + .chip is CSS:
+   the chip's state IS the input's state, and a second copy of it in a class is a
+   second thing to keep true. */
+.chipWrap .chipQuals {
+    display: none;
+}
+
+.chipWrap:has(> .chipInput:checked) .chipQuals {
+    display: inline-flex;
+    gap: 3px;
+    margin-left: 4px;
+}
+
+/* Smaller and lighter than the chip it hangs off, so a qualified descriptor
+   still reads as one thing with one emphasis. Kept a step below the base chip's
+   3px/9px — it must stay visibly subordinate now that the base is tight too.
+
+   Selector, not `!important`: `.chipInput + .chip` is two classes and would
+   otherwise outrank a bare `.chipQual`. Matching the input as well levels the
+   specificity and lets source order decide, which is what it should have been.
+
+   The SIZE is the qualifier's only deviation. Its checked state is the base
+   rule's dark fill, same as every other chip — a light-accent + bold variant
+   was tried and is out: it read as a different kind of control, and the bold
+   nudged the pill wider on every click. No font-weight anywhere on a chip's
+   checked state, for that reason. */
+.chipQualInput + .chipQual {
+    font-size: 11px;
+    padding: 2px 7px;
+}
+
+/* --- Chip matrix --------------------------------------------------------- */
+
+/* Row label + a chip per column, so options read as "<row label> <chip>"
+   (e.g. "Rule out" + "MDS") and align into scannable columns. Columns size to
+   their widest chip rather than 1fr, which keeps the grid as narrow as its
+   content. Each cell wraps its own input+label pair so the grid items are the
+   cells, not the raw inputs. */
+/* NO COLUMN GAP, for the same reason .matrixControls has none: a row of
+   .matrixCells is one segmented control and its shared borders are the
+   separators, so a gap here is a gap down the middle of a single control. Bare
+   .chipMatrix is the Specimen tab's template matrix; .countMatrix and
+   .presenceMatrix set both gaps themselves and are unaffected by this.
+
+   It has to be stated in BOTH places because the two matrices nest differently —
+   the count/presence cells sit inside a .matrixControls subgrid and the template
+   cells are the grid's own children. Miss one and the segment styling still
+   applies (it keys on .matrixCell adjacency, which is true either way) while the
+   gap stays: square-edged chips, sitting apart, the continuing ones with no left
+   border at all. That is exactly what the template matrix looked like until this
+   rule; if a third matrix ever appears, this is the line it needs too.
+
+   The label keeps its 6px via .chipMatrixLabel's own padding-right, which is why
+   dropping the gap does not jam the row against "Rule out".
+
+   THE TRACK LIST IS SET INLINE, from templateEntities.length in MarrowSpec.js —
+   the fallback below is what a matrix gets that does not say. It was hard coded
+   to `auto repeat(4, auto)` here, which meant adding a template entity was two
+   edits in two files with nothing to say the second was missed: a sixth cell in a
+   five-track grid wraps onto a row of its own, out of its column, still looking
+   like a chip. The count belongs to the data, so the data states it — the same
+   bargain KEY_WIDTH makes for the counter pad. Every track is `auto` either way,
+   so nothing else about the grid changes with the number. */
+.chipMatrix {
+    display: grid;
+    grid-template-columns: repeat(5, auto);
+    column-gap: 0;
+    row-gap: 6px;
+    justify-content: start;
+    align-items: center;
+}
+
+.chipMatrixLabel {
+    font-size: 13px;
+    color: #5A6B7D;
+    padding-right: 6px;
+}
+
+/* A chip that IS a matrix cell fills that cell, so the columns read as even
+   blocks down the panel rather than as ragged text.
+
+   SCOPED TO THE CELL, never `.chipMatrix .chip`. That descendant selector reached
+   every chip anywhere inside a matrix — including the "Unremarkable" chip and
+   every qualifier chip in the morphology cell, which are not cells and have no
+   cell to fill. `width: 100%` on a flex item means 100% of ITS ROW, so three
+   qualifier chips each demanded the whole row: an overflow big enough that the
+   dropdown beside them shrank to absorb it, by an amount that depended on which
+   qualifier set the row carried. That was the real cause of the descriptor
+   dropdowns coming out at different widths — .descSelect's flex-shrink: 0 only
+   stopped the select from joining a fight it should never have been in.
+
+   The severity pair is a cell wrapper but not a cell, and is deliberately left
+   out: its chips are natural width, exactly like the identical Mild|Marked pair
+   in the hemoglobin row above. */
+.matrixCell > .chip {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+/* The Blood tab's two matrices are exactly the questions that repeat: five
+   lineages that are each low/normal/high, and blasts and plasma cells that are
+   each none-through-frequent. Asked one at a time they were ten labelled
+   blocks; asked as a grid they are two, and the columns are what make "which
+   lineages did I comment on" a glance instead of a read.
+
+   They carry NO column headings. Every chip is labelled with its own answer, so
+   a heading saying "Low" over a chip saying "Low" is the same word twice — and
+   a whole row of the panel to say it. Column counts belong to the data, not to
+   .chipMatrix's hard-coded four. */
+/* Same first column as .findingGrid, so "Neutrophils" starts where "Hemoglobin"
+   does and their chips start together too. */
+.countMatrix {
+    grid-template-columns: var(--findingLabel) repeat(3, auto) auto auto;
+    column-gap: var(--findingGap);
+    row-gap: var(--findingRowGap);
+    /* A lineage's row grows downward as its morphology list does. Baseline, not
+       start: the label and the chips sit on one line however tall the row gets,
+       where `start` would leave the label riding above the chips it names by the
+       height of a chip's padding. */
+    align-items: baseline;
+}
+
+/* Five presence chips and a morphology column, the same shape as .countMatrix
+   above — the blast row asks what the blasts look like, and Auer rods are the one
+   answer with a classification consequence. The plasma row leaves that column
+   empty (the blood tab has no plasma descriptor list), exactly as the eosinophil
+   and basophil rows leave theirs.
+
+   `align-items: baseline` for the same reason .countMatrix has it: a row now grows
+   downward as its list is named, and .chipMatrix's inherited `center` would slide
+   the label and the five chips toward the middle of a row that gets taller while
+   the row above stayed put. */
+.presenceMatrix {
+    grid-template-columns: var(--findingLabel) repeat(5, auto) auto;
+    column-gap: var(--findingGap);
+    row-gap: var(--findingRowGap);
+    align-items: baseline;
+}
+
+/* A matrix row's controls, wrapped as one element purely so the highlight cue
+   has something to draw a box around — five loose grid cells have nothing.
+
+   A SUBGRID, so the wrapping costs no alignment: its cells sit in the parent's
+   own columns, exactly as they did when they were the parent's own children, and
+   every chip still lines up down the panel. A nested ordinary grid would size
+   its tracks per row and the columns would go ragged.
+
+   The @supports fallback lays the cells out in a row without the cross-row
+   alignment: a browser too old for subgrid gets a slightly ragged matrix rather
+   than every chip stacked vertically, which is what dropping an unsupported
+   `grid-template-columns: subgrid` would otherwise leave. */
+.matrixControls {
+    grid-column: 2 / -1;
+    display: flex;
+    /* NO column gap: the option cells are one segmented control and their shared
+       borders are the separators, so a gap here would be a gap down the middle of
+       a single control. A subgrid's own gutters override the parent's for the
+       tracks it spans, which is exactly the tracks that must close up — the
+       label-to-first-chip gap belongs to the parent grid and is untouched, and
+       .matrixSeverity brings its own padding-left for the step off the counts.
+       This is also the biggest single width saving on the tab: it takes
+       (columns - 1) * var(--findingGap) out of the widest rows there are. */
+    column-gap: 0;
+    align-items: baseline;
+}
+
+@supports (grid-template-columns: subgrid) {
+    .matrixControls {
+        display: grid;
+        grid-template-columns: subgrid;
+    }
+}
+
+/* A lineage row is TWO questions, not one: how many, and what they look like.
+   So the wrapper stops short of the morphology column, and .matrixMorph carries
+   its own key and boxes itself. One box over both would mean answering "Low"
+   silently withdraws the cue asking for a morphology you never gave — and the
+   two are answered at different times: the count comes off the analyser before
+   the slide is on the stage, the morphology only once you have looked.
+
+   `-2` rather than `6`: it says "every column but the last", which stays true if
+   a column is ever added — and it was, to the presence matrix, when the blast row
+   gained a morphology list. Both matrices now stop short of their last column, so
+   both are named here; the bare 2 / -1 above is what a .matrixControls gets in a
+   grid whose row really is one question. */
+.countMatrix .matrixControls,
+.presenceMatrix .matrixControls {
+    grid-column: 2 / -2;
+}
+
+/* The severity pair, one per lineage row. `visibility` rather than `display`
+   when it does not apply (see syncBloodSeverity): the grid keeps its shape, so
+   nothing shifts under the cursor as rows are answered. */
+.matrixSeverity {
+    display: flex;
+    gap: 4px;
+    padding-left: 10px;
+}
+
+/* Everything a lineage looks like: its stop chip and its dropdown list. Carries
+   its own data-key — see .countMatrix .matrixControls above.
+
+   Worn by every morphology cell on the tab, INCLUDING the platelet row's, which
+   is not in the matrix at all. "What do these cells look like" is one question
+   however its row is drawn, and the answer is the same stop chip over the same
+   growing list — so it is one class.
+
+   A COLUMN, deliberately: the stop chip sits ABOVE the dropdowns, never beside
+   them. This was a wrapping row, which is not the same thing that happens to
+   look like it — a lineage's cell stacked only because its row (88px label,
+   three count chips, a severity pair) squeezed its column below chip + 176px and
+   forced the wrap, while the platelet row had width to spare and stayed on one
+   line. Two cells agreeing by accident of what sits to their left is not
+   agreement; it comes apart the moment a chip is added or the panel is resized.
+
+   It is also narrower: as a column the cell asks for 176px rather than
+   chip + 4px + 176px, and every lineage row gets the difference back.
+
+   MARGIN, not padding, for the step off the severity chips: this element is
+   boxed by the cue, and padding is inside the box, so 10px of padding is 10px of
+   dead green to the left of the chips. A margin puts the gap outside the box,
+   which both hugs the chips and keeps the two boxes 16px apart (6px column gap +
+   this) where the box only reaches 3px. It costs no width either way — an auto
+   column counts a margin the same as a padding. */
+.matrixMorph {
+    display: flex;
+    flex-direction: column;
+    /* Cross-axis now. flex-start rather than stretch: stretch would size the chip
+       to the CELL, which is as wide as the widest descRow — dropdown plus its
+       qualifier chips — and the chip belongs to the dropdown, not to the row. It
+       takes --descWidth explicitly below instead. */
+    align-items: flex-start;
+    gap: 4px;
+    margin-left: 10px;
+}
+
+/* The 10px step exists to separate the morphology box from the count chips to its
+   LEFT (a lineage's severity, the core adequacy row's chips). When the morphology
+   cell is the FIRST thing in its row there is nothing on its left to step off,
+   and the step is pure indentation — which is why the core's four
+   morphology-only rows (Myeloid/Erythroid, Megakaryocytes, Lymphocytes, Clot
+   lymphocytes) sat 10px right of every chip group and field above them. Removed
+   only when it leads the row, so the rows that still follow chips keep their
+   step. */
+.findingChips > .matrixMorph:first-child {
+    margin-left: 0;
+}
+
+/* The stop chip stands directly above the dropdowns, so it is their width: two
+   left edges and two right edges lining up read as one control, where a chip
+   hugging its own text reads as something that merely happens to sit nearby.
+
+   box-sizing matters and is not boilerplate. .chip carries 9px of padding and a
+   1px border, and this file sets no global border-box — so a bare width would
+   render 180px against the select's 160 and miss by exactly the thing being
+   asked for. A <select> is border-box from the UA stylesheet, so the two agree
+   only once the chip is told to measure the same way.
+
+   Centred like .matrixCell > .chip, and for the same reason: text jammed to the
+   left of a pill three times its width reads as a mistake. */
+.matrixMorph > .chip {
+    box-sizing: border-box;
+    width: var(--descWidth);
+    text-align: center;
+}
+
+.select {
+    width: 200px;
+    margin-right: 10px;
+}
+
+/* --- Text box ------------------------------------------------------------ */
+
+/* The app's multi-line text field, worn by both of the things that have one: the
+   counter's tape and the CBC paste box. Neither carries a label; the placeholder
+   says what it is.
+
+   Monospace is not a stylistic tic in either case. The tape holds one character
+   per cell, and a proportional font would make a few hundred of them longer than
+   they need to be; the CBC arrives as tab-separated columns from Epic, which
+   only line up in a monospaced font. The two boxes want the same thing for two
+   good reasons, which is why this is one class and not a copy.
+
+   box-sizing: border-box + width: 100%, rather than the .extend it replaced —
+   that was width: 98.5%, a hack around exactly the overflow box-sizing
+   prevents, and its only user was the paste box. */
+.textBox {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #2c3c4e;
+
+    transition: border-color 0.15s ease;
+}
+
+.textBox::placeholder {
+    color: #A9B6C3;
+}
+
+.textBox:focus {
+    outline: none;
+    border-color: #2c3c4e;
+    box-shadow: 0 0 0 3px rgba(44, 60, 78, 0.12);
+}
+
+textarea {
+    resize: vertical;
+}
+
+input:focus::placeholder {
+    color: transparent;
+}
+
+.saveButton {
+    background-color: #2c3c4e;
+    color: white;
+    font-size: 20px;
+    font-weight: 600;
+    padding: 10px 24px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.saveButton:hover {
+    background-color: #3d536b;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.saveButton:active {
+    background-color: #1e2936;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    transform: translateY(1px);
+}
+
+/* --- Checkbox / radio option rows ---------------------------------------- */
+
+input[type="checkbox"],
+input[type="radio"] {
+    accent-color: #0075FF;
+    cursor: pointer;
+    /* Normalize the user-agent left margin (browsers inset these controls ~4px)
+       so their box starts flush at the container's left edge, matching <select>
+       and keeping all form inputs left-aligned at the same x-position. */
+    margin-left: 0;
+}
+
+input[type="radio"] + label,
+input[type="checkbox"] + label,
+label {
+    cursor: pointer;
+}
+
+/* A box sits CLOSE to its own label (one unit), with MORE space before the next
+   option begins. Two DOM structures need to produce that same rhythm:
+   static rows use `<input><label>` siblings, while JS-generated descriptor rows
+   wrap the input INSIDE its label (`<label><input>Rare</label>`). In both the
+   box is immediately followed by its own text, so margin-right on the input
+   gives a consistent box-to-text gap regardless of structure. */
+input[type="radio"],
+input[type="checkbox"] {
+    margin-right: 3px;
+}
+
+/* Gap before the NEXT option, case (a) — static `<input><label>` rows: the next
+   option starts with an <input> directly following the previous <label>. This
+   is the default, wider gap. */
+label + input[type="radio"],
+label + input[type="checkbox"] {
+    margin-left: 14px;
+}
+
+/* Options of the SAME type in a row read as one set, so pull them closer. The
+   chained selector keys on the type two steps back, i.e. "an input of type X
+   whose preceding option was also type X". */
+input[type="radio"] + label + input[type="radio"],
+input[type="checkbox"] + label + input[type="checkbox"] {
+    margin-left: 8px;
+}
+
+/* A checkbox followed by radio qualifiers reads as "enable this, then pick a
+   degree". Give that transition more room than the generic 14px. */
+input[type="checkbox"] + label + input[type="radio"] {
+    margin-left: 20px;
+}
+
+/* Gap before the NEXT option, case (b) — JS-generated rows where each option is
+   a whole <label> wrapping its own input, so consecutive options are adjacent
+   <label> siblings with no inter-option <input> for case (a) to key off. Static
+   markup never places two <label>s adjacently, so this targets exactly those
+   generated rows. They are always uniform radios, hence the closer 8px. */
+label + label {
+    margin-left: 8px;
+}
+
+/* --- Stains tab ----------------------------------------------------------- */
+
+/* MEASURED: the longest stain name is "Cytokeratin AE1/AE3" at 112.1px, and a
+   menulist spends 34px on padding, border and chevron before its text — so 152
+   holds it with ~6px to spare. Re-measure when a longer name is added; a
+   truncated name is the thing to avoid, not the width. */
+:root {
+    --stainWidth: 152px;
+}
+
+/* The five growing stain lists. A row is [stain name] [everything that stain has
+   to be asked], and what that second half holds varies a lot — one dropdown for
+   most, two chip groups for iron, a dropdown plus a percentage and a tape for
+   CD20/CD34/CD138. So the row is a flex pair with a COLUMN on the right, and the
+   name select is aligned to the top of it rather than centred on it: a tall
+   result must not push its own name down the panel away from it. */
+/* FILLS its cell rather than shrink-wrapping. .findingChips is a flex container,
+   so this is a flex item and would otherwise come out as wide as its widest row
+   — which is what left the tape a ~230px slot with its placeholder cut off. It
+   is the tape that needs the width: it is the one control here you read back. */
+.stainList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1 1 auto;
+    /* A select is happy to overflow its track; without this the panel widens to
+       the longest option text instead of the select shrinking. */
+    min-width: 0;
+}
+
+.stainRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+
+/* Sized to its OWN longest name (--stainWidth, measured above), not borrowed
+   from --descWidth. It was 160px on the reasoning that a stain dropdown and a
+   descriptor dropdown are the same control and should read as one column — but
+   they are on different tabs and never on screen together, so there is no column
+   for them to be in, and 160 was simply 8px of nothing on every row.
+
+   What it does NOT do is widen the result dropdown beside it, which was the first
+   guess and is wrong: .findingChips is a flex container, so .stainList is a flex
+   item that shrink-wraps rather than filling the cell. The result select is
+   therefore CONTENT-sized — it comes out exactly as wide as its longest option
+   and no wider — so narrowing this one narrows the row, not the neighbour.
+   Measured: the row went 461 -> 453 and the result select stayed at 295. */
+.stainSelect {
+    width: var(--stainWidth);
+    flex-shrink: 0;
+    padding: 3px 6px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    font-family: inherit;
+    font-size: 12px;
+    color: #2c3c4e;
+    cursor: pointer;
+}
+
+.stainFields {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    /* Takes the rest of the row. min-width: 0 is what lets it, and the result
+       select below, actually shrink — a flex item defaults to min-width: auto
+       and refuses to go below its content, which for "Highlights interstitially
+       scattered and focal loose aggregates" is most of the panel. */
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Unlike .descSelect this one is NOT a fixed width. A descriptor dropdown is one
+   of five in a column that must line up; a stain result is the only control on
+   its row and its options are whole phrases, so it takes the width they need and
+   stops. Measured at the 1536px target: the longest ("Interstitially scattered
+   and focal loose aggregates") comes out whole, as does reticulin's longest.
+
+   On a panel too narrow for that it shrinks and the CLOSED box ellipsises —
+   acceptable, because opening it is sized by the browser to the content
+   regardless. It is the reason these option labels are worth keeping short-ish,
+   though: they share long prefixes and differ at the END, so a truncated one
+   loses exactly the word that distinguishes it. */
+.stainResult {
+    /* auto, not 100%: now that .stainList fills the panel this would stretch a
+       two-word answer like "Adequate" across 600px. It sizes to its own longest
+       option and stops, which is what it did before the list filled its cell —
+       the extra width is for the tape, not for every dropdown. */
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    padding: 3px 6px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    font-family: inherit;
+    font-size: 12px;
+    color: #2c3c4e;
+    cursor: pointer;
+}
+
+/* Iron's two questions, each with its own small label — the one place on this
+   tab where a control needs naming, because "Increased" means something
+   different under storage iron than under ring sideroblasts. */
+.stainSub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.stainSubLabel,
+.stainPctLabel,
+.stainPctTo {
+    font-size: 12px;
+    color: #5A6B7D;
+}
+
+.stainPct {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* The percentage and its tape, as one block.
+
+   For iron it is REVEALED rather than rendered: a ring-sideroblast count means
+   nothing until you have said rings are present, and it is the same judgement
+   the aniso list makes (display, not visibility — meaningless, so absent). The
+   :has() is what lets it be pure CSS, and pure CSS is not a preference here: the
+   JS alternative is to re-render the row when a chip changes, which detaches the
+   chip mid-event and lets MarrowForm's toggle handler uncheck the redrawn one.
+   See the listener at the foot of MarrowStains.js.
+
+   Rendering it always also means a count you typed survives a detour through
+   "Absent" and back. */
+.stainCountBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+}
+
+.stainIron:not(:has(.stainRingsPresent:checked)) .stainCountBlock {
+    display: none;
+}
+
+.stainIron {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+}
+
+/* The percent boxes and the tally readout on one line, with the tally pushed to
+   the far end. They are two answers to one question — what percentage — so they
+   belong on one line, and putting the readout here rather than beside the tape is
+   what lets the tape have the row's whole width. */
+.stainPctRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+}
+
+/* TWO LINES that wrap, and resizable taller. It was one line that scrolled
+   sideways, on the reasoning that a growing box would walk the rows below it
+   down the panel — but that traded away the thing a tape is for. You do read the
+   characters: seeing the run you have already counted is how you know where you
+   are in it, and a box that scrolls its history off the left is a tally with
+   extra steps. Two lines at rest is the compromise; `resize: vertical` lets a
+   long count have more without every row paying for it.
+
+   It keeps .textBox's own padding and border — the tighter 3px/6px here was only
+   ever to survive the 26px single line. */
+.stainTape {
+    flex: 1 1 auto;
+    min-width: 0;
+    resize: vertical;
+}
+
+/* `pre`, not `nowrap`: the readout separates the raw counts from the percentage
+   they work out to with a double space, and nowrap would collapse it to one.
+   Monospaced so the numbers do not jitter sideways as they tick up. */
+.stainTally {
+    flex: none;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px;
+    color: #5A6B7D;
+    white-space: pre;
+}
+
+/* The stain counter's two key boxes. One character each, so they are sized to
+   one character — a 60px box for a single "+" invites you to type a word into
+   it. Centred and monospaced because what goes in is a key, and it should look
+   like the keys already on the tape beside it. */
+.stainKeyInput {
+    width: 34px;
+    box-sizing: border-box;
+    padding: 4px 0;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 13px;
+    text-align: center;
+    color: #2c3c4e;
+}
+
+/* Two keys the same character cannot be told apart on a tape. Red rather than
+   silently refusing: the pair in force is still the last good one, and the box
+   has to say why it is not what was just typed. */
+.stainKeyInput.stainKeyBad {
+    border-color: #C0392B;
+    background-color: #FDECEA;
+}
+
+/* --- Ancillary tab -------------------------------------------------------- */
+
+/* What the paste did, said in words. Silence would be ambiguous in the one case
+   that matters: a report in a layout the parser does not recognise looks exactly
+   like a report with no significant variants. */
+.ngsStatus {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #5A6B7D;
+    min-height: 16px;
+}
+
+.ngsStatus.ngsStatusEmpty {
+    color: #C0392B;
+}
+
+.ngsList {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Gene, variant, VAF. The variant takes the width because it is the widest thing
+   said here ("c.10519G>A" and worse); the gene and the VAF are sized to what
+   they hold, so the three columns line up down the list without a grid. */
+.ngsRow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.ngsGene,
+.ngsVariant,
+.ngsVaf {
+    box-sizing: border-box;
+    padding: 4px 6px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    font-family: inherit;
+    font-size: 13px;
+    color: #2c3c4e;
+    min-width: 0;
+}
+
+/* Gene symbols are written and read in capitals, so the box shows capitals
+   whatever was typed. This is DISPLAY ONLY — the value stays as typed, because
+   rewriting an input on every keystroke fights the caret. ngsRecordOf() upper-
+   cases on the way out instead, so nothing downstream ever sees the "jak2" the
+   screen was never showing. */
+.ngsGene {
+    flex: 0 0 96px;
+    text-transform: uppercase;
+}
+
+/* ...but not the placeholder, which is a word rather than a gene: transformed it
+   reads "GENE" beside "Variant" and "VAF" and looks like it is shouting one of
+   the three. */
+.ngsGene::placeholder {
+    text-transform: none;
+}
+
+/* Sized to hold the longest realistic variant, not to fill the row. `1 1 auto`
+   stretched it to the panel's whole width (~504px) for a string that never needs
+   more than ~137px ("c.10519G>A,E3507K", the cDNA-plus-protein form). 200px holds
+   that with headroom; grow is 0 so it stops there and the row packs left, and
+   shrink is 1 so it still gives way on a narrow panel. */
+.ngsVariant {
+    flex: 0 1 200px;
+}
+
+.ngsVaf {
+    flex: 0 0 56px;
+    text-align: right;
+}
+
+.ngsPct {
+    flex: none;
+    font-size: 12px;
+    color: #5A6B7D;
+}
+
+/* Only ever removes a row you put something in. Hidden — not absent — on the
+   empty trailing row, so the column of × marks does not jump up and down by a
+   row as the list grows. :placeholder-shown is exactly "this input is empty",
+   which saves keeping a class in step with what is typed. */
+.ngsRemove {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #8FA2B5;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.ngsRemove:hover {
+    background-color: #FDECEA;
+    color: #C0392B;
+}
+
+.ngsRow:has(.ngsGene:placeholder-shown):has(.ngsVariant:placeholder-shown):has(.ngsVaf:placeholder-shown) .ngsRemove {
+    visibility: hidden;
+}
+
+/* --- Aspirate: optional % dysplastic --------------------------------------- */
+
+/* Revealed only once a morphology has been named in that lineage — a percentage
+   of nothing is not a question worth asking, which is the same judgement the
+   aniso list and the stain count block already make (display, not visibility:
+   meaningless, so absent).
+
+   :has(option:not([value=""]):checked) is the "a real option is chosen" test the
+   highlight cue already uses; a <select> always has a checked option, so asking
+   whether one is checked would always be true. */
+.aspDysCell {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #5A6B7D;
+}
+
+.matrixMorph:has(.descSelect option:not([value=""]):checked) .aspDysCell {
+    display: flex;
+}
+
+.aspDysCell .cellNum {
+    width: 44px;
+}
+
+/* --- Ancillary: cytogenetics ---------------------------------------------- */
+
+/* A paste box under its status row. The margin is the whole rule: .findingGroup
+   ends flush, so without it the textarea sits hard against the chips and reads as
+   part of the same control rather than as the other half of the question.
+
+   Everything else it needs is .textBox's, which the NGS box beside it also wears.
+   The two imports look identical on purpose — they are one question asked twice,
+   the same bargain the two status rows make. */
+.ancImport {
+    margin-top: 7px;
+}
+
+/* The growing list of named abnormalities. A column like .descList, and for the
+   same reason: the rows stack so the selects line up under each other. */
+.ancAbnList {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: flex-start;
+}
+
+/* Sized to its OWN longest option, not borrowed from --descWidth. The two are
+   never on screen together — one is on the Aspirate and Core tabs, this is on
+   Ancillary — so there is no column for them to share, and a borrowed 160px
+   would truncate every fusion name in the list.
+
+   MEASURED, not estimated: see the note on .descSelect, whose 160px arrived as a
+   guess that was 17px out. The number below is what Chrome reports as the
+   intrinsic width of a select carrying every option in ancAbnVocabulary at this
+   font and padding — the longest being "inv(16)/t(16;16) CBFB::MYH11". Re-measure
+   before adding an abnormality with a longer label; nothing will tell you if it
+   no longer fits, because a closed select ellipsises silently and these labels
+   differ at the END, where the fusion name is.
+
+   `flex-shrink: 0` is the width, exactly as it is for .descSelect: without it the
+   declaration is only a preference and the row surrenders dropdown width whenever
+   it cannot fit. Here the row holds nothing else, so there is less to squeeze it
+   — but .findingChips is still a flex context and the guarantee is worth having
+   for free. */
+.ancAbnSelect {
+    width: var(--abnWidth);
+    flex-shrink: 0;
+    padding: 3px 6px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    font-family: inherit;
+    font-size: 12px;
+    color: #2c3c4e;
+    cursor: pointer;
+
+    transition: border-color 0.15s ease;
+}
+
+.ancAbnSelect:hover {
+    border-color: #2c3c4e;
+}
+
+.ancAbnSelect:focus {
+    outline: none;
+    border-color: #2c3c4e;
+    box-shadow: 0 0 0 3px rgba(44, 60, 78, 0.12);
+}
+
+/* --- Diagnosis tab -------------------------------------------------------- */
+
+/* What the engine actually read, before anything it concluded. A pathologist
+   will not trust a ranking whose inputs are invisible, and it doubles as the
+   place a wrong suggestion is diagnosed from. Two columns so the values line up
+   under each other rather than each starting wherever its label ends — the same
+   reason the counter's rail is two columns. */
+.dxSummary {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: 12px;
+    row-gap: 2px;
+    font-size: 12px;
+}
+
+.dxSummaryKey { color: #5A6B7D; }
+.dxSummaryValue { color: #2c3c4e; }
+
+.dxNote {
+    font-size: 12px;
+    color: #5A6B7D;
+    margin-bottom: 6px;
+}
+
+.dxCard {
+    border: 1px solid #C7D0DA;
+    border-left: 3px solid #C7D0DA;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+}
+
+/* The comment prose itself, previewed on the card — this is the thing you are
+   choosing, so it reads as body text, not as a control. */
+.dxCommentPreview {
+    margin: 6px 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #2c3c4e;
+}
+
+/* Page through candidates rather than scrolling a stack of them. Arrows flank a
+   "n of m" count; both are disabled at the ends rather than hidden, so the
+   control does not change width as you move through it. */
+.dxPager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.dxPageCount {
+    font-size: 12px;
+    color: #5A6B7D;
+    font-variant-numeric: tabular-nums;
+}
+
+.dxPage {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    font-size: 16px;
+    line-height: 1;
+    color: #2c3c4e;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.dxPage:hover:not(:disabled) {
+    border-color: #2c3c4e;
+    background-color: #EEF1F4;
+}
+
+.dxPage:disabled {
+    color: #C7D0DA;
+    cursor: default;
+}
+
+/* The bucket, as a colour on the left edge. Supported reads as an answer,
+   pending as "waiting on someone else", incomplete as "waiting on you", and a
+   ruled-out card stays grey — it is the differential, not a suggestion. */
+.dxCard--supported  { border-left-color: #3a9d5d; }
+.dxCard--pending    { border-left-color: #0075FF; }
+.dxCard--incomplete { border-left-color: #C7D0DA; }
+.dxCard--excluded   { border-left-color: #D6DEE6; opacity: 0.75; }
+.dxCard--unassessed { border-left-color: #D6DEE6; opacity: 0.75; }
+
+/* CONTESTED: every gate met, but a soft criterion contradicted. Amber because it
+   is neither of the two things it sits between — not the green of an answer that
+   holds together, and not the grey of one that has been ruled out. Without its own
+   colour such a card rendered as `supported` and read as confident while carrying
+   evidence against it on the same card. */
+.dxCard--contested  { border-left-color: #C77B30; }
+
+.dxCardHead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.dxName {
+    font-size: 13px;
+    font-weight: bold;
+    color: #2c3c4e;
+}
+
+/* A number, not a percentage, and deliberately quiet. A confidence percentage
+   would be pseudo-precision — the score only orders the list, and the reasons
+   below it are what actually justify the order. */
+.dxScore {
+    flex: none;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px;
+    color: #5A6B7D;
+}
+
+.dxWhy {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #5A6B7D;
+}
+
+.dxWhy ul {
+    margin: 2px 0 0;
+    padding-left: 18px;
+}
+
+.dxWhyLabel {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8FA2B5;
+}
+
+.dxWhy--missing .dxWhyLabel { color: #0075FF; }
+.dxWhy--failed .dxWhyLabel { color: #C0392B; }
+
+.dxPoints {
+    font-family: ui-monospace, Consolas, monospace;
+    color: #8FA2B5;
+}
+
+/* A point that argues AGAINST, in the same red the failed-clause label uses. The
+   sign alone is too quiet to catch at a glance in a monospace column, and a
+   reader scanning a tally has to be able to see which way each row pushes. */
+.dxPoints--against { color: #C0392B; }
+
+.dxUse {
+    margin-top: 6px;
+    padding: 3px 9px;
+    border: 1px solid #C7D0DA;
+    border-radius: 999px;
+    background-color: #FFFFFF;
+    font-family: inherit;
+    font-size: 12px;
+    color: #2c3c4e;
+    cursor: pointer;
+}
+
+.dxUse:hover {
+    border-color: #2c3c4e;
+    background-color: #EEF1F4;
+}
+
+
+/* The comment is edited IN the report, so it must look like the report — its type
+   is REPORT_PARAGRAPH, set inline on the element. The only marks CSS adds are the
+   editing affordances: a focus ring so it is clearly a field, and a faint hover so
+   it reads as clickable before you are in it. Deliberately no border at rest — a
+   boxed paragraph in the middle of the report would look like a defect, not a
+   comment. */
+.dxReportComment {
+    outline: none;
+    border-radius: 4px;
+    transition: box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.dxReportComment:hover {
+    background-color: rgba(0, 117, 255, 0.05);
+}
+
+.dxReportComment:focus {
+    background-color: rgba(0, 117, 255, 0.05);
+    box-shadow: 0 0 0 2px rgba(0, 117, 255, 0.4);
+}
+
+/* The placeholder for an empty-but-focused comment. `:empty` is the contenteditable
+   equivalent of a textarea placeholder; it disappears the moment a character lands. */
+.dxReportComment:empty::before {
+    content: 'Type a comment, or accept a suggestion from the Diagnosis tab.';
+    color: #A9B6C3;
+}
+
+/* The findings summary at the head of the Scoring view. A hairline under it
+   separates the raw inputs from the candidate cards derived from them. */
+.dxScoringSummary {
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #E4EBF1;
+}
+
+/* The diagnosis toolbar: two segmented controls pushed to opposite ends of one
+   row — the view switcher left, the comment register right. flex-wrap so the two
+   drop to their own lines on a panel too narrow to hold both, rather than one
+   shrinking into the other. */
+.dxToolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+
+/* ============================================================================
+   3. THE REFERENCE SECTION (#helpPanel)
+
+   The book icon's page. Two screens in one panel — an index of topic cards and
+   one topic — over a third variant of the shared dark header strip.
+
+   This is the app's only READING surface. Everything else is a form or a report
+   fragment, and both of those are scanned; a criteria box is read line by line
+   against a marrow you are looking at. So the type here is larger than the
+   forms' chrome, the measure is capped, and the line height is generous. Those
+   are not decoration: a criteria list set at form density is a criteria list a
+   reader loses their place in.
+   ========================================================================= */
+
+/* --- The bar ------------------------------------------------------------- */
+
+/* Carries .panelHeader as well, so the strip itself — colour, radius, flex:none
+   — is inherited from the one place both other bars declare it, and this bar
+   cannot drift away from the tab bar it sits beside. Only the LAYOUT differs:
+   a tab bar hangs its items off the bottom edge, this one centres two controls
+   at opposite ends.
+
+   The items below restate .panelHeader .headerTab's box (13px text, the same
+   vertical padding, the reserved 3px top border) rather than inventing one,
+   which is what keeps this bar exactly as tall as the input tabs across the
+   gutter. Doubled class for specificity: .panelHeader's own padding rule would
+   otherwise win on source order from further up the file. */
+.refBar.refBar {
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: var(--headerBarPad) 10px 0;
+}
+
+.refBarTitle,
+.refBack {
+    box-sizing: border-box;
+    padding: var(--headerItemPadY) 0;
+    border-top: 3px solid transparent;
+    font-family: inherit;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.refBarTitle {
+    font-weight: bold;
+    color: #FFFFFF;
+    user-select: none;
+}
+
+/* The back button is the only way out of a topic that is always in the same
+   place, so it is worded rather than a bare chevron — "All topics" says where it
+   goes, where an arrow only says "away". */
+.refBack {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 8px;
+    padding-right: 10px;
+    margin-left: -8px;
+    background: none;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.refBack:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+    color: #FFFFFF;
+}
+
+/* Filter, not search: it narrows a list that is already on screen rather than
+   fetching anything, and calling it search would promise that the topic bodies
+   are searched, which they deliberately are not (see refMatches). */
+.refFilter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    margin-bottom: var(--headerBarPad);
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 12px;
+    transition: background-color 0.15s ease;
+}
+
+.refFilter:focus-within {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.refFilterInput {
+    width: 130px;
+    background: none;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 12px;
+    color: #FFFFFF;
+}
+
+.refFilterInput::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Chrome draws a clear "x" inside a type=search that fights the pill. */
+.refFilterInput::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+}
+
+/* --- The index ----------------------------------------------------------- */
+
+/* A TABLE OF CONTENTS, NOT A GALLERY. This was a grid of bordered cards each
+   carrying a one-line description, and at twenty-six topics that is four screens
+   to reach a page whose title you already know. The descriptions were also
+   twenty-six restatements of "these are the criteria for X".
+
+   So the row IS the title: one line, no border, no fill, in as many columns as
+   fit. The hairline between sections is the only rule on the page, which is the
+   same economy .findingGroup uses in the forms — a rule says "different thing
+   now" without spending a row saying it. */
+
+.refGroup + .refGroup {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #E4EBF1;
+}
+
+.refGroupTitle {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8FA2B5;
+    margin-bottom: 4px;
+}
+
+/* auto-fill, not auto-fit: with auto-fit a section holding one topic stretches
+   that row to the full panel width, so the AML row would run edge to edge under
+   a three-column block. auto-fill keeps the column width and leaves the empty
+   tracks empty, so every row in the index is the same size wherever it sits. */
+/* `align-items: start` is load-bearing, not tidiness. A grid item defaults to
+   stretch, and a BUTTON centres its content vertically — so in a row where the
+   other column's title wrapped to two lines, the one-line title floated to the
+   middle of a double-height row and the list lost its baseline. Three of the
+   boundary entities have titles long enough to wrap in a half-width panel, so
+   this was every viewing of the MDS/MPN section. */
+.refItems {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    align-items: start;
+    column-gap: 10px;
+    row-gap: 1px;
+}
+
+/* No border and no background at rest — the list is the content, and
+   twenty-six outlined boxes are twenty-six things to look past. The hover wash
+   is the whole affordance, which is enough because the cursor is already on the
+   row you are asking about. */
+.refItem {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 4px 8px;
+    margin-left: -8px;
+    background: none;
+    border: none;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #2c3c4e;
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.refItem:hover {
+    background-color: #EEF4FF;
+    color: #0075FF;
+}
+
+.refItem:focus-visible {
+    outline: none;
+    background-color: #EEF4FF;
+    box-shadow: 0 0 0 2px rgba(0, 117, 255, 0.4);
+}
+
+.refEmpty {
+    font-size: 13px;
+    color: #8FA2B5;
+    padding: 20px 0;
+    text-align: center;
+}
+
+/* --- One topic ----------------------------------------------------------- */
+
+/* THE MEASURE IS CAPPED AND THE PANEL IS NOT. A criteria list running the full
+   width of a wide monitor is a list whose next line starts too far left to find;
+   68 characters is the usual comfortable maximum for continuous prose, and this
+   section is the only place in the app that has any. Everything else here —
+   forms, report fragments — is scanned in short lines and wants the width. */
+.refDoc {
+    max-width: 68ch;
+}
+
+/* Title straight onto the criteria. The section kicker and the one-line blurb
+   that used to sit here are gone: "MYELOPROLIFERATIVE NEOPLASMS" over
+   "Polycythaemia vera" told a reader who had just clicked polycythaemia vera
+   nothing, and the blurb described a box that was already visible under it. */
+.refDocTitle {
+    font-size: 18px;
+    font-weight: bold;
+    color: #2c3c4e;
+    margin: 0 0 10px;
+    line-height: 1.25;
+}
+
+/* --- The unverified warning ---------------------------------------------- */
+
+/* THE ONLY THING BETWEEN THE TITLE AND THE CRITERIA, and only where it applies.
+   The same amber as the diagnosis panel's `contested` card, for the same reason:
+   this is neither an answer that holds together nor one that has been ruled out.
+
+   One line and no heading. It had a bold "Not verified against source." lead-in
+   over a paragraph, which was three lines of chrome to carry one fact — and on a
+   page whose whole point is to be the criteria and nothing else, the warning has
+   to earn its space as hard as everything that was cut. */
+.refUnverified {
+    display: flex;
+    gap: 7px;
+    align-items: flex-start;
+    padding: 6px 9px;
+    margin-bottom: 12px;
+    background-color: #FDF6EE;
+    border-left: 3px solid #C77B30;
+    border-radius: 0 5px 5px 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: #6B4E2A;
+}
+
+.refUnverified i {
+    color: #C77B30;
+    margin-top: 1px;
+    flex: none;
+}
+
+.refFlagChip {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background-color: #FDF6EE;
+    border: 1px solid #E8D3B6;
+    font-size: 10px;
+    font-weight: normal;
+    letter-spacing: 0.02em;
+    color: #C77B30;
+    vertical-align: 1px;
+}
+
+/* --- Topic body ---------------------------------------------------------- */
+
+.refDocBody {
+    font-size: 13px;
+    line-height: 1.55;
+    color: #2c3c4e;
+}
+
+.refP {
+    margin: 0 0 10px;
+}
+
+.refH {
+    font-size: 13px;
+    font-weight: bold;
+    color: #2c3c4e;
+    margin: 18px 0 6px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #E4EBF1;
+}
+
+.refList {
+    margin: 0 0 10px;
+    padding-left: 20px;
+}
+
+.refList li {
+    margin-bottom: 4px;
+}
+
+/* --- The criteria box ---------------------------------------------------- */
+
+/* The unit of this section, and it is drawn as a BOX because that is what it is
+   in the source: a bordered box with a title, set apart from the chapter's
+   prose. Reproducing that shape is not styling for its own sake — a reader who
+   knows the classification is looking for the box, and prose that merely
+   contains the criteria is prose they then have to verify is complete. */
+.refBox {
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    margin: 0 0 12px;
+    overflow: hidden;
+}
+
+.refBoxTitle {
+    padding: 7px 11px;
+    background-color: #EEF1F4;
+    border-bottom: 1px solid #C7D0DA;
+    font-size: 12px;
+    font-weight: bold;
+    color: #2c3c4e;
+}
+
+.refBoxBody {
+    padding: 10px 11px 2px;
+}
+
+/* One label style for the whole section: the criteria-group label and the
+   table header share it (11px, uppercase, #5A6B7D). They used to be two
+   colors, which read as two kinds of label where there is only one. */
+.refCritLabel {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #5A6B7D;
+    margin-bottom: 3px;
+}
+
+.refCritGroup + .refCritGroup {
+    margin-top: 10px;
+}
+
+/* THE COMBINATION RULE, and it gets a rule above it because it is not another
+   criterion. "All three major criteria, or the first two plus the minor" is the
+   sentence that makes the list above it mean something, and set as one more
+   paragraph it reads as a fifth bullet. Only printed where the source states one
+   — an essential/desirable box has no combination rule and must not be given an
+   invented one. */
+.refCritRule {
+    margin: 10px 0;
+    padding-top: 9px;
+    border-top: 1px solid #E4EBF1;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #2c3c4e;
+}
+
+.refFoot {
+    margin: 10px 0;
+    padding-top: 9px;
+    border-top: 1px solid #E4EBF1;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #5A6B7D;
+}
+
+.refFoot div + div {
+    margin-top: 5px;
+}
+
+/* --- Asides -------------------------------------------------------------- */
+
+/* A practice point, or the trap in the criteria above it. Quiet, indented off a
+   rule rather than boxed: a second box beside a criteria box competes with it,
+   and nothing in here is ever a criterion. */
+.refNote {
+    margin: 0 0 12px;
+    padding: 2px 0 2px 11px;
+    border-left: 3px solid #C7D0DA;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #5A6B7D;
+}
+
+/* "This is the control that records it." A caption, deliberately not prose: a
+   reader scanning criteria must never mistake an implementation note for part of
+   a definition, so it takes a different colour, a different size, and an icon
+   that appears nowhere else in a topic. */
+.refInApp {
+    display: flex;
+    gap: 7px;
+    align-items: flex-start;
+    margin: 0 0 12px;
+    padding: 7px 10px;
+    background-color: #F4F7FA;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #5A6B7D;
+}
+
+.refInApp i {
+    color: #8FA2B5;
+    margin-top: 2px;
+    flex: none;
+}
+
+/* CLAUDE.md requires both names wherever the classifications diverge. A
+   divergence set as an ordinary paragraph is one a reader skims; this makes it a
+   thing on the page you have to decide to skip. Blue rather than amber — it is
+   information, not a warning about this app's confidence. */
+/* The ICC divergence is a refBox now (see refDiverge() in MarrowRefData.js) and
+   takes all its chrome - border, radius, title bar - from the box rules above.
+   It used to be a blue tinted bubble of its own, which made a third block style
+   on a page whose content has two kinds of thing: a box of criteria, and a box
+   of how ICC's differ. Only the body text needs rules here, because divergence
+   content is raw prose or a refUL rather than refCritGroups. */
+.refDiverge .refBoxBody {
+    padding-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #2c3c4e;
+}
+
+.refDiverge .refP:last-child,
+.refDiverge .refList:last-child {
+    margin-bottom: 0;
+}
+
+/* --- Tables -------------------------------------------------------------- */
+
+/* NOT .dataTable. That class is the report-side collapsible result block: fixed
+   layout, a dark header row whose first cell is a collapse toggle, name/value/
+   unit columns. A reference table has none of those — it is two or three prose
+   columns of unequal natural width, it never collapses, and forcing it through a
+   fixed layout would set "Diffuse and dense increase in reticulin with extensive
+   intersections" in a column sized for "MF-2".
+
+   The wrapper scrolls on its own so a wide table never widens the panel; the
+   page-never-scrolls chain covers the vertical only. */
+.refTableWrap {
+    margin: 0 0 12px;
+    overflow-x: auto;
+}
+
+.refTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.refTable th {
+    text-align: left;
+    padding: 6px 9px;
+    background-color: #EEF1F4;
+    border-bottom: 1px solid #C7D0DA;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #5A6B7D;
+    white-space: nowrap;
+}
+
+.refTable td {
+    padding: 6px 9px;
+    border-bottom: 1px solid #E4EBF1;
+    color: #2c3c4e;
+    vertical-align: top;
+}
+
+/* The first column is the key you look the row up BY — a grade, an age band, a
+   blast range — so it is set apart in the muted colour.
+
+   IT USED TO CARRY `white-space: nowrap` AND THAT WAS A BUG WAITING FOR A LONG
+   CELL. The intent was that a short key should not wrap while its long
+   description sets the row height anyway; the effect was that ANY first cell
+   containing a phrase forced the table wider than the panel, and the ICC AML
+   table — whose first cells listed six fusion genes — pushed its second column
+   clean off the right edge and behind the scroll.
+
+   It is not needed: a short key has no break opportunity to wrap AT, so "MF-0",
+   "Under 20" and "&ge; 10%" stay on one line without being told to. Keep first
+   cells short and let the browser decide. */
+.refTable td:first-child {
+    color: #5A6B7D;
+}
+
+.refTable tr:last-child td {
+    border-bottom: none;
+}
+
+.refTableCaption {
+    margin-top: 5px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: #8FA2B5;
+}
+
+/* --- Cross-references ---------------------------------------------------- */
+
+/* Inside a sentence, so it is styled as a link in running text and not as a
+   control. The underline is what says "clickable" where a colour alone would
+   just be emphasis. */
+.refJump {
+    color: #0075FF;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.refJump:hover {
+    color: #2c3c4e;
+}
+
+.refRelated {
+    margin-top: 22px;
+    padding-top: 12px;
+    border-top: 1px solid #E4EBF1;
+}
+
+.refRelatedLabel {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8FA2B5;
+    margin-bottom: 6px;
+}
+
+.refRelatedLinks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.refRelatedLink {
+    padding: 4px 10px;
+    border: 1px solid #C7D0DA;
+    border-radius: 999px;
+    background-color: #FFFFFF;
+    font-family: inherit;
+    font-size: 12px;
+    color: #2c3c4e;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.refRelatedLink:hover {
+    border-color: #2c3c4e;
+    background-color: #EEF1F4;
+}
+
+/* --- The quick links, as they appear in the INPUT panel ------------------ */
+
+/* Icon-only, sitting at the end of the row's controls rather than on the row
+   LABEL. The label column is a fixed 100px (108 on the Core tab, already the
+   widest label in the app), so an icon added there would push the longest label
+   onto a second line — and a book beside "Megakaryocytes" would read as though
+   it were labelling the row rather than offering something.
+
+   It has to be legible as an offer without ever competing with the control
+   beside it, so it is drawn as the quietest thing on the row — no border, no
+   fill, grey — and only takes colour under the cursor.
+
+   `flex: none` because it lives in .findingChips and .stainRow, both flex
+   containers that would otherwise stretch or shrink it. */
+.refLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: none;
+    padding: 3px 6px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    color: #A9B6C3;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.refLink:hover {
+    color: #0075FF;
+    background-color: #EEF4FF;
+}
+
+.refLink:focus-visible {
+    outline: none;
+    color: #0075FF;
+    box-shadow: 0 0 0 2px rgba(0, 117, 255, 0.4);
+}
+
+/* The Diagnosis tab's version. Worded, because a candidate card already carries
+   a name, a score, comment prose and a Use button, and a fifth glyph on it would
+   be one more thing to decode. It sits beside .dxUse without claiming to be the
+   card's action: no border at rest, and the link blue rather than the button's
+   navy. */
+.refRuleLink {
+    margin-top: 6px;
+    margin-left: 6px;
+    padding: 3px 9px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: none;
+    font-family: inherit;
+    font-size: 12px;
+    color: #8FA2B5;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.refRuleLink:hover {
+    color: #0075FF;
+    border-color: #D3E3FA;
+    background-color: #F2F7FF;
+}
+
+/* The Scoring card has no action button, so its reference link needs a foot of
+   its own rather than a neighbour to sit beside. The negative left margin
+   cancels .refRuleLink's own offset, which exists to space it from .dxUse on the
+   comments card — here there is nothing to its left and it should start at the
+   card's text edge like every block above it. */
+.dxCardFoot {
+    margin-top: 6px;
+}
+
+.dxCardFoot .refRuleLink {
+    margin-left: -9px;
+}
+/* The bar is [lead | filter]. The lead is the part that changes with the screen
+   and is the part refRender() redraws; the filter is a permanent sibling that
+   nothing rebuilds, which is what keeps focus and the caret through a keystroke
+   that changes the screen. */
+#refBarLead {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+/* A LITERATURE CITATION, and not the repo-file `source` line that was removed
+   from every topic. That line pointed at docs/who/ on pages whose content is a
+   criteria box the classification defines by fiat — there was nothing to look
+   up. These are measurements somebody made, they vary between series, and a
+   reader deciding whether to grade a marrow against one has to see whose number
+   it is.
+
+   Set small and quiet under the table it belongs to: it is an answer to "says
+   who?", which is a question asked after reading the number, not before. */
+/* Same small print as .refTableCaption - one style for everything that rides
+   under a block, whether it is a caption or a citation. The left border it
+   used to carry was a third "aside" treatment for no third kind of thing. */
+.refCite {
+    margin: -6px 0 14px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #8FA2B5;
+}
+
+/* The negative top margin above tucks it under a .refTableWrap's own bottom
+   margin so the citation reads as part of the table rather than as the next
+   block. Following a paragraph there is no such margin to absorb. */
+.refP + .refCite {
+    margin-top: 0;
+}
+/* --- A stacked cell -------------------------------------------------------- */
+
+/* Tiers inside one .findingChips cell, for a row whose controls do not all
+   behave alike. The Blood tab's red cell Morphology row is the case: a stop chip
+   that negates the row, three findings that are a chip plus a qualifier, and
+   anisopoikilocytosis, which owns a descriptor list that grows a line every time
+   a poikilocyte is named.
+
+   On one wrapping flex line that growth reflowed whatever followed it. Stacked,
+   it grows downward into empty space and nothing above it moves.
+
+   `align-items: flex-start` so each tier hugs its own chips rather than
+   stretching to the widest — a stretched .chipSet would put its hover and focus
+   ring across dead space. The gap is .findingGrid's row gap rather than the
+   4px between chips: these are separate questions, not one row of options. */
+.chipStack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+
+/* The tiers wrap internally on a narrow panel; the stack does not scroll. */
+.chipStack > .chipSet {
+    flex-wrap: wrap;
+}
+/* --- The red cell atlas ---------------------------------------------------- */
+
+/* A grid of small figure cards. Denser than .refCards on the index, because a
+   card here is scanned by SHAPE — the eye is looking for a picture it half
+   recognises, and it wants as many as possible in one view. */
+.rbcGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+    gap: 8px;
+    margin: 0 0 14px;
+}
+
+/* Tinted rather than bordered. Eighteen outlined boxes is eighteen rectangles to
+   look past, and the figures already have edges of their own — the tint groups
+   the caption with its picture and stops there. */
+.rbcCard {
+    padding: 8px 9px 9px;
+    background-color: #F7F9FB;
+    border-radius: 6px;
+}
+
+/* The figure centres; the text does not. A centred two-line description has a
+   ragged left edge on every card and the column stops being scannable. */
+.rbcFig {
+    display: block;
+    width: 68px;
+    height: 68px;
+    margin: 0 auto 6px;
+}
+
+.rbcName {
+    font-size: 12px;
+    font-weight: bold;
+    color: #2c3c4e;
+    margin-bottom: 3px;
+}
+
+.rbcDesc {
+    font-size: 11px;
+    line-height: 1.45;
+    color: #5A6B7D;
+}
+
+/* "The same cell as the card beside this one." Italic and set apart, because it
+   is a statement about the LIST rather than about the cell — a reader who sees
+   two identical figures needs to be told that is intentional. */
+.rbcAlso {
+    margin-top: 4px;
+    font-size: 10px;
+    font-style: italic;
+    line-height: 1.4;
+    color: #8FA2B5;
+}
+
+/* What the finding suggests. Hung off a hairline so it reads as a different kind
+   of statement from the description above it — one is what the cell looks like,
+   the other is what it might mean, and they must not run together. */
+.rbcSeen {
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid #E4EBF1;
+    font-size: 10px;
+    line-height: 1.4;
+    color: #8FA2B5;
+}
+/* --- Photomicrographs on the atlas cards ---------------------------------- */
+
+/* Drawing above, photograph below — the card is one column, not two. Side by
+   side at 152px each would be two 70px thumbnails, and a photomicrograph at 70px
+   is a pink smear. */
+.rbcArt {
+    margin-bottom: 6px;
+}
+
+.rbcPhoto {
+    position: relative;
+    margin: 0;
+}
+
+.rbcPhoto img {
+    display: block;
+    width: 100%;
+    border-radius: 4px;
+    /* The source images are 640-3264px wide and every aspect ratio there is.
+       A fixed height with `cover` is what makes a grid of them a grid rather
+       than a ragged column, and the crop is centred, which is where the
+       photographer put the cell. */
+    height: 96px;
+    object-fit: cover;
+}
+
+.rbcPhoto figcaption {
+    margin-top: 4px;
+    font-size: 10px;
+    line-height: 1.35;
+    color: #5A6B7D;
+}
+
+/* The licence condition, and it is set quietly but never hidden: CC BY and
+   CC BY-SA REQUIRE the credit, so this is not a nicety that can be dropped to
+   tidy the card up. */
+.rbcCredit {
+    margin-top: 2px;
+    font-size: 9px;
+    line-height: 1.3;
+    color: #A9B6C3;
+}
+
+.rbcCredit a {
+    color: #A9B6C3;
+    text-decoration: underline;
+    text-underline-offset: 1px;
+}
+
+.rbcCredit a:hover {
+    color: #0075FF;
+}
+
+/* UNCONFIRMED. Amber, on the image, in the corner — the same amber as every
+   other "not checked against source" mark in this section. It sits ON the
+   photograph rather than under it because the failure it guards against is
+   someone glancing at a picture and believing it; a caption below can be missed
+   in exactly the moment the badge exists for. */
+.rbcPhoto--unconfirmed img {
+    /* A hairline rather than a wash: the picture still has to be legible, and
+       tinting a photomicrograph changes the thing being judged. */
+    box-shadow: 0 0 0 2px #E8A657;
+}
+
+.rbcUnconfirmed {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background-color: rgba(253, 246, 238, 0.94);
+    border: 1px solid #E8D3B6;
+    font-size: 9px;
+    letter-spacing: 0.02em;
+    color: #B4671E;
+}

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- REQUIRED, not cosmetic. The scripts are UTF-8 and the report strings
+             contain en dashes, em dashes and ≥ / ×; without this a page served
+             over HTTP is decoded as windows-1252 and those bytes reach the
+             CLIPBOARD as mojibake ("0.5â€"1%"), which is a report defect rather
+             than a display one. -->
+        <meta charset="utf-8">
+        <title>Report Template</title>
+        <link rel="stylesheet" href="Template.css">
+        <script src="https://kit.fontawesome.com/f6f9c2cc49.js" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <!-- Toast notification. Driven by showAlert('success'|'error', message). -->
+        <div id="alert">
+            <i id="alertIcon" class="" style="font-size: 18px;"></i>
+            <span id="alertText"></span>
+        </div>
+
+        <!-- Dimmer behind the nav drawer. Clicking it closes the drawer. -->
+        <div id="overlay"></div>
+
+        <nav id="navbar">
+            <div class="navHeader">
+                <i class="navbarIcon titleIcon fas fa-bars"></i>
+            </div>
+            <div id="navLinks">
+                <!-- Drawer links built from templateConfig.navLinks. -->
+            </div>
+        </nav>
+
+        <div class="header">
+            <div>
+                <i class="navbarIcon titleIcon fas fa-bars"></i>
+            </div>
+            <div class="title"><!-- Set from templateConfig.pageTitle. --></div>
+
+            <!-- Top-level page tabs: fixed shell chrome, identical across all
+                 templates. First class ("pageTab") is the tab GROUP; see the
+                 tab-switching contract in Template.js. -->
+            <div class="pagebar">
+                <i class="pageTab headerTab titleIcon fas fa-list clicked" id="templateTab" title="Template"></i>
+                <i class="pageTab headerTab titleIcon fas fa-book" id="helpTab" title="Help"></i>
+                <i class="pageTab headerTab titleIcon far fa-question-circle" id="infoTab" title="About"></i>
+                <i class="pageTab headerTab titleIcon fas fa-save" id="saveTab" title="Save / Load"></i>
+                <i class="pageTab headerTab titleIcon fas fa-cog" id="settingTab" title="Settings"></i>
+            </div>
+        </div>
+
+        <div class="panelContainer">
+
+            <!-- ============================================================
+                 LEFT PANEL — data entry. Sub-tabs (group "templateTab") are
+                 built from templateConfig.inputTabs: id "spec" -> #specTab +
+                 #specPanel. Panel bodies are created empty at runtime; to
+                 hand-write one in markup instead, add
+                 <div class="panelBody" id="specPanel"> inside #inputBodies
+                 and the shell will use it.
+                 ============================================================ -->
+            <div class="panel" id="inputPanel">
+                <div class="panelHeader" id="inputTabBar"></div>
+                <div id="inputBodies"></div>
+            </div>
+
+            <!-- ============================================================
+                 RIGHT PANEL — assembled report output. The copy-bar buttons
+                 are built from templateConfig.copyButtons and stay inert
+                 until handlers are attached by id.
+                 ============================================================ -->
+            <div class="panel" id="templatePanel">
+                <div class="copyHeader" id="copyButtonBar"></div>
+                <div class="panelBody" id="rightPanelFinal">
+                    <!-- Rendered report output goes here. -->
+                </div>
+            </div>
+
+            <!-- ============================================================
+                 TOP-LEVEL PAGES — siblings of the template view. Only one of
+                 these (or the template pair above) is visible at a time.
+                 ============================================================ -->
+            <!-- The reference section. #inputPanel is not in headerObject and so
+                 stays visible when this opens, which is the point: a quick link
+                 from a form row puts the criteria BESIDE the control you are
+                 answering rather than instead of it.
+
+                 #refBar is a third variant of the shared dark header strip (see
+                 .panelHeader / .copyHeader in Template.css) and is filled by
+                 MarrowRef.js, which also owns #refBody. -->
+            <div class="panel" id="helpPanel" style="display: none">
+                <div class="panelHeader refBar" id="refBar"></div>
+                <div class="panelBody" id="refBody"></div>
+            </div>
+
+            <div class="panel" id="infoPanel" style="display: none">
+                <div class="panelBody">
+                    <h3 style="margin-top: 0px">About:</h3>
+                    This application was entirely coded by myself, Michael Moravek, MD, and is currently under construction. The project is not intended for clinical use in its current state.<br><br>
+                    If you have any questions or feedback, feel free to contact me:<br><br>
+                    <a href="mailto: MichaelMoravekMD@gmail.com" style="color: rgb(0,172,238); text-decoration: none;"><i class="fas fa-envelope-square" style="color: rgb(0,172,238); font-size: 12pt"></i> MichaelMoravekMD@gmail.com</a><br>
+                    <a href="https://twitter.com/moravekmd" target="_blank" style="color: rgb(0,172,238); text-decoration: none;"><i class="fab fa-twitter-square" style="color: rgb(0,172,238); font-size: 12pt"></i> @MoravekMD</a>
+                </div>
+            </div>
+
+            <div class="panel" id="savePanel" style="display: none">
+                <div class="panelBody">
+                    <!-- Save / load content goes here. -->
+                </div>
+            </div>
+
+            <!-- Settings sub-tabs (group "settingTab") are built from
+                 templateConfig.settingsTabs, same id conventions as the
+                 input tabs. -->
+            <div class="panel" id="settingPanel" style="display: none">
+                <div class="panelHeader" id="settingTabBar"></div>
+                <div id="settingBodies"></div>
+            </div>
+
+        </div>
+
+        <!-- Load order matters: templateConfig must exist before Template.js runs.
+             This line is the ONLY difference between template entry pages. -->
+        <script src="MarrowConfig.js"></script>
+        <script src="Template.js"></script>
+
+        <!-- Content scripts. Order is load-bearing: settings are read before
+             MarrowSpec renders (it needs the default-check preference), and
+             MarrowReport defines the section registry before tabs register.
+
+             MarrowForm MUST precede MarrowReport. Both bind a change listener to
+             #inputPanel, and listeners fire in the order they were added: the
+             toggle-group handler has to have cleared the rest of a group before
+             fillReport() reads it, or a click that swaps two chips would build
+             the report from the instant when both were checked.
+
+             Registration order IS report order, so a tab file's position here
+             is where its section lands on the right: Specimen, CBC, then the
+             blood findings and the manual differential. MarrowForm,
+             MarrowDescriptors and MarrowCounter are shared libraries — they
+             register nothing and only need to precede their callers. -->
+        <!-- The reference section (the book icon). A shared library like
+             MarrowForm: it registers no report section and reads no tab, and it
+             loads FIRST among the content scripts because the tabs that carry
+             quick links call refLinkHTML() while rendering at their own script
+             scope. Data before renderer — MarrowRef.js reads referenceTopics at
+             load to draw the index. -->
+        <script src="MarrowRefImages.js"></script>
+        <script src="MarrowRefData.js"></script>
+        <script src="MarrowRef.js"></script>
+
+        <script src="MarrowSettings.js"></script>
+        <script src="MarrowForm.js"></script>
+        <script src="MarrowDescriptors.js"></script>
+        <script src="MarrowReport.js"></script>
+        <!-- The classic click samples, base64-embedded (generated file). Before
+             MarrowCounter, which consumes them — and OPTIONAL to it: drop this
+             line and the counter keeps its synthesized sounds and simply stops
+             offering the classic scheme. -->
+        <script src="MarrowCounterSounds.js"></script>
+        <script src="MarrowCounter.js"></script>
+        <script src="MarrowSpec.js"></script>
+        <script src="MarrowCBC.js"></script>
+        <script src="MarrowBlood.js"></script>
+        <script src="MarrowAsp.js"></script>
+        <script src="MarrowCore.js"></script>
+        <script src="MarrowStains.js"></script>
+        <script src="MarrowAncillary.js"></script>
+        <script src="MarrowFindings.js"></script>
+
+        <!-- The Diagnosis tab, which was one 4000-line file and is now eleven.
+             THIS BLOCK'S ORDER IS THE RULE TABLE'S ORDER: the kernel declares
+             `dxRules` empty and each family file pushes onto it, so the six
+             family lines below are the order candidates sit in before scoring,
+             which dxUnresolvedPair() and the tie-breaks read. Reordering them
+             reorders the table; it does not merely move code.
+
+             Four hard constraints inside that freedom:
+               - Kernel first. It holds the three-valued helpers, the shared
+                 gates and thresholds, the shared formatters, the prior band,
+                 and the empty dxRules every family file appends to.
+               - MarrowDxMpn before MarrowDxMdsMpn. The CMML rule reads dxMpn
+                 at load time, not at call time, so a later MPN file is a
+                 ReferenceError and not a subtle bug.
+               - MarrowDxLikelihood AFTER all six families and BEFORE the
+                 engine. Its audit checks every entity weight against the
+                 finished dxRules — a weight naming no rule is otherwise a typo
+                 that never fires and never complains — and the engine calls
+                 into it from dxEvaluate.
+               - Engine, then Panel, after all of the above. dxRank() reads the
+                 finished array; the panel renders what the engine returns. -->
+        <script src="MarrowDxKernel.js"></script>
+        <script src="MarrowDxMds.js"></script>
+        <script src="MarrowDxMpn.js"></script>
+        <script src="MarrowDxMdsMpn.js"></script>
+        <script src="MarrowDxAml.js"></script>
+        <script src="MarrowDxPcn.js"></script>
+        <script src="MarrowDxCh.js"></script>
+        <script src="MarrowDxLikelihood.js"></script>
+        <script src="MarrowDxEngine.js"></script>
+        <script src="MarrowDxPanel.js"></script>
+    </body>
+</html>

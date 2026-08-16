@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- See the note in Marrow.html: the report strings are UTF-8 and reach
+             the clipboard, so this is a correctness fix rather than a display one. -->
+        <meta charset="utf-8">
+        <title>Report Template</title>
+        <link rel="stylesheet" href="Template.css">
+        <script src="https://kit.fontawesome.com/f6f9c2cc49.js" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <!-- Toast notification. Driven by showAlert('success'|'error', message). -->
+        <div id="alert">
+            <i id="alertIcon" class="" style="font-size: 18px;"></i>
+            <span id="alertText"></span>
+        </div>
+
+        <!-- Dimmer behind the nav drawer. Clicking it closes the drawer. -->
+        <div id="overlay"></div>
+
+        <nav id="navbar">
+            <div class="navHeader">
+                <i class="navbarIcon titleIcon fas fa-bars"></i>
+            </div>
+            <div id="navLinks">
+                <!-- Drawer links built from templateConfig.navLinks. -->
+            </div>
+        </nav>
+
+        <div class="header">
+            <div>
+                <i class="navbarIcon titleIcon fas fa-bars"></i>
+            </div>
+            <div class="title"><!-- Set from templateConfig.pageTitle. --></div>
+
+            <!-- Top-level page tabs: fixed shell chrome, identical across all
+                 templates. First class ("pageTab") is the tab GROUP; see the
+                 tab-switching contract in Template.js. -->
+            <div class="pagebar">
+                <i class="pageTab headerTab titleIcon fas fa-list clicked" id="templateTab" title="Template"></i>
+                <i class="pageTab headerTab titleIcon fas fa-book" id="helpTab" title="Help"></i>
+                <i class="pageTab headerTab titleIcon far fa-question-circle" id="infoTab" title="About"></i>
+                <i class="pageTab headerTab titleIcon fas fa-save" id="saveTab" title="Save / Load"></i>
+                <i class="pageTab headerTab titleIcon fas fa-cog" id="settingTab" title="Settings"></i>
+            </div>
+        </div>
+
+        <div class="panelContainer">
+
+            <!-- ============================================================
+                 LEFT PANEL — data entry. Sub-tabs (group "templateTab") are
+                 built from templateConfig.inputTabs: id "spec" -> #specTab +
+                 #specPanel. Panel bodies are created empty at runtime; to
+                 hand-write one in markup instead, add
+                 <div class="panelBody" id="specPanel"> inside #inputBodies
+                 and the shell will use it.
+                 ============================================================ -->
+            <div class="panel" id="inputPanel">
+                <div class="panelHeader" id="inputTabBar"></div>
+                <div id="inputBodies"></div>
+            </div>
+
+            <!-- ============================================================
+                 RIGHT PANEL — assembled report output. The copy-bar buttons
+                 are built from templateConfig.copyButtons and stay inert
+                 until handlers are attached by id.
+                 ============================================================ -->
+            <div class="panel" id="templatePanel">
+                <div class="copyHeader" id="copyButtonBar"></div>
+                <div class="panelBody" id="rightPanelFinal">
+                    <!-- Rendered report output goes here. -->
+                </div>
+            </div>
+
+            <!-- ============================================================
+                 TOP-LEVEL PAGES — siblings of the template view. Only one of
+                 these (or the template pair above) is visible at a time.
+                 ============================================================ -->
+            <div class="panel" id="helpPanel" style="display: none">
+                <div class="panelBody">
+                    <!-- Help / changelog content goes here. -->
+                </div>
+            </div>
+
+            <div class="panel" id="infoPanel" style="display: none">
+                <div class="panelBody">
+                    <h3 style="margin-top: 0px">About:</h3>
+                    This application was entirely coded by myself, Michael Moravek, MD, and is currently under construction. The project is not intended for clinical use in its current state.<br><br>
+                    If you have any questions or feedback, feel free to contact me:<br><br>
+                    <a href="mailto: MichaelMoravekMD@gmail.com" style="color: rgb(0,172,238); text-decoration: none;"><i class="fas fa-envelope-square" style="color: rgb(0,172,238); font-size: 12pt"></i> MichaelMoravekMD@gmail.com</a><br>
+                    <a href="https://twitter.com/moravekmd" target="_blank" style="color: rgb(0,172,238); text-decoration: none;"><i class="fab fa-twitter-square" style="color: rgb(0,172,238); font-size: 12pt"></i> @MoravekMD</a>
+                </div>
+            </div>
+
+            <div class="panel" id="savePanel" style="display: none">
+                <div class="panelBody">
+                    <!-- Save / load content goes here. -->
+                </div>
+            </div>
+
+            <!-- Settings sub-tabs (group "settingTab") are built from
+                 templateConfig.settingsTabs, same id conventions as the
+                 input tabs. -->
+            <div class="panel" id="settingPanel" style="display: none">
+                <div class="panelHeader" id="settingTabBar"></div>
+                <div id="settingBodies"></div>
+            </div>
+
+        </div>
+
+        <!-- Load order matters: templateConfig must exist before Template.js runs.
+             This line is the ONLY difference between template entry pages. -->
+        <script src="LiverConfig.js"></script>
+        <script src="Template.js"></script>
+    </body>
+</html>
