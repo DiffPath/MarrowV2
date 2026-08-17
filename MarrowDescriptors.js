@@ -204,15 +204,35 @@ const descriptorVocabulary = {
     paucispicular:       { label: 'Paucispicular',        text: 'paucispicular',        qual: 'none' },
     aspiculate:          { label: 'Aspiculate',           text: 'aspiculate',           qual: 'none' },
 
-    // Erythroid precursors (erythroidList). shiftToImmaturity is shared.
-    nuclearBudding:             { label: 'Nuclear budding',      text: 'nuclear budding',              qual: 'quant' },
-    nuclearContourIrregularity: { label: 'Nuclear contours',     text: 'nuclear contour irregularity', qual: 'quant' },
-    multinucleation:            { label: 'Multinucleation',      text: 'multinucleation',              qual: 'quant' },
-    megaloblastoid:             { label: 'Megaloblastoid',       text: 'megaloblastoid changes',       qual: 'quant' },
+    /* Erythroid precursors (erythroidList). shiftToImmaturity is shared, and
+       vacuolization is `blastVacuolated` above - the same words for the same
+       cytoplasm, so the same key.
 
-    // Myeloid precursors (myeloidList) — everything else it offers is the
-    // neutrophil list's, already above.
-    monolobatedForms:    { label: 'Monolobated forms',    text: 'monolobated forms',    qual: 'quant' },
+       THE TERMS ARE WHO-HAEM5 TABLE 2.10's (docs/who/mds-dysplasia-table-2.10.md),
+       at the author's instruction. Two consequences: `megaloblastoid` keeps its
+       KEY but prints "megaloblastic changes" - the introduction says in terms
+       that megaloblastic is "preferred over the term 'megaloblastoid'" - and
+       the erythroid lists offer `multinuclearity` (the table's erythroid word)
+       while `multinucleation` stays for the plasma and megakaryocyte lists,
+       which is the word the table uses THERE. */
+    nuclearBudding:             { label: 'Nuclear budding',        text: 'nuclear budding',              qual: 'quant' },
+    internuclearBridging:       { label: 'Internuclear bridging',  text: 'internuclear bridging',        qual: 'quant' },
+    nuclearContourIrregularity: { label: 'Nuclear contours',       text: 'nuclear contour irregularity', qual: 'quant' },
+    multinuclearity:            { label: 'Multinuclearity',        text: 'multinuclearity',              qual: 'quant' },
+    multinucleation:            { label: 'Multinucleation',        text: 'multinucleation',              qual: 'quant' },
+    megaloblastoid:             { label: 'Megaloblastic changes',  text: 'megaloblastic changes',        qual: 'quant' },
+    karyorrhexis:               { label: 'Karyorrhexis',           text: 'karyorrhexis',                 qual: 'quant' },
+
+    /* Myeloid precursors (myeloidList) - everything else it offers is the
+       neutrophil list's, already above, plus these Table 2.10 terms. The
+       pseudo-Pelger-Huët key exists BESIDE hypolobated/monolobated forms
+       rather than replacing them: the anomaly is the named entity, the forms
+       are the looser everyday description, and the author's instruction was to
+       add the WHO terms without removing options. */
+    monolobatedForms:     { label: 'Monolobated forms',    text: 'monolobated forms',    qual: 'quant' },
+    pseudoPelgerHuet:     { label: 'Pseudo-Pelger-Huët',   text: 'hyposegmented (pseudo-Pelger-Huët) forms', qual: 'quant' },
+    pseudoChediakHigashi: { label: 'Pseudo-Chédiak-Higashi granules', text: 'pseudo-Chédiak-Higashi granules', qual: 'quant' },
+    smallSize:            { label: 'Small size',           text: 'small size',           qual: 'none' },
 
     /* Megakaryocytes (aspMegList). Hypolobated/hypersegmented are shared with
        the myeloid list; these five are the megakaryocyte's own.
@@ -260,7 +280,9 @@ const descriptorVocabulary = {
     coreLeftShiftMyeloid:   { label: 'Left-shifted myeloid',   text: 'myeloid',                    qual: 'none', coreMEFrame: 'lineage' },
     coreLeftShiftErythroid: { label: 'Left-shifted erythroid', text: 'erythroid',                  qual: 'none', coreMEFrame: 'lineage' },
     coreErythroidIslands:   { label: 'Erythroid islands',      text: 'scattered erythroid islands', qual: 'none', coreMEFrame: 'noun', plural: true },
-    coreMegaloblastoid:     { label: 'Megaloblastoid',         text: 'megaloblastoid maturation',  qual: 'none', coreMEFrame: 'noun' },
+    // "Megaloblastic" over "megaloblastoid" - WHO-HAEM5's stated preference
+    // (docs/who/mds-introduction.md), same rename as the aspirate key above.
+    coreMegaloblastoid:     { label: 'Megaloblastic',          text: 'megaloblastic maturation',   qual: 'none', coreMEFrame: 'noun' },
     coreIncreasedBlasts:    { label: 'Increased blasts',       text: 'increase in blasts', qual: 'degree', prefix: 'a', coreMEFrame: 'noun' },
 
     /* MEGAKARYOCYTE MORPHOLOGY OF THE MYELOPROLIFERATIVE NEOPLASMS, offered on

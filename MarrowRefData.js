@@ -686,7 +686,12 @@ referenceTopics.push({
     }
 });
 
-// docs/who/mds-introduction.md - threshold and per-lineage features verbatim.
+// docs/who/mds-introduction.md - threshold verbatim - and the per-lineage
+// feature table is Table 2.10, docs/who/mds-dysplasia-table-2.10.md, pasted
+// later and now transcribed row for row (the prose paraphrase it replaced
+// lacked megaloblastic changes and Auer rods, which the table carries). The
+// same terms drive the dropdowns: aspDescriptorGroups in MarrowAsp.js and
+// dysplasticDescriptors in MarrowFindings.js.
 referenceTopics.push({
     id: 'dysplasia',
     section: 'bench',
@@ -711,15 +716,16 @@ referenceTopics.push({
             ]
         }) +
 
-        refTable(['Lineage', 'Features'], [
-            ['Erythroid',
-                'Nuclear budding, internuclear bridging, karyorrhexis, multinuclearity. Cytoplasmic: ring ' +
-                    'sideroblasts, vacuolization, aberrant PAS positivity.'],
-            ['Granulocytic',
-                'Nuclear hyposegmentation (pseudo-Pelger-Huët) or hypersegmentation; cytoplasmic hypogranularity; ' +
-                    'pseudo-Chédiak-Higashi granules; small size.'],
-            ['Megakaryocytic',
-                'Micromegakaryocytes; non-lobated nuclei at all sizes; multiple widely separated nuclei.']
+        refTable(['Lineage', 'Nuclear', 'Cytoplasmic'], [
+            ['Dyserythropoiesis',
+                'Budding, internuclear bridging, multinuclearity, megaloblastic changes, karyorrhexis',
+                'Ring sideroblasts, vacuolization, PAS positivity'],
+            ['Dysgranulopoiesis',
+                'Hyposegmentation (pseudo-Pelger-Huët), hypersegmentation',
+                'Hypogranularity, pseudo-Chédiak-Higashi granules, small size, Auer rods'],
+            ['Dysmegakaryopoiesis',
+                'Hypolobation in megakaryocytes of all sizes, multinucleation (multiple widely separated nuclei)',
+                'Micromegakaryocytes']
         ]) +
 
         refH('Excluded first') +

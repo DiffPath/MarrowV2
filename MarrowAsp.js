@@ -207,12 +207,23 @@ const aspTouch = [
    blood tab's, entire. */
 const aspDescriptorGroups = {
     aspAdequacyDesc: ['hemodilute', 'paucicellular', 'virtuallyAcellular', 'paucispicular', 'aspiculate'],
-    aspErythDesc:    ['nuclearBudding', 'nuclearContourIrregularity', 'multinucleation', 'megaloblastoid', 'shiftToImmaturity'],
-    aspMyeloidDesc:  ['hypogranularForms', 'monolobatedForms', 'hypolobatedForms', 'hypersegmentedForms', 'shiftToImmaturity'],
+    /* Table 2.10's terms (docs/who/mds-dysplasia-table-2.10.md), added at the
+       author's instruction with nothing dropped - one substitution excepted:
+       the erythroid list's `multinucleation` became `multinuclearity`, the
+       table's own word for this lineage (`multinucleation` is its word for
+       megakaryocytes, where it now also appears). Vacuolization rides the
+       shared `blastVacuolated` key; Auer rods ride the shared blast key, which
+       findingAuerRods() also reads from this group. */
+    aspErythDesc:    ['nuclearBudding', 'internuclearBridging', 'nuclearContourIrregularity', 'multinuclearity',
+                      'megaloblastoid', 'karyorrhexis', 'blastVacuolated', 'shiftToImmaturity'],
+    aspMyeloidDesc:  ['hypogranularForms', 'monolobatedForms', 'hypolobatedForms', 'pseudoPelgerHuet',
+                      'hypersegmentedForms', 'pseudoChediakHigashi', 'smallSize', 'blastAuerRods', 'shiftToImmaturity'],
     aspLymphDesc:    ['lymphNoAtypical', 'smallMature', 'smallMatureAndLargeGranular', 'predominantlyLargeGranular',
                       'polymorphous', 'reactive', 'predominantlyCllLike', 'subsetCllLike', 'marginalZoneLike', 'hairyCellLike'],
-    aspMegDesc:      ['widelySeparatedNuclearLobes', 'separationNuclearLobes', 'hypolobatedForms', 'smallHypolobated',
-                      'micromegakaryocytes', 'hypersegmentedForms', 'largeHypersegmented'],
+    // `multinucleation` is Table 2.10's megakaryocyte word ("multiple widely
+    // separated nuclei"), offered beside the two separated-lobe descriptors.
+    aspMegDesc:      ['widelySeparatedNuclearLobes', 'separationNuclearLobes', 'multinucleation', 'hypolobatedForms',
+                      'smallHypolobated', 'micromegakaryocytes', 'hypersegmentedForms', 'largeHypersegmented'],
     aspPlasmaDesc:   ['largeAtypical', 'multinucleation'],
     /* The shared list, from MarrowDescriptors.js rather than spelled out here —
        the Blood tab offers the identical keys and the diagnosis engine reads Auer

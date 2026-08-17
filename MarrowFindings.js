@@ -75,11 +75,18 @@ function findingFirst() {
 -------------------------------------------------------------------------- */
 
 const dysplasticDescriptors = {
-    erythroid: ['nuclearBudding', 'nuclearContourIrregularity', 'multinucleation', 'megaloblastoid'],
-    myeloid: ['hypogranularForms', 'monolobatedForms', 'hypolobatedForms', 'hypersegmentedForms'],
-    megakaryocytic: ['widelySeparatedNuclearLobes', 'separationNuclearLobes', 'hypolobatedForms',
-                     'smallHypolobated', 'micromegakaryocytes', 'largeHypersegmented',
-                     'hypersegmentedForms']
+    /* WHO-HAEM5 Table 2.10's lists (docs/who/mds-dysplasia-table-2.10.md), key
+       for key: the erythroid vacuolization is the shared `blastVacuolated`,
+       Auer rods the shared `blastAuerRods` - the table itself puts Auer rods
+       under dysgranulopoiesis, which is why the blast finding also counts a
+       myeloid lineage as dysplastic when named there. */
+    erythroid: ['nuclearBudding', 'internuclearBridging', 'nuclearContourIrregularity', 'multinuclearity',
+                'multinucleation', 'megaloblastoid', 'karyorrhexis', 'blastVacuolated'],
+    myeloid: ['hypogranularForms', 'monolobatedForms', 'hypolobatedForms', 'pseudoPelgerHuet',
+              'hypersegmentedForms', 'pseudoChediakHigashi', 'smallSize', 'blastAuerRods'],
+    megakaryocytic: ['widelySeparatedNuclearLobes', 'separationNuclearLobes', 'multinucleation',
+                     'hypolobatedForms', 'smallHypolobated', 'micromegakaryocytes',
+                     'largeHypersegmented', 'hypersegmentedForms']
 };
 
 /* WHICH DESCRIPTORS MEAN AUER RODS — the same kind of clinical judgement as
@@ -516,7 +523,11 @@ function findingPlasma() {
    `=== true` and nothing may read `=== false`. The MDS-IB caution states the
    limitation on every case that did not name them. */
 function findingAuerRods() {
-    const named = descriptorSelected('aspBlastDesc').concat(descriptorSelected('pbBlastDesc'));
+    /* The myeloid group is read too: Table 2.10 lists Auer rods under
+       dysgranulopoiesis, so the aspirate's myeloid dropdown offers the shared
+       blastAuerRods key - a rod named there is a rod. */
+    const named = descriptorSelected('aspBlastDesc').concat(
+        descriptorSelected('pbBlastDesc'), descriptorSelected('aspMyeloidDesc'));
     const found = AUER_ROD_DESCRIPTORS.some(function (key) { return named.indexOf(key) !== -1; });
     return found ? true : null;
 }

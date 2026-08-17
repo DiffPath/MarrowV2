@@ -100,7 +100,7 @@ const coreDescriptorGroups = {
        the order a pathologist coming from that app looks for. One row either way
        — a megakaryocyte's morphology is one question, and an MPN marrow that also
        has micromegakaryocytes must be able to say so. */
-    coreMegDesc:      ['widelySeparatedNuclearLobes', 'separationNuclearLobes', 'hypolobatedForms',
+    coreMegDesc:      ['widelySeparatedNuclearLobes', 'separationNuclearLobes', 'multinucleation', 'hypolobatedForms',
                        'smallHypolobated', 'micromegakaryocytes', 'largeHypersegmented',
                        'megDenseClusters', 'megLooseClusters', 'megParatrabecular',
                        'megStaghorn', 'megCloudLike', 'megHyperchromatic', 'megPleomorphic',

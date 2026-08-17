@@ -287,7 +287,11 @@ const bloodDescriptorGroups = {
                   'echinocytes', 'elliptocytes', 'howellJolly', 'macroovalocytes', 'microspherocytes',
                   'ovalocytes', 'schistocytes', 'sickleCells', 'spherocytes', 'targetCells',
                   'teardropCells', 'teardropForms'],
-    pbNeutDesc:  ['hypogranularForms', 'hypolobatedForms', 'hypersegmentedForms', 'shiftToImmaturity', 'toxicChanges'],
+    // pseudoPelgerHuet and pseudoChediakHigashi are WHO-HAEM5 Table 2.10's
+    // dysgranulopoiesis terms, offered on blood neutrophils exactly as on the
+    // aspirate's myeloid list (they are the same cells one maturation later).
+    pbNeutDesc:  ['hypogranularForms', 'hypolobatedForms', 'pseudoPelgerHuet', 'hypersegmentedForms',
+                  'pseudoChediakHigashi', 'shiftToImmaturity', 'toxicChanges'],
     pbLymphDesc: ['lymphNoAtypical', 'smallMature', 'smallMatureAndLargeGranular', 'predominantlyLargeGranular',
                   'polymorphous', 'reactive', 'predominantlyCllLike', 'subsetCllLike', 'marginalZoneLike', 'hairyCellLike'],
     pbMonoDesc:  ['matureMorphology', 'shiftToImmaturity'],
@@ -514,17 +518,18 @@ function renderBloodPanel() {
                 ${findingRow('MCV / MCHC', bloodToggleRow('pbMcv', bloodMcv) +
                     `<span class="chipGap"></span>` +
                     `<input type="checkbox" class="chipInput form" id="pbHypochromic"><label class="chip" for="pbHypochromic">Hypochromic</label>`, 'mcv')}
-                ${/* THREE TIERS, STACKED, and the split is by how each chip
-                      BEHAVES rather than by what it means.
+                ${/* A TIER PER FINDING, STACKED.
 
                       Top is the stop chip alone: "Unremarkable" negates
                       everything under it (see the .stopgroup handler in
                       MarrowForm.js), so it is not one option among four and
                       should not sit in a line with them.
 
-                      Middle is the three findings that are just a chip and a
-                      qualifier — polychromasia, rouleaux, NRBCs — which never
-                      change height.
+                      Then polychromasia, rouleaux and NRBCs EACH take a line
+                      of their own (the author's call — they shared one, and a
+                      picked qualifier crowded its neighbours sideways; on
+                      separate tiers a qualifier opens into its own line's
+                      space).
 
                       Bottom is anisopoikilocytosis and the descriptor list it
                       owns, which grows a line every time you name a poikilocyte.
@@ -535,7 +540,9 @@ function renderBloodPanel() {
                 ${findingRow('Morphology',
                     `<span class="chipStack">` +
                         `<span class="chipSet">${bloodUnremarkableChip('pbRbc')}</span>` +
-                        `<span class="chipSet">${rbcChips(bloodRbcFeatures)}</span>` +
+                        bloodRbcFeatures.map(function (feature) {
+                            return `<span class="chipSet">${rbcChips([feature])}</span>`;
+                        }).join('') +
                         // The atlas link rides the aniso tier, which is the row
                         // that reveals the poikilocyte dropdowns — so it is
                         // beside the question it answers ("what does a burr cell
