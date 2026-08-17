@@ -22,8 +22,9 @@
 
      - The adequacy artifacts printed "a shows crush artifact" in the original —
        the article landing in front of the verb (../Marrow/MarrowText.js:40-60).
-       Ungrammatical and unambiguously meant to be "shows a crush artifact",
-       fixed here. Every other original core string is reproduced exactly.
+       Fixed first to "shows a crush artifact"; the author then cut the article
+       entirely — artifact is a mass noun, so it is "shows crush artifact".
+       Every other original core string is reproduced exactly.
    ========================================================================= */
 
 
@@ -513,13 +514,6 @@ function syncCoreCellularity() {
    sentence, '' when it has nothing to say.
 -------------------------------------------------------------------------- */
 
-/* 'a'/'an' resolved against the noun it precedes, like the original's runtime
-   recomputation (../Marrow/MarrowText.js:44-51): "a crush artifact", "an
-   aspiration artifact". */
-function coreArticle(noun) {
-    return /^[aeiou]/i.test(noun) ? 'an' : 'a';
-}
-
 /* " markedly" / "" — the space belongs to the qualifier, not to the sentence
    around it, which is what lets the sentence read the same either way. The
    aspirate's aspGrade, and this file may not reach into that one. */
@@ -539,12 +533,15 @@ function coreCapitalize(s) {
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
-/* The adequacy phrase, grouped by verb: "is fragmented and small", "shows a
-   crush artifact", "shows a crush artifact and is fragmented". Two verbs exist
+/* The adequacy phrase, grouped by verb: "is fragmented and small", "shows
+   crush artifact", "shows crush artifact and is fragmented". Two verbs exist
    (shows, is), so at most two groups, joined with "and".
 
-   This is where the "a shows crush artifact" bug is fixed — the article sits
-   inside the shows-group, after the verb, where it belongs. */
+   NO ARTICLE on the artifacts, at the author's instruction - artifact is a
+   mass noun here ("shows crush artifact"). The original printed "a shows
+   crush artifact" (../Marrow/MarrowText.js:40-60), the first rebuild moved
+   the article behind the verb, and the author then cut it entirely; the
+   `article` flag and coreArticle() left with it. */
 function coreAdequacyPhrase() {
     const keys = descriptorSelected('coreAdequacyDesc');
     if (!keys.length) return '';
@@ -554,9 +551,8 @@ function coreAdequacyPhrase() {
     keys.forEach(function (key) {
         const entry = descriptorVocabulary[key];
         const verb = entry.coreVerb;
-        const noun = entry.article ? coreArticle(entry.text) + ' ' + entry.text : entry.text;
         if (!byVerb[verb]) { byVerb[verb] = []; order.push(verb); }
-        byVerb[verb].push(noun);
+        byVerb[verb].push(entry.text);
     });
 
     return order.map(function (verb) { return verb + ' ' + addCommas(byVerb[verb]); }).join(' and ');

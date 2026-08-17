@@ -363,9 +363,11 @@ const descriptorVocabulary = {
        prefix landing before the verb (../Marrow/MarrowText.js:40-60 with the
        showsDescriptors prefix). Ungrammatical, and unambiguously meant to read
        "shows a crush artifact" — fixed here, flagged in CLAUDE.md. */
-    crushArtifact:            { label: 'Crush artifact',          text: 'crush artifact',          qual: 'none', coreVerb: 'shows', article: true },
-    aspirationArtifact:       { label: 'Aspiration artifact',     text: 'aspiration artifact',     qual: 'none', coreVerb: 'shows', article: true },
-    proceduralArtifact:       { label: 'Procedural artifact',     text: 'procedural artifact',     qual: 'none', coreVerb: 'shows', article: true },
+    // No article, at the author's instruction: artifact is a mass noun here -
+    // "shows crush artifact", never "shows a crush artifact".
+    crushArtifact:            { label: 'Crush artifact',          text: 'crush artifact',          qual: 'none', coreVerb: 'shows' },
+    aspirationArtifact:       { label: 'Aspiration artifact',     text: 'aspiration artifact',     qual: 'none', coreVerb: 'shows' },
+    proceduralArtifact:       { label: 'Procedural artifact',     text: 'procedural artifact',     qual: 'none', coreVerb: 'shows' },
     fragmented:               { label: 'Fragmented',              text: 'fragmented',              qual: 'none', coreVerb: 'is' },
     subcortical:              { label: 'Subcortical',             text: 'subcortical',             qual: 'none', coreVerb: 'is' },
     predominantlySubcortical: { label: 'Predominantly subcortical', text: 'predominantly subcortical', qual: 'none', coreVerb: 'is' },
