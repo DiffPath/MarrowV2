@@ -558,8 +558,12 @@ a:active {
    — so counting one would leave a row looking answered by a chip that is not
    even on screen. Click Anemia, click Mild, click Anemia off: the box comes
    back, because Mild was never the answer. */
-[data-key].keyInput:has(input:checked:not(.chipQualInput)),
-[data-key].keyInput:has(option:not([value=""]):checked) {
+/* `data-sticky` opts a cue OUT of clearing: a toggle switch cannot answer
+   "no" — off looks identical to never-considered — so its box would either
+   clear on the wrong signal or nag forever. Sticky says: this box is a
+   standing reminder, not a question with a completion state. */
+[data-key].keyInput:not([data-sticky]):has(input:checked:not(.chipQualInput)),
+[data-key].keyInput:not([data-sticky]):has(option:not([value=""]):checked) {
     background-color: transparent;
     box-shadow: none;
 }
@@ -1168,14 +1172,65 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
    screen matters for three moments only — learning the bindings, checking
    progress, reading the final numbers — and the layout is ordered by those.
 
-   The pad and its side rail (running count over the target picker) sit as one
-   centered row; the tape spans the full panel width below them. */
+   The pad sits in the middle column, centered in the FULL panel, and the side
+   rail (running count over the target picker) takes the right column, flush
+   to the panel's edge — the author's call, replacing the earlier layout that
+   centered pad-plus-rail as one pair (which put the pad's center left of the
+   panel's). The 1fr flanks are what make the centering true; when the panel
+   gets tight they give way and the pad yields leftward rather than anything
+   overlapping. The tape spans the full panel width below them. */
 .counterMain {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    column-gap: 16px;
+    align-items: start;
     margin-bottom: 10px;
+}
+
+.counterMain > .keypad {
+    grid-column: 2;
+    /* No-op when the track is exactly the pad's width; inside a .counterZone
+       the shared middle track can be set by the toggle row instead, and the
+       pad must center within it rather than sit at its left edge. */
+    justify-self: center;
+}
+
+/* --- Counter zone: controls centered over the pad ------------------------ */
+
+/* The aspirate's two switches sit centered over the PAD's own column, not the
+   panel's center — the pad yields left of panel-center when the rail is tight
+   (see .counterMain above), so panel-centering the row left it visibly off
+   the pad. The zone is one grid whose tracks the counter's nested grids adopt
+   via subgrid, so the toggle row and the keypad occupy the same middle track
+   and share a center at every width, including mid-yield. Every intermediate
+   layer (mount, .counterWrap, .counterMain) must pass the tracks through —
+   subgrid only reaches parent to child — which is what the chain below is. */
+.counterZone {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    column-gap: 16px;
+}
+
+.counterZone > .toggleFieldRow {
+    grid-column: 2;
+    margin-bottom: 8px;
+}
+
+.counterZoneMount,
+.counterZone .counterWrap {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+}
+
+.counterZone .counterMain {
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+}
+
+/* The tape keeps the full panel width it always had. */
+.counterZone .counterWrap > .textBox {
+    grid-column: 1 / -1;
 }
 
 /* Current count over desired count, beside the pad — one line each, label then
@@ -1196,6 +1251,8 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
    row's centerline; without it they would stretch and the text would ride the
    row's top edge. */
 .counterSide {
+    grid-column: 3;
+    justify-self: end;
     display: grid;
     grid-template-columns: auto auto;
     /* Reads wider than it looks: the values carry 7px of their own left inset
@@ -1880,6 +1937,20 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
     margin-top: 3px;
 }
 
+/* Beside its chip rather than under it — the aniso list rides to the RIGHT of
+   the Anisopoikilocytosis chip now, like every other row's dropdown (author's
+   call). Top-aligned tier, so the chip holds the first line while the list
+   grows downward beside it. */
+.descBlock.descBeside {
+    flex-basis: auto;
+    margin-top: 0;
+    margin-left: 6px;
+}
+
+.chipSet:has(.descBeside) {
+    align-items: flex-start;
+}
+
 /* --- Chip with an inline qualifier --------------------------------------- */
 
 /* A descriptor and its qualifier as ONE control: "Schistocytes" alone until you
@@ -1895,18 +1966,15 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
     align-items: center;
 }
 
-/* The qualifier only exists once its descriptor is chosen. :has() rather than a
-   class toggled in JS, for the same reason .chipInput:checked + .chip is CSS:
-   the chip's state IS the input's state, and a second copy of it in a class is a
-   second thing to keep true. */
+/* The qualifier is ALWAYS on screen now — the author's call, replacing the
+   reveal-on-check (`.chipWrap:has(> .chipInput:checked)`) that used to hide it
+   until its descriptor was chosen. Its partner rule is in MarrowForm.js:
+   picking a qualifier here also picks the one chip it hangs off, so a visible
+   "Rare" is never a dead end. */
 .chipWrap .chipQuals {
-    display: none;
-}
-
-.chipWrap:has(> .chipInput:checked) .chipQuals {
     display: inline-flex;
     gap: 3px;
-    margin-left: 4px;
+    margin-left: 8px;
 }
 
 /* Smaller and lighter than the chip it hangs off, so a qualified descriptor
@@ -1921,8 +1989,12 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
    rule's dark fill, same as every other chip — a light-accent + bold variant
    was tried and is out: it read as a different kind of control, and the bold
    nudged the pill wider on every click. No font-weight anywhere on a chip's
-   checked state, for that reason. */
-.chipQualInput + .chipQual {
+   checked state, for that reason.
+
+   Keyed on the INPUT alone (author's call): every chip whose input is a
+   .chipQualInput is small — the severity pairs' labels are plain .chip, and
+   they must match the descriptor qualifiers, not the answers they grade. */
+.chipQualInput + .chip {
     font-size: 11px;
     padding: 2px 7px;
 }

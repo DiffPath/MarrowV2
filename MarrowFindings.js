@@ -488,7 +488,9 @@ function findingPlasma() {
             stainValue('coreIhc', 'cd138', 'result') || null,
             stainValue('clotIhc', 'cd138', 'result') || null);
         if (!chosen) return null;
-        return chosen === 'Increased';
+        // Every reading but "Not increased" is an increase - the graded
+        // options (mildly, diffusely) grade it without changing the answer.
+        return chosen !== 'Not increased';
     })();
     const increased = core === true || cd138Call === true ? true
         : core === false || cd138Call === false ? false
@@ -500,13 +502,24 @@ function findingPlasma() {
     const restriction = ish === 'Kappa restriction' ? 'kappa'
         : ish === 'Lambda restriction' ? 'lambda'
         : null;
+    const predominance = ish === 'Kappa predominance' ? 'kappa'
+        : ish === 'Lambda predominance' ? 'lambda'
+        : null;
 
     return {
         marrowPct: pct,
         pctBasis: basis,
         increased: increased,
         restriction: restriction,
-        clonal: ish === null ? null : restriction !== null
+        /* A predominance is the reading SHORT of restriction: suggestive, not
+           establishing. It may not answer the clonality question either way -
+           clonal true would assert what the stain did not, false would let
+           "no light-chain restriction" gates pass on a skewed marrow. */
+        predominance: predominance,
+        clonal: ish === null ? null
+            : restriction !== null ? true
+            : predominance !== null ? null
+            : false
     };
 }
 

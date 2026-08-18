@@ -648,16 +648,33 @@ function descriptorPhrase(group, filter) {
     const byQualifier = new Map();
     let pooled = false;
 
+    /* THE QUALIFIER CARRIES DOWN THE LIST (the author's instruction): a named
+       descriptor with no qualifier picked takes the nearest one picked ABOVE
+       it, so "occasional schistocytes" over a bare "target cells" prints
+       "occasional schistocytes and target cells" rather than "... with target
+       cells", and two bare rows below make "occasional x, y, and z". The run
+       only flows through rows offering the SAME qualifier set - a row with a
+       different set, no set at all, or its own article breaks it - and rows
+       above the first pick stay bare, as they always did. An explicit pick
+       starts a new run wherever it lands. */
+    let run = null;    // { value, set } of the nearest explicit qualifier above
+
     descriptorSelected(group).forEach(function (key) {
         if (filter && !filter(key)) return;
         const d = descriptorVocabulary[key];
 
         if (d.prefix) {
             phrases.push(descriptorNounPhrase(group, key));
+            run = null;
             return;
         }
 
-        const qual = toggleGroupValue(descriptorQualGroup(group, key));
+        const explicit = toggleGroupValue(descriptorQualGroup(group, key));
+        let qual = explicit;
+        if (explicit) run = { value: explicit, set: d.qual };
+        else if (run && d.qual !== 'none' && d.qual === run.set) qual = run.value;
+        else run = null;
+
         if (!byQualifier.has(qual)) byQualifier.set(qual, []);
         byQualifier.get(qual).push(d.text);
     });

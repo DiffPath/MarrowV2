@@ -310,9 +310,10 @@ pad silently drops to defaults for anyone with saved bindings.
   `cbc`, and Copy Microscopic → **everything unclaimed**, derived from the registry so a new
   section is microscopic by default. Each copies whole visible containers as `text/html` +
   `text/plain` via the async clipboard API, falling back to the old app's synthesized-copy-event
-  trick (which works from `file://`). `newMarrowBtn` remains inert. The old app's Epic HTML+RTF
-  "Method 5" path for the final-diagnosis bullet is deliberately not ported until that line
-  itself is rebuilt.
+  trick (which works from `file://`). `newMarrowBtn` clears the worksheet: confirm, then
+  `location.reload()` — a fresh load is the canonical empty state and the app persists no case
+  data, so there is no clear-list to keep complete. The old app's Epic HTML+RTF "Method 5" path
+  for the final-diagnosis bullet is deliberately not ported until that line itself is rebuilt.
 
 - When rebuilding, prefer data-driven UI over hard-coded markup: the original populated
   its dropdowns at runtime from data objects via `data-selectType` / `data-parentID`.

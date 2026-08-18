@@ -38,6 +38,11 @@ function dxPlasmaPhrase(f) {
         ? 'a clonal' + (p.restriction ? ' (' + p.restriction + '-restricted)' : '')
         : 'a';
     phrase += ' plasma cell population';
+    // The reading short of restriction, in the author's words: "a kappa
+    // predominance". Only when there is no frank restriction to state instead.
+    if (p.clonal !== true && p.predominance) {
+        phrase += ' with a ' + p.predominance + ' predominance';
+    }
     if (p.marrowPct !== null) {
         phrase += ' comprising approximately ' + dxPct(p.marrowPct) + '% of marrow cells';
         if (p.pctBasis === 'cd138' || p.pctBasis === 'cd138Range') phrase += ' by CD138';
@@ -63,6 +68,12 @@ dxRules.push(
         supports: [
             ['plasma cells at or above 10% of marrow cells', 3, dxPlasmaAtLeast10],
             ['light-chain restriction', 3, function (f) { return f.plasma.clonal; }],
+            /* The reading short of restriction: suggestive, so it scores a
+               point and moves no gate - the clonality question stays open
+               (clonal is null on a predominance; see findingPlasma). */
+            ['a light-chain predominance by in situ hybridization', 1, function (f) {
+                return f.plasma.predominance !== null ? true : null;
+            }],
             ['plasma cells increased on sections', 1, function (f) { return f.plasma.increased; }]
         ],
         /* Always, while the rule is live: nothing in this app can tell myeloma
@@ -93,7 +104,10 @@ dxRules.push(
             }]
         ],
         supports: [
-            ['light-chain restriction', 2, function (f) { return f.plasma.clonal; }]
+            ['light-chain restriction', 2, function (f) { return f.plasma.clonal; }],
+            ['a light-chain predominance by in situ hybridization', 1, function (f) {
+                return f.plasma.predominance !== null ? true : null;
+            }]
         ],
         caution: function () {
             return 'The designation of MGUS additionally requires a serum monoclonal protein ' +

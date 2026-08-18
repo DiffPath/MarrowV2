@@ -55,6 +55,24 @@ function chipHTML(type, name, id, value, label, extraClass) {
    Settings panels
 -------------------------------------------------------------------------- */
 
+/* A statement and the switch that answers it — "Performed on touch
+   preparation", "Digital imaging used". Moved here from MarrowAsp.js when the
+   Stains tab became its second caller, the same move chipHTML made. Two labels
+   for one input — the text is a hit target as well as the switch — with the
+   input kept ADJACENT to .toggleSwitch, which is the contract the switch
+   styling keys on (Template.css). `form`, never `setting`: this is case data,
+   and `setting` would persist it into the next case.
+
+   `key` hangs the highlight cue on the field — STICKY, because a switch cannot
+   answer "no": off is a real answer that looks identical to never-considered,
+   so a clear-on-answer cue would nag forever. data-sticky exempts it from the
+   clearing rule (Template.css). */
+function toggleFieldHTML(id, text, key) {
+    const keyAttr = key ? ` data-key="${key}" data-sticky` : '';
+    return `<span class="toggleField"${keyAttr}><label class="toggleText" for="${id}">${text}</label>` +
+        `<input type="checkbox" class="toggleInput form" id="${id}"><label class="toggleSwitch" for="${id}"></label></span>`;
+}
+
 /* One Save per settings panel, kept last however many blocks render into it.
    saveSettings() commits every .setting on the page, so a second button would
    only be a second name for one action. appendChild MOVES an existing node,
@@ -164,4 +182,28 @@ document.getElementById('inputPanel')?.addEventListener('change', function (e) {
         // stop chips, since ordinary chips coexist happily.
         if (isStop || el.dataset.stop !== undefined) el.checked = false;
     });
+});
+
+
+/* ----------------------------------------------------------------------------
+   A qualifier implies its finding — the SINGLE-PARENT rule
+
+   Qualifiers are always on screen now (the reveal-on-check is gone; see
+   .chipQuals in Template.css), so "Rare" can be the first thing clicked. Where
+   the qualifier hangs off exactly ONE chip — the .chipWrap findings: NRBCs,
+   polychromasia, rouleaux — picking it also picks the chip, because there is
+   only one thing it could mean. Where the parent is a toggle group of two or
+   more (a severity under Low/Normal/High), nothing is inferred: "mild" grades
+   an answer without saying which, so the group waits for the user. That case
+   never reaches this handler — severity rows are .chipSub, not .chipWrap.
+
+   click(), not .checked = true: the parent's own change event must fire so the
+   stop-chip handler above clears "Unremarkable" and fillReport reads the final
+   state. Checking only — unticking a qualifier says nothing about the chip. */
+document.getElementById('inputPanel')?.addEventListener('change', function (e) {
+    if (!e.target.classList || !e.target.classList.contains('chipQualInput') || !e.target.checked) return;
+    const wrap = e.target.closest('.chipWrap');
+    if (!wrap) return;
+    const parent = wrap.querySelector(':scope > .chipInput:not(.chipQualInput)');
+    if (parent && !parent.checked) parent.click();
 });

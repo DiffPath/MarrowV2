@@ -248,7 +248,16 @@ const HL_BASE = [
        one answer nobody can reconstruct later from the slide. */
     'laterality',
     'hgb', 'mcv', 'rbcMorph', 'neut', 'neutMorph', 'plt', 'pltMorph',
-    'aspAdequacy', 'aspPredom', 'aspErythMorph', 'aspMyeloidMorph', 'aspMega', 'aspMegaMorph', 'aspBlast',
+    /* aspPredom is deliberately NOT cued (author's call): the predominance is
+       derived from the counted M:E ratio and autofills, so a green box on it
+       mostly asked for something the count answers by itself. The data-key
+       stays on the row as the hook.
+
+       aspTouchPrep is cued STICKY (data-sticky on the field): a switch cannot
+       answer "no", so its box never clears — a standing reminder to say which
+       specimen the differential describes. */
+    'aspTouchPrep',
+    'aspAdequacy', 'aspErythMorph', 'aspMyeloidMorph', 'aspMega', 'aspMegaMorph', 'aspBlast',
     'coreAdequacy', 'coreCellularity', 'coreME', 'coreMeg', 'coreMegMorph'
 ];
 
@@ -372,16 +381,34 @@ function copySectionIds(buttonId) {
    The plain half reads innerText off the panel rather than a detached clone,
    because innerText only honors line breaks on a rendered element. */
 function copyPayload(ids) {
-    let html = '';
+    const parts = [];
     const texts = [];
     ids.forEach(function (id) {
         const container = document.getElementById(id + 'Container');
         if (!container || container.style.display === 'none') return;
-        html += container.innerHTML;
+        parts.push(container.innerHTML);
         const text = container.innerText.trim();
         if (text) texts.push(text);
     });
-    if (!html) return null;
+    if (!parts.length) return null;
+
+    /* EPIC DROPS THE MARGINS. On screen and in Word the space between sections
+       is the paragraphs' 8pt margin-bottom; Epic's editor strips margins on
+       paste, so sections ran together there (the author's report). A literal
+       <br> between sections is a blank line every editor keeps — the old app
+       spaced its report exactly this way. Skipped where the section already
+       ends with one (the differential tables carry the old app's trailing
+       <br>), so a table is never followed by two blank lines. Word shows the
+       margin AND the blank line, which reads as one section gap either way. */
+    let html = '';
+    /* "Ends with a <br>" has to see through the container's own closing tags:
+       the table's trailing <br> sits INSIDE #pbDiffDiv, so the raw string ends
+       with </div>. */
+    const endsWithBreak = /<br\s*\/?>\s*(<\/(div|span)>\s*)*$/i;
+    parts.forEach(function (part, i) {
+        if (i > 0 && !endsWithBreak.test(parts[i - 1])) html += '<br>';
+        html += part;
+    });
 
     // The comment body is contenteditable in the panel; the copy is not an
     // editor, and pasting an editable region into another tool invites it to
@@ -440,8 +467,7 @@ async function copyToClipboard(payload) {
 }
 
 /* Wired on the same event the sections are built on; listeners run in add
-   order, so the containers exist by the time this runs. newMarrowBtn is not a
-   copy button and stays inert. */
+   order, so the containers exist by the time this runs. */
 document.addEventListener('DOMContentLoaded', function () {
     Object.keys(COPY_CLAIMED).concat('microscopic').forEach(function (buttonId) {
         document.getElementById(buttonId)?.addEventListener('click', async function () {
@@ -452,5 +478,19 @@ document.addEventListener('DOMContentLoaded', function () {
             if (ok) showAlert('success', 'Text copied');
             else showAlert('error', 'Failed to copy');
         });
+    });
+
+    /* New Marrow - the whole worksheet cleared. A fresh page load is the
+       canonical empty state (the old app's doNewMarrow reasoned the same way):
+       every control, counter tape, growing list and derived report resets in
+       one act, with no list of "things that must be cleared" to keep complete
+       as tabs grow. Nothing that was meant to be kept is lost - the app
+       persists no case data by design, and settings live in localStorage,
+       which a reload does not touch. The confirm is the button's whole
+       safety: it is the one control in this bar that destroys rather than
+       copies, and a misclick would cost a whole case. */
+    document.getElementById('newMarrowBtn')?.addEventListener('click', function () {
+        if (!window.confirm('Start a new marrow? This clears everything entered for the current case.')) return;
+        window.location.reload();
     });
 });

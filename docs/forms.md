@@ -231,9 +231,16 @@ is now only for those named RBC features.
 **The qualifier groups the output.** Two descriptors sharing one print as a single phrase — "rare
 schistocytes and target cells", not "rare schistocytes and rare target cells". That is what
 `descriptorPhrase()` is for, and why a qualifier belongs to each descriptor rather than to the
-group. One behaviour is deliberately dropped: old `listText` let an unqualified descriptor
-**inherit** the previous one's qualifier, which silently qualified things you never qualified — a
-workaround for its UI. Setting each one is a click, so say what you mean.
+group.
+
+**And it carries down the list.** An unqualified descriptor takes the nearest qualifier picked
+above it, so "occasional" on the first of three prints "occasional x, y, and z" rather than
+"occasional x with y and z". The rebuild originally dropped the old `listText`'s inheritance as a
+UI workaround; the author asked for it back, and it returned in a stricter form: the run flows
+only through rows offering the SAME qualifier set, an explicit pick starts a new run, a row with a
+different set (or a `prefix`) breaks it, and rows above the first pick stay bare. All in
+`descriptorPhrase()`; nothing is written into the controls — the chips still show exactly what was
+clicked.
 
 **"Unremarkable morphology" vs a named one is reconciled in `MarrowDescriptors.js`, not
 `MarrowForm.js`.** The stop-chip handler works by unchecking, and a `<select>` has nothing to

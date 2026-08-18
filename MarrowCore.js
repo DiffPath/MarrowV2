@@ -267,25 +267,10 @@ function renderCorePanel() {
 }
 
 
-/* Severity is a question only once something is abnormal: "normocellular" and a
-   Normal megakaryocyte count take no grade, and no answer at all takes none.
-   Hidden, not removed, so the grid does not reflow under the cursor — and not
-   enforced by clearing the chips: a grade you set, hid, and revealed again is
-   still the one you set (see syncAspSeverity for the same rule). */
-function syncCoreSeverity() {
-    const show = function (id, on) {
-        const el = document.getElementById(id);
-        if (el) el.style.visibility = on ? 'visible' : 'hidden';
-    };
-
-    const cell = toggleGroupValue('coreCellularity');
-    show('coreCellSeverity', cell === 'hypocellular' || cell === 'hypercellular');
-
-    const meg = toggleGroupValue('coreMeg');
-    show('coreMegSeverity', meg === 'decreased' || meg === 'increased');
-
-    show('corePlasmaSeverity', toggleGroupValue('corePlasma') === 'increased');
-}
+/* SEVERITIES ARE ALWAYS ON SCREEN NOW — the author's call, replacing
+   syncCoreSeverity(), which revealed each grade only once its finding was
+   abnormal. The fills read a severity only on the branches that use it, so a
+   grade with no count or cellularity picked appears in no report. */
 
 
 /* ----------------------------------------------------------------------------
@@ -502,7 +487,6 @@ function syncCoreCellularity() {
     }
     // numbers present but no age: leave the manual choice alone (original did too).
 
-    syncCoreSeverity();
     fillReport();
 }
 
@@ -851,17 +835,10 @@ function fillCoreSection() {
 renderCorePanel();
 renderCoreSettings();
 applySettings();
-syncCoreSeverity();
 
 /* One combined section: core biopsy + particle clot, dynamic heading in the
    fill. No separate `clot` registration — that is the combine. */
 registerReportSection({ id: 'core', fill: fillCoreSection });
-
-/* Severity show/hide is a display concern, bound here rather than in fillCore()
-   — a fill() must stay a pure reader. */
-document.getElementById('inputPanel')?.addEventListener('change', function (e) {
-    if (e.target.closest('#corePanel')) syncCoreSeverity();
-});
 
 /* The cellularity autofill re-derives whenever its inputs can have changed: a
    percentage keystroke, a new age from a pasted CBC, or an edited threshold.

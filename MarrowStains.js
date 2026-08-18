@@ -148,15 +148,25 @@ const stainVocabulary = {
         { label: 'Proliferation',                               text: 'Shows a proliferation of erythroid precursors.' }
     ] },
 
+    /* findingPlasma() reads every option here except "Not increased" as an
+       increase - a new graded option needs no second edit there. */
     cd138: { label: 'CD138', kind: 'select', percent: true, options: [
         { label: 'Not increased',                               text: 'Shows no increase in plasma cells.' },
-        { label: 'Increased',                                   text: 'Highlights increased plasma cells.' }
+        { label: 'Increased',                                   text: 'Highlights increased plasma cells.' },
+        { label: 'Mildly increased',                            text: 'Highlights mildly increased plasma cells.' },
+        { label: 'Diffusely increased',                         text: 'Highlights diffusely increased plasma cells.' }
     ] },
 
+    /* Predominance is the reading SHORT of restriction - a skewed ratio that
+       suggests without establishing clonality - and the findings layer keeps
+       the distinction: restriction answers the clonality question, a
+       predominance leaves it open (see findingPlasma). */
     kappaLambdaISH: { label: 'Kappa/Lambda ISH', kind: 'select', options: [
         { label: 'Polytypic',                                   text: 'Highlights polytypic plasma cells.' },
         { label: 'Kappa restriction',                           text: 'Shows kappa restriction in plasma cells.' },
-        { label: 'Lambda restriction',                          text: 'Shows lambda restriction in plasma cells.' }
+        { label: 'Lambda restriction',                          text: 'Shows lambda restriction in plasma cells.' },
+        { label: 'Kappa predominance',                          text: 'Shows a kappa predominance in plasma cells.' },
+        { label: 'Lambda predominance',                         text: 'Shows a lambda predominance in plasma cells.' }
     ] },
 
     mpo: { label: 'MPO', kind: 'select', options: [
@@ -676,7 +686,15 @@ function renderStainPanel() {
             `<div class="findingGrid">${rows}</div></div>`;
     };
 
-    panel.innerHTML = block('Special Stains', 'special') + block('Immunohistochemical Stains', 'immuno');
+    /* The digital-imaging attestation, last: a statement about the whole
+       case's assessment, and its sentence is the report's closing line - the
+       input sits where the output lands. A switch, not a chip: it is a claim
+       that stands by itself, the same reasoning as the aspirate's preamble
+       toggles. */
+    panel.innerHTML = block('Special Stains', 'special') + block('Immunohistochemical Stains', 'immuno') +
+        `<div class="fieldBlock"><div class="toggleFieldRow">` +
+        `${toggleFieldHTML('stainDigitalImaging', 'Digital imaging used in diagnostic assessment')}` +
+        `</div></div>`;
     stainLists.forEach(function (l) { renderStainList(l.group); });
 }
 
@@ -889,6 +907,20 @@ renderStainPanel();
 
 registerReportSection({ id: 'specialStains', fill: fillSpecialStains, heading: 'Special Stains' });
 registerReportSection({ id: 'immunostains', fill: fillImmunostains, heading: 'Immunohistochemical Stains' });
+
+/* The digital-imaging attestation - the microscopic description's closing
+   line, italic, exactly as the author specified it. Registered after the two
+   stain sections, so it is the last section in the report (everything
+   registered later uses `after` to land higher up); Copy Microscopic includes
+   it, being unclaimed by any other copy button. */
+registerReportSection({
+    id: 'digitalImaging',
+    fill: function () {
+        return document.getElementById('stainDigitalImaging')?.checked
+            ? `<p style="${REPORT_PARAGRAPH}"><i>Digital imaging was used in the diagnostic assessment of this case.</i></p>`
+            : '';
+    }
+});
 
 /* Bound on #stainPanel, NOT on #inputPanel, and that is the whole point: a change
    event bubbles from the target outward, so a listener on the inner element runs

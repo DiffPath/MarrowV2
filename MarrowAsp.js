@@ -308,15 +308,8 @@ function aspDysplasiaHTML(dysKey) {
         `<input type="text" inputmode="numeric" maxlength="3" class="cellNum form" id="${dysKey}DysPct">%</label>`;
 }
 
-/* A statement and the switch that answers it. Two labels for one input — the
-   text is a hit target as well as the switch — with the input kept ADJACENT to
-   .toggleSwitch, which is the contract the switch styling keys on (see
-   Template.css). `form`, never `setting`: this is case data, and `setting` would
-   persist it to localStorage and carry it into the next case. */
-function aspToggleField(id, text) {
-    return `<span class="toggleField"><label class="toggleText" for="${id}">${text}</label>` +
-        `<input type="checkbox" class="toggleInput form" id="${id}"><label class="toggleSwitch" for="${id}"></label></span>`;
-}
+/* The statement-switch builder moved to MarrowForm.js (toggleFieldHTML) when
+   the Stains tab became its second caller — chipHTML's move, repeated. */
 
 /* `ref` is a reference topic id (MarrowRefData.js) — the book icon at the end of
    the row's controls, inside .findingChips. See the note on coreRow(): the grid
@@ -359,7 +352,7 @@ function renderAspPanel() {
     if (!panel) return;
 
     panel.innerHTML = `
-        <div class="findingGroup">
+        <div class="findingGroup counterZone">
             ${/* Two switches that change what the tab MEANS rather than answering
                   anything: what was counted, and what goes in the ratio. They lead
                   because they are read before the rest is true, and they emit no
@@ -374,15 +367,16 @@ function renderAspPanel() {
                   that stands by itself, so each carries its own full sentence and
                   neither borrows meaning from a label or from its neighbour.
 
-                  The .findingGrid is gone with the label column: these two are not
-                  rows of the form below and must not line up with it. */''}
+                  ONE ZONE WITH THE COUNTER (.counterZone, at the author's ask):
+                  the row sits centered over the pad's own grid column — which is
+                  not the panel's center when the rail is tight — via subgrid;
+                  see Template.css. */''}
             <div class="toggleFieldRow">
-                ${aspToggleField('aspTouchPrep', 'Performed on touch preparation')}
-                ${aspToggleField('aspBlastInMe', 'Include blasts in M:E ratio')}
+                ${toggleFieldHTML('aspTouchPrep', 'Performed on touch preparation', 'aspTouchPrep')}
+                ${toggleFieldHTML('aspBlastInMe', 'Include blasts in M:E ratio')}
             </div>
+            <div id="aspCounterMount" class="counterZoneMount"></div>
         </div>
-
-        <div id="aspCounterMount"></div>
 
         <div class="findingGroup">
             <div class="findingGrid">
@@ -462,31 +456,12 @@ function renderAspSettings() {
 /* ----------------------------------------------------------------------------
    Display sync — shown/hidden, never cleared
 
-   Severity is only a question once something is abnormal. Hidden rather than
-   removed so no row moves under the cursor, and NOT enforced by clearing the
-   chips: a severity you set, hid by picking Normal, and revealed again by
-   picking High is still the one you set. fillAsp() reads severity only on the
-   branches that use it, so a hidden one cannot leak into the report.
+   SEVERITIES ARE ALWAYS ON SCREEN NOW — the author's call, replacing
+   syncAspSeverity(), which revealed each pair only once its finding was
+   abnormal. What keeps an orphan selection honest is unchanged: fillAsp()
+   reads a severity only on the branches that use it, so a grade with no
+   count picked appears in no report.
 -------------------------------------------------------------------------- */
-function syncAspSeverity() {
-    const show = function (id, on) {
-        const el = document.getElementById(id);
-        if (el) el.style.visibility = on ? 'visible' : 'hidden';
-    };
-
-    show('aspPredomSeverity', !!toggleGroupValue('aspPredom'));
-
-    // Every lineage graded Low or High reveals its severity pair — the same
-    // decreased/increased test, so one loop over the four count groups. Normal
-    // ('adequate') hides it: there is nothing to grade about normal.
-    ['aspMega', 'aspEryth', 'aspMyeloid', 'aspLymph'].forEach(function (group) {
-        const value = toggleGroupValue(group);
-        show(group + 'Severity', value === 'decreased' || value === 'increased');
-    });
-
-    show('aspBlastSeverity', toggleGroupValue('aspBlast') === 'increased');
-    show('aspPlasmaSeverity', toggleGroupValue('aspPlasma') === 'increased');
-}
 
 /* The predominance is DERIVED from the M:E ratio, and the ratio wins: it is the
    objective measure of the thing the radio claims, exactly as the CBC is on the
@@ -515,8 +490,6 @@ function syncAspPredominance() {
     if (me <= erythroidLimit) setToggleGroup('aspPredom', 'erythroid');
     else if (me >= myeloidLimit) setToggleGroup('aspPredom', 'myeloid');
     else if (!isNaN(erythroidLimit) && !isNaN(myeloidLimit)) clearToggleGroup('aspPredom');
-
-    syncAspSeverity();
 }
 
 
@@ -808,7 +781,6 @@ renderAspSettings();
 aspCounter.renderSettings();
 applySettings();
 aspCounter.render();
-syncAspSeverity();
 
 /* The aspirate differential sits directly under the peripheral-blood
    differential (`after: 'pbDiff'`), so the two count tables read as a pair
@@ -819,12 +791,6 @@ syncAspSeverity();
    order and lands after the blood prose. */
 registerReportSection({ id: 'aspDiff', fill: aspCounter.fillTable, after: 'pbDiff' });
 registerReportSection({ id: 'asp', fill: fillAspirateSection });
-
-/* Display concerns, bound here rather than done inside fillAsp() — a fill() must
-   stay a pure reader. Delegated from the static #inputPanel and bound once. */
-document.getElementById('inputPanel')?.addEventListener('change', function (e) {
-    if (e.target.closest('#aspPanel')) syncAspSeverity();
-});
 
 /* The ratio decides the predominance, so it re-decides when the ratio can have
    changed — a keystroke on the tape, or an edited threshold. Not on every change

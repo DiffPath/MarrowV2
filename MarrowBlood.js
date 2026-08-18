@@ -401,10 +401,11 @@ function findingRow(label, controls, key) {
    `qualifier` marks a chip that grades an answer rather than being one — the
    severity pairs. It is the same `chipQualInput` the descriptor qualifiers
    carry, and it means one thing: the highlight cue does not count it as having
-   answered the question. "Mild" does not answer "is there anemia?", and a
-   severity outlives the count it graded (hidden, not cleared — see
-   syncBloodSeverity), so without this a cleared count would leave its row
-   looking answered by a chip you cannot even see. */
+   answered the question. "Mild" does not answer "is there anemia?" — and with
+   the severities always on screen now, that is also why picking one does NOT
+   auto-pick a side: it grades Low or High without saying which, so the group
+   waits for the user (the single-parent rule in MarrowForm.js never reaches a
+   toggle group). */
 function bloodToggleChip(group, option, qualifier) {
     const id = group + '_' + option.value;
     const cls = 'chipInput form' + (qualifier ? ' chipQualInput' : '');
@@ -548,8 +549,8 @@ function renderBloodPanel() {
                         // beside the question it answers ("what does a burr cell
                         // look like?") and only in view when that question is
                         // being asked.
-                        `<span class="chipSet">${rbcChips(bloodRbcAniso)}${refLinkHTML('rbc-morphology')}</span>` +
-                        `<span class="descBlock" id="pbAnisoDescRow" style="display: none">${descriptorListHTML('pbAnisoDesc')}</span>` +
+                        `<span class="chipSet">${rbcChips(bloodRbcAniso)}${refLinkHTML('rbc-morphology')}` +
+                            `<span class="descBlock descBeside" id="pbAnisoDescRow">${descriptorListHTML('pbAnisoDesc')}</span></span>` +
                     `</span>`, 'rbcMorph')}
             </div>
         </div>
@@ -654,37 +655,15 @@ function renderBloodSettings() {
 }
 
 
-/* Severity is only a question once a finding is abnormal: "mild" qualifies
-   neutropenia, not adequacy. Hidden rather than removed, so no row moves.
-
-   Kept as a display concern and NOT enforced by clearing the chips: a severity
-   you set, hid by picking Normal, and revealed again by picking High is still
-   the one you set. fillBlood() reads severity only on the branches that use it,
-   so a hidden one cannot leak into the report. */
-function syncBloodSeverity() {
-    const show = function (id, on) {
-        const el = document.getElementById(id);
-        if (el) el.style.visibility = on ? 'visible' : 'hidden';
-    };
-
-    const hgb = toggleGroupValue('pbHgb');
-    show('pbHgbSeverity', hgb === 'anemia' || hgb === 'polycythemia');
-
-    bloodLineages.forEach(function (lineage) {
-        const value = toggleGroupValue(lineage.id);
-        show(lineage.id + 'Severity', value === 'low' || value === 'high');
-    });
-
-    const plt = toggleGroupValue('pbPlt');
-    show('pbPltSeverity', plt === 'decreased' || plt === 'increased');
-
-    // The aniso descriptor list is 17 chips and three rows of them: worth its
-    // height only once anisopoikilocytosis is actually claimed. This one IS
-    // removed rather than hidden — it is a whole row, and reserving three rows
-    // of space for a list you are not using defeats the point.
-    const anisoRow = document.getElementById('pbAnisoDescRow');
-    if (anisoRow) anisoRow.style.display = document.getElementById('pbAniso')?.checked ? '' : 'none';
-}
+/* SEVERITIES AND THE ANISO LIST ARE ALWAYS ON SCREEN NOW — the author's call,
+   replacing syncBloodSeverity(), which revealed each severity pair only once
+   its finding was abnormal and the aniso descriptor row only once the chip was
+   claimed. Everything shows from the start; what keeps an orphan selection
+   honest is unchanged: fillBlood() reads a severity only on the branches that
+   use it, so "mild" with no Low/High picked appears in no report. A named
+   poikilocyte, by contrast, has exactly one thing it can mean, so it checks
+   Anisopoikilocytosis itself — see the aniso listener at the bottom of this
+   file and the chipWrap rule in MarrowForm.js. */
 
 
 /* ----------------------------------------------------------------------------
@@ -814,7 +793,6 @@ function bloodApplyCBC() {
 
     bloodApplyNrbc();
     bloodApplyShift();
-    syncBloodSeverity();
 }
 
 
@@ -1160,7 +1138,6 @@ renderBloodSettings();
 bloodCounter.renderSettings();
 applySettings();
 bloodCounter.render();
-syncBloodSeverity();
 
 /* Registration order IS report order. The manual differential goes directly
    under the CBC's automated one — they are the same measurement counted twice,
@@ -1170,12 +1147,21 @@ syncBloodSeverity();
 registerReportSection({ id: 'pbDiff', fill: bloodCounter.fillTable });
 registerReportSection({ id: 'pb', fill: fillBlood, heading: 'Peripheral Blood Smear' });
 
-/* Showing and hiding the severity chips is a display concern, so it is bound
-   here rather than done inside fillBlood() — registerReportSection's fill()
-   must stay a pure reader. Delegated from the static #inputPanel, and bound
-   once: renderBloodPanel() runs a single time. */
+/* NAMING A POIKILOCYTE CLAIMS ANISOPOIKILOCYTOSIS. The descriptor list is
+   always on screen now, so a schistocyte can be named before the chip is
+   ticked — and a named poikilocyte has exactly one thing it can mean, so the
+   chip ticks itself (the single-parent rule; see the chipWrap listener in
+   MarrowForm.js for the qualifier half). click(), not .checked = true, so the
+   stop-chip handler clears "Unremarkable" and fillReport sees the final
+   state. Nothing runs on emptying the list: unchecking is the user's call. */
 document.getElementById('inputPanel')?.addEventListener('change', function (e) {
-    if (e.target.closest('#pbPanel')) syncBloodSeverity();
+    /* data-group, not closest(): the descriptor machinery rebuilds the list's
+       DOM on every change, so by the time this delegated handler runs the
+       event's target is detached and has no ancestors to walk. The attribute
+       rides the detached element and still says which list it was. */
+    if (e.target.dataset?.group !== 'pbAnisoDesc') return;
+    const aniso = document.getElementById('pbAniso');
+    if (aniso && !aniso.checked && descriptorSelected('pbAnisoDesc').length) aniso.click();
 });
 
 /* A pasted CBC answers half this form. MarrowCBC announces the parse and knows
