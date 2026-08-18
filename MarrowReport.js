@@ -253,12 +253,15 @@ const HL_BASE = [
        mostly asked for something the count answers by itself. The data-key
        stays on the row as the hook.
 
-       aspTouchPrep is cued STICKY (data-sticky on the field): a switch cannot
-       answer "no", so its box never clears — a standing reminder to say which
-       specimen the differential describes. */
-    'aspTouchPrep',
-    'aspAdequacy', 'aspErythMorph', 'aspMyeloidMorph', 'aspMega', 'aspMegaMorph', 'aspBlast',
-    'coreAdequacy', 'coreCellularity', 'coreME', 'coreMeg', 'coreMegMorph'
+       The cue on the touch preparation is `aspTouch`, the DESCRIPTION row
+       (Similar to aspirate / Paucicellular), not the "Performed on touch
+       preparation" switch — the author's correction: the description is the
+       finding, and it clears when answered like every other row. */
+    'aspAdequacy', 'aspTouch', 'aspErythMorph', 'aspMyeloidMorph', 'aspMega', 'aspMegaMorph', 'aspBlast',
+    /* `coreClot` is the particle clot's description, the core tab's counterpart
+       to `aspTouch`: both are second specimens that only their own row
+       describes, and a case that received one should say what it showed. */
+    'coreAdequacy', 'coreCellularity', 'coreME', 'coreMeg', 'coreMegMorph', 'coreClot'
 ];
 
 /* The three entity-specific sets. Each is the finding that defines its workup:

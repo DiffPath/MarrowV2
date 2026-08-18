@@ -63,13 +63,14 @@ function chipHTML(type, name, id, value, label, extraClass) {
    styling keys on (Template.css). `form`, never `setting`: this is case data,
    and `setting` would persist it into the next case.
 
-   `key` hangs the highlight cue on the field — STICKY, because a switch cannot
-   answer "no": off is a real answer that looks identical to never-considered,
-   so a clear-on-answer cue would nag forever. data-sticky exempts it from the
-   clearing rule (Template.css). */
-function toggleFieldHTML(id, text, key) {
-    const keyAttr = key ? ` data-key="${key}" data-sticky` : '';
-    return `<span class="toggleField"${keyAttr}><label class="toggleText" for="${id}">${text}</label>` +
+   NO HIGHLIGHT CUE HERE. A switch cannot answer "no" — off is a real answer
+   that looks identical to never-considered — so a cue on one either clears on
+   the wrong signal or never clears at all. Cue the row that records the
+   FINDING instead; the touch preparation is the worked example (the switch
+   says which specimen was counted, `aspTouch` describes it, and the cue is on
+   the latter). */
+function toggleFieldHTML(id, text) {
+    return `<span class="toggleField"><label class="toggleText" for="${id}">${text}</label>` +
         `<input type="checkbox" class="toggleInput form" id="${id}"><label class="toggleSwitch" for="${id}"></label></span>`;
 }
 

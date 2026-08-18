@@ -372,7 +372,7 @@ function renderAspPanel() {
                   not the panel's center when the rail is tight — via subgrid;
                   see Template.css. */''}
             <div class="toggleFieldRow">
-                ${toggleFieldHTML('aspTouchPrep', 'Performed on touch preparation', 'aspTouchPrep')}
+                ${toggleFieldHTML('aspTouchPrep', 'Performed on touch preparation')}
                 ${toggleFieldHTML('aspBlastInMe', 'Include blasts in M:E ratio')}
             </div>
             <div id="aspCounterMount" class="counterZoneMount"></div>
@@ -423,7 +423,7 @@ function renderAspPanel() {
 
         <div class="findingGroup">
             <div class="findingGrid">
-                ${aspRow('Touch prep', aspTouch.map(function (t) { return aspChip(t.id, t.label); }).join(''))}
+                ${aspRow('Touch prep', aspTouch.map(function (t) { return aspChip(t.id, t.label); }).join(''), 'aspTouch')}
             </div>
         </div>`;
 

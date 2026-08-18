@@ -244,9 +244,14 @@ function renderCorePanel() {
 
         <div class="findingGroup">
             <div class="findingGrid">
+                ${/* One box over both controls — "similar to the core" and how
+                      many particles are one description of one specimen, and
+                      either answers it. The aspirate's touch-prep row is cued
+                      the same way. */''}
                 ${coreRow('Particle clot',
-                    coreChip('coreClotSimilar', 'Similar to core biopsy') +
-                    '<span class="chipGap"></span>' + coreToggleRow('coreClot', coreClot))}
+                    coreChipSet('coreClot',
+                        coreChip('coreClotSimilar', 'Similar to core biopsy') +
+                        '<span class="chipGap"></span>' + coreToggleRow('coreClot', coreClot)))}
                 ${/* Its OWN row, not another control on the row above: how many
                       particles and what the lymphocytes do are two questions, and
                       a row label answers for everything in its row (the lesson

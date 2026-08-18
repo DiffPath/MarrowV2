@@ -558,12 +558,8 @@ a:active {
    — so counting one would leave a row looking answered by a chip that is not
    even on screen. Click Anemia, click Mild, click Anemia off: the box comes
    back, because Mild was never the answer. */
-/* `data-sticky` opts a cue OUT of clearing: a toggle switch cannot answer
-   "no" — off looks identical to never-considered — so its box would either
-   clear on the wrong signal or nag forever. Sticky says: this box is a
-   standing reminder, not a question with a completion state. */
-[data-key].keyInput:not([data-sticky]):has(input:checked:not(.chipQualInput)),
-[data-key].keyInput:not([data-sticky]):has(option:not([value=""]):checked) {
+[data-key].keyInput:has(input:checked:not(.chipQualInput)),
+[data-key].keyInput:has(option:not([value=""]):checked) {
     background-color: transparent;
     box-shadow: none;
 }
@@ -1993,8 +1989,16 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
 
    Keyed on the INPUT alone (author's call): every chip whose input is a
    .chipQualInput is small — the severity pairs' labels are plain .chip, and
-   they must match the descriptor qualifiers, not the answers they grade. */
-.chipQualInput + .chip {
+   they must match the descriptor qualifiers, not the answers they grade.
+
+   `.chipSmall` is the same size for a chip that is NOT a qualifier: it says
+   small, and nothing about the cue. Hypochromic wears it — it rides the
+   MCV/MCHC row as a second, lesser finding beside the three sizing answers,
+   so it should read like one. Do not reach for .chipQualInput to get the
+   size; that class also tells the highlight cue the chip does not answer its
+   row. */
+.chipQualInput + .chip,
+.chip.chipSmall {
     font-size: 11px;
     padding: 2px 7px;
 }
@@ -2288,30 +2292,46 @@ input:focus::placeholder {
     color: transparent;
 }
 
-.saveButton {
-    background-color: #2c3c4e;
-    color: white;
-    font-size: 20px;
-    font-weight: 600;
-    padding: 10px 24px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+/* Commits the settings panel. It was 20pt and 600-weight with a lifting drop
+   shadow — a web-form button on a panel whose every other control is a 13px
+   chip, and it read as though it came from a different app. Now it is the app's
+   own vocabulary: chip type and radius, the dark fill a checked chip wears, and
+   a hover that darkens rather than levitates. Still the loudest thing on the
+   panel, which is right — it is the only control there that writes anything.
 
-    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+   `display: block` + margin-top is the space above it: settingsPanelSave()
+   appends it after the last settings block, and without a margin it sat hard
+   against that block's text. Block so it owns its line rather than trailing
+   the last row's controls. */
+.saveButton {
+    display: block;
+    margin-top: 16px;
+    padding: 7px 18px;
+    background-color: #2c3c4e;
+    border: 1px solid #2c3c4e;
+    border-radius: 6px;
+    color: #FFFFFF;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.2;
+    cursor: pointer;
+
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .saveButton:hover {
     background-color: #3d536b;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    transform: translateY(-1px);
+    border-color: #3d536b;
 }
 
 .saveButton:active {
     background-color: #1e2936;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    transform: translateY(1px);
+    border-color: #1e2936;
+}
+
+.saveButton:focus-visible {
+    outline: 2px solid #0075FF;
+    outline-offset: 2px;
 }
 
 /* --- Checkbox / radio option rows ---------------------------------------- */

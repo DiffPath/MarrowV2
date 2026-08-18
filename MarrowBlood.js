@@ -518,7 +518,7 @@ function renderBloodPanel() {
                     `<span class="chipGap"></span><span class="chipSub" id="pbHgbSeverity">${bloodToggleRow('pbHgbSev', bloodSeverity, true)}</span>`, 'hgb')}
                 ${findingRow('MCV / MCHC', bloodToggleRow('pbMcv', bloodMcv) +
                     `<span class="chipGap"></span>` +
-                    `<input type="checkbox" class="chipInput form" id="pbHypochromic"><label class="chip" for="pbHypochromic">Hypochromic</label>`, 'mcv')}
+                    `<input type="checkbox" class="chipInput form" id="pbHypochromic"><label class="chip chipSmall" for="pbHypochromic">Hypochromic</label>`, 'mcv')}
                 ${/* A TIER PER FINDING, STACKED.
 
                       Top is the stop chip alone: "Unremarkable" negates
