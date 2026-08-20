@@ -361,6 +361,12 @@ function stainValue(group, key, part) {
     return el ? el.value : '';
 }
 
+/* A plain checkbox part, for the chips that are not one of a toggle group —
+   iron's "Limited". */
+function stainChecked(group, key, part) {
+    return document.getElementById(stainId(group, key, part))?.checked === true;
+}
+
 /* A percentage, as the number to print and whether it is a range. Manual entry
    wins over the tape — the original's precedence (../Marrow/MarrowText.js:
    2164-2185), and the right one: a typed number is a decision, a tape is a
@@ -439,9 +445,20 @@ function ironText(group) {
     const both = storage === 'inadequate' && rings === 'inadequateRings';
     const parts = [];
 
-    if (storage === 'adequate') parts.push('There is adequate storage iron.');
-    else if (storage === 'decreased') parts.push('There is decreased storage iron.');
-    else if (storage === 'increased') parts.push('There is increased storage iron.');
+    /* "Limited" says the call was made on scant material. It qualifies a real
+       answer, so INADEQUATE SILENCES IT (the author's rule): "too few spicules
+       for assessment" and "on the limited particles present" are two different
+       claims about the same slide, and a sentence making both contradicts
+       itself. Not enforced by clearing the chip — a chip you set, overrode with
+       Inadequate and came back from is still the one you set, the same rule the
+       severities follow. */
+    const limited = stainChecked(group, 'iron', 'limited') && storage !== 'inadequate'
+        ? ' on the limited particles present for evaluation'
+        : '';
+
+    if (storage === 'adequate') parts.push(`There is adequate storage iron${limited}.`);
+    else if (storage === 'decreased') parts.push(`There is decreased storage iron${limited}.`);
+    else if (storage === 'increased') parts.push(`There is increased storage iron${limited}.`);
     else if (storage === 'inadequate') {
         parts.push(both
             ? 'There are too few spicules for assessment of storage iron and too few erythroid precursors for assessment of ring sideroblasts.'
@@ -571,7 +588,15 @@ function stainResultHTML(group, key, state) {
            MarrowForm's toggle handler (see the listener at the bottom). */
         return `<div class="stainIron">` +
             `<div class="stainSub"><span class="stainSubLabel">Storage iron</span>` +
-            stainToggleRow(group, key, 'storage', stainIronStorage, state.storage) + `</div>` +
+            stainToggleRow(group, key, 'storage', stainIronStorage, state.storage) +
+            /* "Limited" qualifies the answer beside it rather than being one —
+               a small chip, like every other qualifier, and a plain checkbox
+               rather than a member of the storage group: it says HOW MUCH
+               material the call was made on, which is a second fact about the
+               same answer. .chipQualInput keeps the highlight cue from
+               counting it as having answered the row. */
+            `<span class="chipSub"><input type="checkbox" class="chipInput chipQualInput form" id="${stainId(group, key, 'limited')}"${state.limited ? ' checked' : ''}>` +
+            `<label class="chip" for="${stainId(group, key, 'limited')}">Limited</label></span></div>` +
             `<div class="stainSub"><span class="stainSubLabel">Ring sideroblasts</span>` +
             stainToggleRow(group, key, 'rings', stainIronRings, state.rings,
                 { present: 'stainRingsPresent' }) + `</div>` +
@@ -633,6 +658,7 @@ function stainStateOf(group, key) {
         result: stainValue(group, key, 'result'),
         dual: toggleGroupValue(stainId(group, key, 'dual')),
         storage: toggleGroupValue(stainId(group, key, 'storage')),
+        limited: stainChecked(group, key, 'limited'),
         rings: toggleGroupValue(stainId(group, key, 'rings')),
         pctLow: stainValue(group, key, 'pctLow'),
         pctHigh: stainValue(group, key, 'pctHigh'),
@@ -915,9 +941,14 @@ registerReportSection({ id: 'immunostains', fill: fillImmunostains, heading: 'Im
    it, being unclaimed by any other copy button. */
 registerReportSection({
     id: 'digitalImaging',
+    /* The leading <br> is the blank line above the attestation, and it lives
+       INSIDE the section on purpose: a break the copy path adds sits between
+       two container divs, where Epic can drop it; one inside the block always
+       survives. copyPayload() skips its own separator when a part already
+       starts with a break, so this is one blank line, not two. */
     fill: function () {
         return document.getElementById('stainDigitalImaging')?.checked
-            ? `<p style="${REPORT_PARAGRAPH}"><i>Digital imaging was used in the diagnostic assessment of this case.</i></p>`
+            ? `<br><p style="${REPORT_PARAGRAPH}"><i>Digital imaging was used in the diagnostic assessment of this case.</i></p>`
             : '';
     }
 });

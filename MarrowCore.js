@@ -106,7 +106,7 @@ const coreDescriptorGroups = {
                        'megDenseClusters', 'megLooseClusters', 'megParatrabecular',
                        'megStaghorn', 'megCloudLike', 'megHyperchromatic', 'megPleomorphic',
                        'megBareNuclei', 'megLargeMature'],
-    coreLymphDesc:    ['coreLymphScattered', 'coreLymphLooseAgg', 'coreLymphNonparatrabecular',
+    coreLymphDesc:    ['coreLymphScattered', 'coreLymphFocal', 'coreLymphLooseAgg', 'coreLymphNonparatrabecular',
                        'coreLymphParatrabecular', 'coreLymphMultifocal', 'coreLymphDiffuse'],
 
     /* The aspirate's plasma keys (aspPlasmaDesc), asked of the section — the
@@ -120,7 +120,7 @@ const coreDescriptorGroups = {
        keys, not a copy of the words" is for; both print through coreLymphText(),
        which is why it takes its group as an argument. Trim this list if the clot
        should not be offered all six. */
-    coreClotLymphDesc: ['coreLymphScattered', 'coreLymphLooseAgg', 'coreLymphNonparatrabecular',
+    coreClotLymphDesc: ['coreLymphScattered', 'coreLymphFocal', 'coreLymphLooseAgg', 'coreLymphNonparatrabecular',
                         'coreLymphParatrabecular', 'coreLymphMultifocal', 'coreLymphDiffuse']
 };
 
@@ -214,7 +214,7 @@ function renderCorePanel() {
                     'cellularity')}
                 ${coreRow('Overall',
                     coreChipSet('coreCellularity', coreToggleRow('coreCellularity', coreCellularityOptions) +
-                        `<span class="chipGap"></span><span class="chipSub" id="coreCellSeverity">${coreToggleRow('coreCellSev', coreSeverity, true)}</span>`))}
+                        `<span class="chipSub" id="coreCellSeverity">${coreToggleRow('coreCellSev', coreSeverity, true)}</span>`))}
             </div>
         </div>
 
@@ -232,12 +232,12 @@ function renderCorePanel() {
                       the morphology (as aspMega/aspMegaMorph). */''}
                 ${coreRow('Megakaryocytes',
                     coreChipSet('coreMeg', coreToggleRow('coreMeg', coreMegCount) +
-                        `<span class="chipGap"></span><span class="chipSub" id="coreMegSeverity">${coreToggleRow('coreMegSev', coreSeverity, true)}</span>`) +
+                        `<span class="chipSub" id="coreMegSeverity">${coreToggleRow('coreMegSev', coreSeverity, true)}</span>`) +
                     coreMorphCell('coreMegDesc', 'coreMegMorph', true), 'megakaryocytes')}
                 ${coreRow('Lymphocytes', coreMorphCell('coreLymphDesc', 'coreLymph', false))}
                 ${coreRow('Plasma cells',
                     coreChipSet('corePlasma', coreToggleRow('corePlasma', coreIncreased) +
-                        `<span class="chipGap"></span><span class="chipSub" id="corePlasmaSeverity">${coreToggleRow('corePlasmaSev', coreSeverity, true)}</span>`) +
+                        `<span class="chipSub" id="corePlasmaSeverity">${coreToggleRow('corePlasmaSev', coreSeverity, true)}</span>`) +
                     coreMorphCell('corePlasmaDesc', 'corePlasmaMorph', true))}
             </div>
         </div>
@@ -735,28 +735,46 @@ function corePlasmaText() {
    "Focal paratrabecular and multifocal lymphoid aggregates are seen.", and the
    'sentence' ones each print whole. Order is naming order throughout — the pooled
    sentence holds the place of the first aggregate named. */
-function coreLymphText(group) {
-    const keys = descriptorSelected(group);
-    if (!keys.length) return '';
+const CORE_LYMPH_AGG = {};       // a placeholder object, so its slot is unmistakable
 
-    const AGG = {};              // a placeholder object, so its slot is unmistakable
+/* The named descriptors split into the two shapes, in naming order — the
+   pooled aggregate slot holds the place of the FIRST aggregate named. Pulled
+   out of coreLymphText() so the clot can fold its aggregates into the particle
+   sentence (see fillClot) rather than print them as one of its own. */
+function coreLymphParts(group) {
     const parts = [];
     const adjectives = [];
-    keys.forEach(function (key) {
+    descriptorSelected(group).forEach(function (key) {
         const entry = descriptorVocabulary[key];
         if (entry.coreLymphFrame === 'aggregate') {
-            if (!adjectives.length) parts.push(AGG);
+            if (!adjectives.length) parts.push(CORE_LYMPH_AGG);
             adjectives.push(entry.text);
         } else {
             parts.push(entry.text);
         }
     });
+    return { parts: parts, adjectives: adjectives };
+}
 
-    const aggregates = `${addCommas(adjectives)} lymphoid aggregates are seen`;
+/* "focal paratrabecular and multifocal lymphoid aggregates" — the noun phrase,
+   uncapitalized and unpunctuated, for whichever sentence takes it. */
+function coreLymphAggregatePhrase(adjectives) {
+    return `${addCommas(adjectives)} lymphoid aggregates`;
+}
+
+function coreLymphSentences(parts, adjectives) {
     return parts.map(function (part) {
-        const text = part === AGG ? aggregates : part;
+        const text = part === CORE_LYMPH_AGG
+            ? `${coreLymphAggregatePhrase(adjectives)} are seen`
+            : part;
         return text.charAt(0).toUpperCase() + text.slice(1) + '. ';
     }).join('');
+}
+
+function coreLymphText(group) {
+    const split = coreLymphParts(group);
+    if (!split.parts.length) return '';
+    return coreLymphSentences(split.parts, split.adjectives);
 }
 
 function fillCore() {
@@ -777,13 +795,30 @@ function fillClot() {
     const similar = coreChecked('coreClotSimilar');
     const quant = value === 'only rare' || value === 'few' ? value : '';
 
+    /* AN AGGREGATE THE CORE DID NOT SHOW IS THE ONE THING "similar" CANNOT
+       COVER, so it moves into the particle sentence and turns "similar" into
+       "otherwise similar": "…shows multiple marrow particles with focal
+       lymphoid aggregates and findings otherwise similar to the core biopsy."
+       (the author's sentence). It reads as one finding rather than as a claim
+       of sameness immediately contradicted by the sentence after it.
+
+       Only aggregates the CORE does not name — where both name them, "similar"
+       already says it and the standalone sentence is the honest place for the
+       detail. Only the aggregates fold: a scattered-lymphocyte or diffuse
+       infiltrate finding is a whole sentence and stays one. */
+    const clotLymph = coreLymphParts('coreClotLymphDesc');
+    const coreAdjectives = coreLymphParts('coreLymphDesc').adjectives;
+    const foldable = similar && value !== 'none' && clotLymph.adjectives.length && !coreAdjectives.length;
+    const folded = foldable ? coreLymphAggregatePhrase(clotLymph.adjectives) : '';
+
     let particles = '';
     if (value === 'none') {
         particles = 'The bone marrow particle clot shows no marrow particles for evaluation.';
     } else if (similar) {
-        particles = quant
-            ? `The bone marrow particle clot shows ${quant} marrow particles with findings similar to the core biopsy.`
-            : 'The bone marrow particle clot shows multiple marrow particles with findings similar to the core biopsy.';
+        const count = quant || 'multiple';
+        particles = folded
+            ? `The bone marrow particle clot shows ${count} marrow particles with ${folded} and findings otherwise similar to the core biopsy.`
+            : `The bone marrow particle clot shows ${count} marrow particles with findings similar to the core biopsy.`;
     } else if (quant) {
         particles = `The bone marrow particle clot shows ${quant} marrow particles for evaluation.`;
     }
@@ -798,7 +833,14 @@ function fillClot() {
        prints on that alone with no quantity chosen. Joined rather than
        concatenated, so the spacing holds whichever part is present and the
        particle sentences stay byte-identical when it is absent. */
-    const lymph = value === 'none' ? '' : coreLymphText('coreClotLymphDesc').trim();
+    /* Whatever the particle sentence did not absorb: every sentence-shaped
+       finding, plus the aggregates when they were not folded. */
+    const remaining = folded
+        ? clotLymph.parts.filter(function (p) { return p !== CORE_LYMPH_AGG; })
+        : clotLymph.parts;
+    const lymph = value === 'none' || !remaining.length
+        ? ''
+        : coreLymphSentences(remaining, clotLymph.adjectives).trim();
     const text = [particles, lymph].filter(Boolean).join(' ');
 
     if (text === '') return '';
@@ -823,7 +865,16 @@ function fillCoreSection() {
     const heading = core && clot ? 'Bone Marrow Core Biopsy/Particle Clot'
         : core ? 'Bone Marrow Core Biopsy'
         : 'Bone Marrow Particle Clot';
-    return `<p style="${REPORT_HEADING}"><b>${heading}</b></p>` + core + clot;
+
+    /* A BLANK LINE BETWEEN THE TWO SPECIMENS, not just the paragraphs' 8pt
+       margin: Epic strips margins on paste, so the core and the clot ran
+       together there while every other pair of blocks was separated by the
+       copy path's <br> (the author's report). This one is inside a single
+       section, so the copy joiner never saw a seam to separate — the break
+       has to live in the markup, exactly as the differential tables' trailing
+       <br> does. */
+    const between = core && clot ? '<br>' : '';
+    return `<p style="${REPORT_HEADING}"><b>${heading}</b></p>` + core + between + clot;
 }
 
 

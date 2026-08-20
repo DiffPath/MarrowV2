@@ -515,10 +515,14 @@ function renderBloodPanel() {
         <div class="findingGroup">
             <div class="findingGrid">
                 ${findingRow('Hemoglobin', bloodToggleRow('pbHgb', bloodHgb) +
-                    `<span class="chipGap"></span><span class="chipSub" id="pbHgbSeverity">${bloodToggleRow('pbHgbSev', bloodSeverity, true)}</span>`, 'hgb')}
+                    `<span class="chipSub" id="pbHgbSeverity">${bloodToggleRow('pbHgbSev', bloodSeverity, true)}</span>`, 'hgb')}
+                ${/* Hypochromic rides in a .chipSub so it takes the same step
+                      from the full-size group as every other small chip does
+                      (see --qualGap). Not because it qualifies the MCV answers
+                      — it is the MCHC's own finding — but because it is the
+                      same visual move and must not be a different gap. */''}
                 ${findingRow('MCV / MCHC', bloodToggleRow('pbMcv', bloodMcv) +
-                    `<span class="chipGap"></span>` +
-                    `<input type="checkbox" class="chipInput form" id="pbHypochromic"><label class="chip chipSmall" for="pbHypochromic">Hypochromic</label>`, 'mcv')}
+                    `<span class="chipSub"><input type="checkbox" class="chipInput form" id="pbHypochromic"><label class="chip chipSmall" for="pbHypochromic">Hypochromic</label></span>`, 'mcv')}
                 ${/* A TIER PER FINDING, STACKED.
 
                       Top is the stop chip alone: "Unremarkable" negates
@@ -573,11 +577,10 @@ function renderBloodPanel() {
                       The morphology cell is bloodMorphCell(), the very function
                       the lineage rows use: same markup, same class, so the
                       platelet dropdowns cannot come out formatted differently
-                      from the neutrophil ones. It brings its own 10px step, so
-                      there is no .chipGap before it. */
+                      from the neutrophil ones, and it brings its own step. */
                   findingRow('Platelets',
                     bloodChipSet('plt', bloodToggleRow('pbPlt', bloodPlt) +
-                        `<span class="chipGap"></span><span class="chipSub" id="pbPltSeverity">${bloodToggleRow('pbPltSev', bloodPltSeverity, true)}</span>`) +
+                        `<span class="chipSub" id="pbPltSeverity">${bloodToggleRow('pbPltSev', bloodPltSeverity, true)}</span>`) +
                     bloodMorphCell('pbPltDesc', true, 'pltMorph'))}
             </div>
         </div>

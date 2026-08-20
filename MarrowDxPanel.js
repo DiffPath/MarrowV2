@@ -323,7 +323,18 @@ function dxView() { return document.querySelector('input[name="dxView"]:checked'
    could otherwise change what "page 2" or "index 3" points at. */
 let dxResults = [];
 let dxFindings = null;
+/* The first candidate on screen, and the one after the last — dxPage is an
+   index into dxCommentResults(), not a page number, because how many fit is
+   decided by measurement and changes with the case and the window.
+
+   `dxPageStarts` is the trail of screens gone forward through. Going back
+   POPS it rather than subtracting the current screen's size: screens are not
+   equal — the card count is whatever fit — so "back by however many I am
+   looking at now" lands somewhere no screen ever started, which is how paging
+   forward twice and back once came out at "4–4". */
 let dxPage = 0;
+let dxPageEnd = 0;
+let dxPageStarts = [];
 
 /* The candidates that are actually comments: not ruled out, not un-assessed.
 
@@ -365,6 +376,10 @@ function refreshDx() {
     if (!document.getElementById('dxList')) return;
     dxFindings = marrowFindings();
     dxResults = dxRank(dxFindings);
+    /* A new ranking is a new list, so the trail through the old one means
+       nothing — and a stale trail is how Prev would land on a screen that no
+       longer starts anywhere. dxPage itself is clamped in dxRenderView. */
+    dxPageStarts = [];
     dxRenderView();
 }
 
@@ -402,16 +417,60 @@ function dxRenderView() {
     if (dxPage >= comments.length) dxPage = comments.length - 1;
     if (dxPage < 0) dxPage = 0;
 
-    const result = comments[dxPage];
-    const pager = comments.length > 1
+    /* AS MANY CANDIDATES AS THE PAGE HOLDS, at the author's ask — this showed
+       one card at a time, which spent a screen of empty space to hide the
+       differential the tab exists to present. Ranking is the point of this
+       view, and a ranking of one is a verdict.
+
+       Drawn then TRIMMED rather than predicted: a comment is prose, so a card's
+       height depends on the case, and nothing short of laying it out knows how
+       many fit. Draw every remaining candidate, measure against the panel's own
+       bottom edge, drop the first that crosses it and everything after. The
+       first card always stays — a card taller than the panel is still the
+       headline, and it may scroll on its own rather than vanish. */
+    const shown = comments.slice(dxPage);
+    list.innerHTML = shown.map(function (r) {
+        return dxCommentCardHTML(r, dxFindings, dxMode(), dxResults.indexOf(r));
+    }).join('');
+
+    const fitted = dxTrimToFit(list, comments.length > 1);
+    dxPageEnd = dxPage + fitted;
+
+    /* The pager pages by WHAT FIT, so no candidate is ever skipped between
+       screens and "Next" means the next screenful. It renders after the cards
+       because the trim measures against a list that does not contain it yet;
+       reserving its height above is what keeps it on screen. */
+    const more = comments.length > fitted;
+    const pager = more
         ? `<div class="dxPager">
                <button type="button" class="dxPage" data-page="prev" aria-label="Previous"${dxPage === 0 ? ' disabled' : ''}>&lsaquo;</button>
-               <span class="dxPageCount">${dxPage + 1} of ${comments.length}</span>
-               <button type="button" class="dxPage" data-page="next" aria-label="Next"${dxPage === comments.length - 1 ? ' disabled' : ''}>&rsaquo;</button>
+               <span class="dxPageCount">${dxPage + 1}–${dxPageEnd} of ${comments.length}</span>
+               <button type="button" class="dxPage" data-page="next" aria-label="Next"${dxPageEnd >= comments.length ? ' disabled' : ''}>&rsaquo;</button>
            </div>`
         : '';
-    list.innerHTML = pager + dxCommentCardHTML(result, dxFindings, dxMode(), dxResults.indexOf(result)) +
-        dxHiddenNote();
+    list.insertAdjacentHTML('beforeend', pager + dxHiddenNote());
+}
+
+/* Keep the cards that fit the panel, drop the rest, and answer how many stayed.
+   `reserve` is whether a pager will be added under them — its height has to
+   come out of the budget before the cards are measured against it, or the
+   thing that says "there are more" is itself the thing pushed off screen. */
+const DX_PAGER_HEIGHT = 34;
+
+function dxTrimToFit(list, reserve) {
+    const panel = document.getElementById('diagnosisPanel');
+    const cards = Array.prototype.slice.call(list.querySelectorAll(':scope > .dxCard'));
+    if (!panel || cards.length <= 1) return cards.length;
+
+    const limit = panel.getBoundingClientRect().bottom - (reserve ? DX_PAGER_HEIGHT : 0) - 4;
+    let kept = 0;
+    let full = false;
+    cards.forEach(function (card) {
+        // Once one card overflows, everything below it does too.
+        if (!full && (kept === 0 || card.getBoundingClientRect().bottom <= limit)) kept++;
+        else { full = true; card.remove(); }
+    });
+    return kept;
 }
 
 
@@ -526,7 +585,15 @@ document.getElementById('diagnosisPanel')?.addEventListener('click', function (e
        refreshDx listener; this is the only thing that advances the page. */
     const pageBtn = e.target.closest('.dxPage');
     if (pageBtn) {
-        dxPage += pageBtn.dataset.page === 'next' ? 1 : -1;
+        if (pageBtn.dataset.page === 'next') {
+            dxPageStarts.push(dxPage);
+            dxPage = dxPageEnd;
+        } else {
+            // The trail, or a best effort if it was lost to a re-rank.
+            dxPage = dxPageStarts.length
+                ? dxPageStarts.pop()
+                : Math.max(0, dxPage - Math.max(1, dxPageEnd - dxPage));
+        }
         dxRenderView();
         return;
     }
@@ -537,6 +604,20 @@ document.getElementById('diagnosisPanel')?.addEventListener('click', function (e
     if (!result) return;
     dxSetComment(dxComment(result, marrowFindings(), dxMode()));
     document.getElementById('dxCommentSectionDiv')?.focus();
+});
+
+/* HOW MANY CARDS FIT IS A MEASUREMENT, so it has to be retaken whenever the
+   panel's height or visibility can have changed. A render while the tab is
+   hidden measures a zero-height panel and keeps only the headline, so opening
+   the tab must redraw; a resized window changes the budget the same way.
+   Delegated from the static tab bar, and the redraw is view-only — no re-rank,
+   so nothing reorders under the click. */
+document.getElementById('inputTabBar')?.addEventListener('click', function (e) {
+    if (e.target.closest('#diagnosisTab')) setTimeout(dxRenderView, 0);
+});
+
+window.addEventListener('resize', function () {
+    if (document.getElementById('dxList')) dxRenderView();
 });
 
 /* THE INPUT COVERAGE AUDIT RUNS HERE, and not in the file that defines it, for

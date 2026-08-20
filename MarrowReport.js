@@ -270,13 +270,17 @@ const HL_BASE = [
    clot. */
 const HL_PLASMA = ['plasma', 'aspPlasma', 'aspPlasmaMorph', 'corePlasma', 'corePlasmaMorph'];
 const HL_LYMPH = ['lymph', 'lymphMorph', 'aspLymph', 'aspLymphMorph', 'coreLymph', 'coreClotLymph'];
-/* The blast set is a count and TWO morphologies, on the same count/morphology
-   split every other row makes: `aspBlast` (the aspirate count) is in HL_BASE
-   because every differential answers it, but neither morphology is asked on a
-   routine marrow — and Auer rods, which live in these two lists, are the finding
-   that separates MDS-IB1 from MDS-IB2 and are worth cueing on exactly the workups
-   that turn on the blast count. */
-const HL_BLAST = ['blast', 'blastMorph', 'aspBlastMorph'];
+/* The peripheral blood blast COUNT and nothing else. `aspBlast` (the aspirate
+   count) is in HL_BASE because every differential answers it; this one rides
+   here because circulating blasts are the MDS/leukemia question.
+
+   THE MORPHOLOGY DROPDOWNS ARE NOT CUED (author's call). They were —
+   `blastMorph` and `aspBlastMorph` — on the reasoning that Auer rods live in
+   those lists and separate MDS-IB1 from MDS-IB2. That is true and it is still
+   not worth a standing box on a dropdown nobody fills on most cases; the
+   MDS-IB caution already states the limitation on every case that did not
+   name them. */
+const HL_BLAST = ['blast'];
 
 const templateTypeHighlights = {
     general:           HL_BASE,
@@ -404,12 +408,15 @@ function copyPayload(ids) {
        <br>), so a table is never followed by two blank lines. Word shows the
        margin AND the blank line, which reads as one section gap either way. */
     let html = '';
-    /* "Ends with a <br>" has to see through the container's own closing tags:
-       the table's trailing <br> sits INSIDE #pbDiffDiv, so the raw string ends
-       with </div>. */
+    /* "Ends with a <br>" has to see through the container's own opening and
+       closing tags: the table's trailing <br> sits INSIDE #pbDiffDiv, so the
+       raw string ends with </div>, and a section carrying its own leading
+       break (the digital-imaging attestation) starts with <div…><br>. Either
+       way the seam is already spaced and this adds nothing. */
     const endsWithBreak = /<br\s*\/?>\s*(<\/(div|span)>\s*)*$/i;
+    const startsWithBreak = /^\s*(<(div|span)\b[^>]*>\s*)*<br\s*\/?>/i;
     parts.forEach(function (part, i) {
-        if (i > 0 && !endsWithBreak.test(parts[i - 1])) html += '<br>';
+        if (i > 0 && !endsWithBreak.test(parts[i - 1]) && !startsWithBreak.test(part)) html += '<br>';
         html += part;
     });
 
@@ -421,7 +428,12 @@ function copyPayload(ids) {
     scratch.querySelectorAll('[contenteditable]').forEach(function (el) {
         el.removeAttribute('contenteditable');
     });
-    return { html: scratch.innerHTML, text: texts.join('\n\n') };
+    /* One blank line between blocks in the plain flavor, never more: innerText
+       renders a spacing <br> as a newline of its own ON TOP of the paragraph
+       break it sits between, so the blocks that carry their own break came out
+       three and four lines apart. The HTML flavor wants that <br> (Epic strips
+       the margins); plain text does not need it twice. */
+    return { html: scratch.innerHTML, text: texts.join('\n\n').replace(/\n{3,}/g, '\n\n') };
 }
 
 /* The old app's synthesized-copy-event trick: select a hidden contenteditable,

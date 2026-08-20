@@ -588,7 +588,7 @@ a:active {
 .chipSet {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--chipFlowGap);
 }
 
 /* --- Form sections ------------------------------------------------------- */
@@ -1598,6 +1598,21 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
     --findingGap: 6px;
     /* Also the highlight box's clearance — see [data-key].keyInput. */
     --findingRowGap: 8px;
+
+    /* THE TWO CHIP GAPS, and the relationship between them is the point.
+
+       --chipFlowGap is what a row of chips is spaced by (.findingChips,
+       .chipSet). --qualGap is the wider step from a full-size group to the
+       SMALL chips that follow it — a severity after a count, a qualifier after
+       a descriptor, Hypochromic after the MCV answers. Every instance of that
+       step is one number now: the severity pairs were 18px (a 10px .chipGap
+       spacer with a flow gap on each side of it) where the inline qualifiers
+       were 8px, which is the inconsistency the author flagged. Anything
+       carrying --qualGap sits inside a flow-gapped container, so it adds the
+       REMAINDER; only .chipWrap has no flow gap of its own and takes it
+       whole. */
+    --chipFlowGap: 4px;
+    --qualGap: 8px;
 }
 
 /* THE CORE TAB BUYS ITS OWN LABEL COLUMN, 8px wider than everyone else's.
@@ -1661,7 +1676,7 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
 .findingChips {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--chipFlowGap);
     align-items: center;
 }
 
@@ -1701,13 +1716,18 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
     width: 10px;
 }
 
-/* Chips that qualify the chips before them. Grouped so they read as a
-   dependent answer rather than a fourth option, and hidden — not removed — when
-   the question they answer is not being asked, so no row moves under the
-   cursor. */
+/* A SMALL-CHIP GROUP FOLLOWING THE FULL-SIZE ONE BEFORE IT — a severity after
+   a count, and Hypochromic after the MCV answers, which is not a qualifier but
+   is the same visual step and must not be a different size of gap. Grouped so
+   it reads as a dependent answer rather than as more options.
+
+   The margin is the remainder of --qualGap: the container already contributes
+   --chipFlowGap. It replaces the 10px `.chipGap` spacer these rows used to
+   carry, which double-counted the flow gaps around it and came out at 18px. */
 .chipSub {
     display: inline-flex;
-    gap: 4px;
+    gap: var(--chipFlowGap);
+    margin-left: calc(var(--qualGap) - var(--chipFlowGap));
 }
 
 /* --- Core cellularity fields --------------------------------------------- */
@@ -1967,10 +1987,12 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
    until its descriptor was chosen. Its partner rule is in MarrowForm.js:
    picking a qualifier here also picks the one chip it hangs off, so a visible
    "Rare" is never a dead end. */
+/* .chipWrap has no flow gap of its own, so this takes --qualGap whole — the
+   same visual step .chipSub reaches by adding the remainder. */
 .chipWrap .chipQuals {
     display: inline-flex;
     gap: 3px;
-    margin-left: 8px;
+    margin-left: var(--qualGap);
 }
 
 /* Smaller and lighter than the chip it hangs off, so a qualified descriptor

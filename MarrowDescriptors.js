@@ -345,6 +345,11 @@ const descriptorVocabulary = {
        findings and the order they are offered in are unchanged. */
     coreLymphScattered:        { label: 'Interstitial, unremarkable', coreLymphFrame: 'sentence',  qual: 'none',
                                  text: 'lymphocytes are scattered singly within the interstitium, without lymphoid aggregate formation' },
+    /* The unqualified aggregate: focal, and nothing claimed about whether it is
+       loose, paratrabecular or not. It prints "Focal lymphoid aggregates are
+       seen." and is the answer for a section where the aggregate is there and
+       its character is not the point. */
+    coreLymphFocal:            { label: 'Focal aggregates',        text: 'focal',                    qual: 'none', coreLymphFrame: 'aggregate' },
     coreLymphLooseAgg:         { label: 'Focal loose aggregates',  text: 'focal loose',              qual: 'none', coreLymphFrame: 'aggregate' },
     coreLymphNonparatrabecular:{ label: 'Focal nonparatrabecular', text: 'focal non-paratrabecular', qual: 'none', coreLymphFrame: 'aggregate' },
     coreLymphParatrabecular:   { label: 'Focal paratrabecular',    text: 'focal paratrabecular',     qual: 'none', coreLymphFrame: 'aggregate' },

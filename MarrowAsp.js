@@ -342,7 +342,7 @@ function aspChipSet(key, controls) {
 function aspLineageRow(label, countKey, descGroup, dysplasia, ref) {
     return aspRow(label,
         aspChipSet(countKey, aspToggleRow(countKey, aspLineageCount) +
-            `<span class="chipGap"></span><span class="chipSub" id="${countKey}Severity">${aspToggleRow(countKey + 'Sev', aspSeverity, true)}</span>`) +
+            `<span class="chipSub" id="${countKey}Severity">${aspToggleRow(countKey + 'Sev', aspSeverity, true)}</span>`) +
         aspMorphCell(descGroup, countKey + 'Morph', true, dysplasia ? countKey : null),
         null, ref);
 }
@@ -383,7 +383,7 @@ function renderAspPanel() {
                 ${aspRow('Adequacy', aspChipSet('aspAdequacy', aspToggleRow('aspAdequacy', aspAdequacy)) +
                     aspMorphCell('aspAdequacyDesc', 'aspAdequacyDesc', false), null)}
                 ${aspRow('Predominance', aspToggleRow('aspPredom', aspPredominance) +
-                    `<span class="chipGap"></span><span class="chipSub" id="aspPredomSeverity">${aspToggleRow('aspPredomSev', aspPredomSeverity, true)}</span>`, 'aspPredom')}
+                    `<span class="chipSub" id="aspPredomSeverity">${aspToggleRow('aspPredomSev', aspPredomSeverity, true)}</span>`, 'aspPredom')}
             </div>
         </div>
 
@@ -412,11 +412,11 @@ function renderAspPanel() {
                       The Blood tab's blast row is left exactly the same way. */''}
                 ${aspRow('Blasts',
                     aspChipSet('aspBlast', aspToggleRow('aspBlast', aspIncreased) +
-                        `<span class="chipGap"></span><span class="chipSub" id="aspBlastSeverity">${aspToggleRow('aspBlastSev', aspSeverity, true)}</span>`) +
+                        `<span class="chipSub" id="aspBlastSeverity">${aspToggleRow('aspBlastSev', aspSeverity, true)}</span>`) +
                     aspMorphCell('aspBlastDesc', 'aspBlastMorph', false), null, 'blasts')}
                 ${aspRow('Plasma cells',
                     aspChipSet('aspPlasma', aspToggleRow('aspPlasma', aspIncreased) +
-                        `<span class="chipGap"></span><span class="chipSub" id="aspPlasmaSeverity">${aspToggleRow('aspPlasmaSev', aspSeverity, true)}</span>`) +
+                        `<span class="chipSub" id="aspPlasmaSeverity">${aspToggleRow('aspPlasmaSev', aspSeverity, true)}</span>`) +
                     aspMorphCell('aspPlasmaDesc', 'aspPlasmaMorph'))}
             </div>
         </div>
