@@ -17,9 +17,18 @@
      layout  — 2D array of key chars. WHERE a key sits on the pad.
 
    A cell whose key is absent from `layout` is "off-pad": it has no tile, but it
-   still counts when typed, and its tone marks it as off-pad. Nothing is ever
-   unreachable — the old app's `character: -1` made Plasma/Atypical/Other
-   literally uncountable on peripheral blood.
+   still counts when typed, and its tone marks it as off-pad. That is a cell on
+   `.` under 'Numbers only' — a key the alphabet has and this layout does not
+   show.
+
+   `defaultKey` IS OPTIONAL, and a cell without one is unbound: no tile, and no
+   keystroke either, until it is put on a key in the settings. Both counters
+   declare fifteen cells against an alphabet of thirteen keys, so "every cell has
+   a key" was never something this engine could promise. What it promises is that
+   THE PAD IS THE TRUTH — everything countable is on it or one layout away, and
+   nothing counts invisibly. The old app's `character: -1` broke that from the
+   other side, leaving Plasma/Atypical/Other on screen and uncountable with no way
+   to fix it; here every cell is offered on every tile in the settings.
 
    The pad is a READOUT, not a control. Counting is keyboard-only: tiles are not
    clickable, because a mis-aimed click is a silent miscount and the hand is on
@@ -142,9 +151,9 @@ const COUNTER_SOUND_DEFAULT = 'Classic clicks';
 /* Keyed by the KEY PRESSED, exactly as the old app had it (countNoise,
    ../Marrow/Marrow.js:1093): the top numpad rows are high, the middle med, the
    bottom low, and 0/. — the blast keys in the default bindings — carry the
-   blast click. A key not named here (the off-pad letters, which the old app
-   could not count at all) takes 'low', because in this engine every counted
-   keystroke gets a confirmation. */
+   blast click. The fallback to 'low' for a key not named here is kept even
+   though the alphabet is now exactly these thirteen: every counted keystroke
+   gets a confirmation, and that must not depend on two lists agreeing. */
 const COUNTER_SAMPLE_FOR_KEY = {
     '7': 'high', '8': 'high', '9': 'high', '/': 'high', '*': 'high',
     '4': 'med', '5': 'med', '6': 'med',
@@ -409,18 +418,22 @@ function counterProgress(before, after, target) {
    works unchanged.
 -------------------------------------------------------------------------- */
 
-/* The assignable alphabet: every key any layout preset can show, plus any key a
-   cell claims by default that no preset offers (P/A/O on blood — off-pad, and
-   none the worse for it). This is the order the settings selects list. */
-const COUNTER_PAD_KEYS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '/', '*'];
+/* THE ALPHABET, and it is the whole of it: every key any layout preset can show,
+   and nothing else. A key outside this list cannot be bound, cannot be typed
+   into a count, and has no control in the settings.
 
-function counterKeyChoices(config) {
-    const choices = COUNTER_PAD_KEYS.slice();
-    config.cells.forEach(function (cell) {
-        if (choices.indexOf(cell.defaultKey) === -1) choices.push(cell.defaultKey);
-    });
-    return choices;
-}
+   It used to be this list PLUS any letter a cell claimed by default (P/A/O/M/B),
+   which made those cells countable from the keyboard while showing nothing on
+   the pad — a key you had to already know about. Taken out at the author's
+   instruction: a differential is counted on the numpad, and a keystroke that
+   silently lands in a row you cannot see is worse than one that does nothing.
+
+   WHAT REPLACED IT is `defaultKey` being OPTIONAL (see counterKeymap). A cell
+   without one starts unbound and stays unbound until someone puts it on a key in
+   the settings, where every cell is offered on every tile. So the blast
+   equivalents and the atypical/other rows are opt-in rather than hidden — the
+   pad always shows exactly what can be counted. */
+const COUNTER_PAD_KEYS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '/', '*'];
 
 /* '.', '/' and '*' cannot go in an element id raw: the id is what the setting is
    stored under and what getElementById asks for, and they are CSS selector
@@ -444,7 +457,8 @@ function counterKeyFor(map, cellId) {
 
 /* The cell a key means by DEFAULT — each cell's defaultKey, read backwards.
    '' for a key no cell claims: the presets lay out a real numpad, so 'Expanded'
-   offers '/', '*' and '.' that nothing binds until you say so. */
+   offers '/', '*' and '.' that nothing binds until you say so, and the cells
+   with no defaultKey at all leave more of them free than they used to. */
 function counterDefaultCell(config, key) {
     const cell = config.cells.find(function (c) { return c.defaultKey === key; });
     return cell ? cell.id : '';
@@ -455,22 +469,32 @@ function counterDefaultCell(config, key) {
    (a key per cell) would mean translating in both directions and would leave the
    numpad with nothing to hang each select on.
 
-   Guaranteed to be a bijection — every cell holds exactly one key, no two cells
-   share one, and no cell holds two. The settings UI swaps rather than overwrites
-   so it cannot hand us a collision, but a blob saved against an older cell list
-   can, and reading it literally would leave some cell uncountable — the exact
-   failure this engine exists to prevent (the old app's `character: -1`). So the
-   second claim on a cell is dropped, and any cell left without a key falls back
-   to its default and then to the first free one. Never to nothing. */
+   An INJECTION, not a bijection, and the difference is the whole of the
+   `defaultKey`-is-optional rule. No two cells share a key and no cell holds two —
+   but a cell may hold NONE. The settings UI swaps rather than overwrites so it
+   cannot hand us a collision, though a blob saved against an older cell list can,
+   and reading that literally would put one cell on two keys; the second claim is
+   dropped.
+
+   A CELL WITH A `defaultKey` IS STILL GUARANTEED ONE: it falls back to its
+   default and then to the first free key in the alphabet, never to nothing. That
+   is the old app's `character: -1` failure staying fixed for every cell that is
+   meant to be on the pad.
+
+   A CELL WITHOUT ONE IS DELIBERATELY UNBOUND and is left that way — it is not
+   handed a spare key, because being on the pad is exactly what it is opting out
+   of. Both counters declare more cells than the alphabet has keys (fifteen
+   against thirteen), so "every cell gets a key" was never something the engine
+   could promise anyway; what it promises now is that every cell you can COUNT is
+   a cell you can SEE, and the rest are one click away in the settings. */
 function counterKeymap(config) {
     const known = {};
     config.cells.forEach(function (cell) { known[cell.id] = true; });
 
     const map = {};
     const held = {};                              // cell id -> its key
-    const choices = counterKeyChoices(config);
 
-    choices.forEach(function (key) {
+    COUNTER_PAD_KEYS.forEach(function (key) {
         const cellId = getSetting(counterCellSettingId(config, key), counterDefaultCell(config, key));
         // Empty (a free key), unknown (a cell since renamed), or already placed
         // (a stale blob naming one cell twice): the KEY goes free rather than
@@ -481,11 +505,14 @@ function counterKeymap(config) {
     });
 
     config.cells.forEach(function (cell) {
-        if (held[cell.id]) return;
+        // No default, or one outside the alphabet: opt-in only. The alphabet is
+        // authoritative, so a config cannot reintroduce a letter key by declaring
+        // one — it would simply never be typeable.
+        if (held[cell.id] || COUNTER_PAD_KEYS.indexOf(cell.defaultKey) === -1) return;
 
         const key = map[cell.defaultKey] === undefined
             ? cell.defaultKey
-            : choices.find(function (k) { return map[k] === undefined; });
+            : COUNTER_PAD_KEYS.find(function (k) { return map[k] === undefined; });
 
         if (key === undefined) return;   // alphabet exhausted: more cells than keys
         map[key] = cell.id;
@@ -1014,15 +1041,19 @@ function createCounter(config) {
         return `<input type="radio" class="chipInput layoutChip setting" id="${id}" name="${config.id}Layout" value="${name}"${name === config.defaultLayout ? ' checked' : ''}><label class="chip" for="${id}">${name}</label>`;
     }
 
-    /* The keys with no tile in the current layout. Derived from the LAYOUT
-       alone, never from what is bound, so the two pads between them always
-       cover the whole alphabet no matter which cells sit where. That total
-       coverage is load-bearing, not tidiness — see renderSettings(). */
+    /* The PAD ALPHABET's keys that this layout does not show — `.`, `/` and `*`
+       under 'Numbers only', nothing at all under 'Expanded'. Derived from the
+       LAYOUT alone, never from what is bound, so which keys are editable does
+       not shift as cells are moved around.
+
+       This row used to carry the LETTER keys as well (P/A/O/M/B), which was a
+       row of controls for a pad you are not looking at. It now means one thing:
+       "the keys the OTHER layouts would give you". */
     function offPadKeys() {
         const onPad = new Set();
         layout.forEach(function (row) { row.forEach(function (key) { if (key !== null) onPad.add(key); }); });
 
-        return counterKeyChoices(config).filter(function (key) { return !onPad.has(key); });
+        return COUNTER_PAD_KEYS.filter(function (key) { return !onPad.has(key); });
     }
 
     /* Rebuilt on every render(), so the layout chips move keys between the pad
@@ -1049,10 +1080,18 @@ function createCounter(config) {
         pad.style.gap = KEY_GAP + 'px';
         pad.innerHTML = layout.map(function (row) { return row.map(keyEditHTML).join(''); }).join('');
 
+        /* 'Expanded' puts every assignable key on the pad, so there is now a
+           layout under which nothing is off it — a state that could not arise
+           while the letters were in this row. An empty grid under a heading
+           reads as a block that failed to load, so the whole block goes. */
+        const spare = offPadKeys();
+        const offBlock = el('OffPadBlock');
+        if (offBlock) offBlock.style.display = spare.length ? '' : 'none';
+
         off.style.gridTemplateColumns = `repeat(auto-fill, ${KEY_WIDTH}px)`;
         off.style.gridAutoRows = KEY_HEIGHT + 'px';
         off.style.gap = KEY_GAP + 'px';
-        off.innerHTML = offPadKeys().map(keyEditHTML).join('');
+        off.innerHTML = spare.map(keyEditHTML).join('');
 
         if (focusKey) document.getElementById(counterCellSettingId(config, focusKey))?.focus();
     }
@@ -1061,9 +1100,16 @@ function createCounter(config) {
        controls have to exist before applySettings() can restore anything into
        them, and render() runs after that (MarrowBlood.js's bootstrap). The
        initial layout is whatever the config defaults to, which is why the pad
-       and the off-pad row must together cover every key in the alphabet — a
-       key with no control is a key applySettings() cannot restore, and a cell
-       saved onto it would be silently lost on the way back in. */
+       and the off-pad row must together cover the ASSIGNABLE alphabet
+       (COUNTER_PAD_KEYS) whichever layout is showing — a key with no control is
+       a key applySettings() cannot restore, and a cell saved onto it would be
+       silently lost on the way back in.
+
+       The LETTER keys are outside that alphabet by design and get no control
+       anywhere (see offPadKeys). That is not the trap above: nothing can be
+       saved onto a key with no control, so there is nothing to lose on the way
+       back in, and counterKeymap() resolves them to their default cell every
+       time. Fixed, not forgotten. */
     /* The sound scheme's chips. Rendered ONCE, guarded like the Save button and
        for the same reason: the choice is page-wide (one sound system), so the
        first instance to render settings puts the block at the top of the shared
@@ -1121,7 +1167,7 @@ function createCounter(config) {
                     <div class="keypad" id="${config.id}PadEditor"></div>
                 </div>
 
-                <div class="fieldBlock">
+                <div class="fieldBlock" id="${config.id}OffPadBlock">
                     <div class="fieldLabel">Off pad</div>
                     <div class="counterOffPad" id="${config.id}OffPad"></div>
                 </div>
@@ -1177,7 +1223,7 @@ function createCounter(config) {
        decides whether that reversion is permanent, same as every other edit
        here. */
     function restoreDefaults() {
-        counterKeyChoices(config).forEach(function (key) {
+        COUNTER_PAD_KEYS.forEach(function (key) {
             const select = document.getElementById(counterCellSettingId(config, key));
             if (select) select.value = counterDefaultCell(config, key);
         });

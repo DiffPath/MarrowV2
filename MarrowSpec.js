@@ -232,3 +232,13 @@ function fillSpecimen() {
 registerReportSection({ id: 'spec', fill: fillSpecimen });
 renderSpecPanel();
 resetSpecimenDefaults();
+
+/* Case state — "All specimens" is DERIVED and its third state is not a value.
+   `indeterminate` is a property, not an attribute: it is not captured, cannot be
+   captured by anything reading .checked, and is exactly what the checkbox shows
+   when two of the five parts are ticked. syncSpecAll() recomputes it from the
+   parts, which is the same call the parts' own change handler makes.
+
+   Nothing else on this tab needs a hook — the template radios, the part chips
+   and the laterality chips are all ordinary ids. */
+registerCaseState({ id: 'spec', settle: syncSpecAll });

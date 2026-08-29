@@ -9,10 +9,19 @@ original app conflated are kept orthogonal, and this is the thing to preserve:
 - **`keymap`** — key char → cell id. *Which* cell a keystroke means.
 - **`layout`** — 2D array of key chars (`null` = gap). *Where* a key sits on the pad.
 
-**Every cell has exactly one key** (digits are just the common case; Plasma/Atypical/Other are
-`P`/`A`/`O`). A cell whose key isn't in `layout` simply has no tile — it still counts when typed,
-and its tone marks it as off-pad. Nothing is ever unreachable, unlike the original's
-`character: -1`, which made three cell types literally uncountable on peripheral blood.
+**A cell has at most one key, and `defaultKey` is optional.** A cell whose key isn't in the current
+`layout` simply has no tile — it still counts when typed, and its tone marks it as off-pad (a cell
+on `.` under `'Numbers only'`). A cell with **no `defaultKey` at all** is unbound: no tile, and no
+keystroke either, until it is put on a key in Key bindings.
+
+The letter keys `P`/`A`/`O`/`M`/`B` are gone (author's instruction). They used to carry
+Plasma/Atypical/Other and the two blast-equivalent rows, which made those cells countable from the
+keyboard while showing nothing anywhere — a key you had to already know about. **Both counters
+declare fifteen cells against an alphabet of thirteen keys**, so "every cell has a key" was never
+something the engine could promise. What it promises is that **the pad is the truth**: everything
+countable is on it or one layout away, and nothing counts invisibly. The original's `character: -1`
+broke that from the other side — three cell types on screen, uncountable, with no way to fix it —
+where here every cell is offered on every tile in the settings.
 
 **The pad is a readout, not a control.** Counting is keyboard-only: tiles are `<div>`s with no
 click handler, no hover and no `cursor: pointer`, because a mis-aimed click is a silent miscount
@@ -109,8 +118,9 @@ samples are absent.
 
 The scheme swaps **sounds only, never logic**. The click maps by **key pressed** exactly as the
 old app's `countNoise` did (`7`-`9` and `/` `*` high, `4`-`6` med, `1`-`3` low, `0` and `.` the
-blast click; unlisted keys — the off-pad letters the old app couldn't count — take low, because
-here every counted keystroke gets a confirmation). `counterProgress()`'s crossing logic decides
+blast click; an unlisted key takes low — a fallback kept even though the alphabet is now exactly
+those thirteen, since every counted keystroke must get a confirmation whether or not two lists
+agree). `counterProgress()`'s crossing logic decides
 *when* just as before; classic mode only substitutes `complete`/`hundred` for the two chime
 figures. Decode is lazy (first classic playback, primed at `DOMContentLoaded` whenever the
 resolved scheme is classic — with classic the default, effectively every load) and every playback
@@ -203,9 +213,10 @@ What it does is stop the aspirate's always-on `Blasts 0.0%` row printing beside 
 row being **empty** (`supersededRow()`), so a case that somehow counted both prints both rather
 than silently printing neither.
 
-Both cells are **off-pad on a letter key** (`M`, `B`) — the sanctioned pattern from `aspCells`'
-`atypical`/`other`: countable from the keyboard immediately, no tile until someone assigns one, and
-a case that never presses either key reads exactly as it did before they existed. The report
+Both cells are **unbound** — no `defaultKey` — the same pattern as `atypical`/`other`: no tile and
+no keystroke until someone assigns one in Key bindings, so a case that never binds either reads
+exactly as it did before they existed. (They were on the letter keys `M` and `B` until those were
+taken out; anyone working a monocytic case binds one over a key they are not using.) The report
 reference is `[0, 0]` on blood (neither cell is found in normal blood) and **`null` on the
 aspirate**, which is the `[0,0]`-vs-`null` distinction earning its keep again: a normal marrow
 differential does not enumerate promonocytes at all, so nobody has published a range — do not copy
@@ -270,19 +281,34 @@ settings in the same breath — they are one render, not two views kept in sync.
 
 Storage is therefore **one setting per key** (`pbCell_7` = `'meta'`), not per cell.
 `COUNTER_KEY_SLUGS` exists because `.` `/` `*` are CSS selector syntax and the setting id is an
-element id. The assignable alphabet is `COUNTER_PAD_KEYS` (digits, `.`, `/`, `*`) plus any letter a
-cell claims by default (`P`/`A`/`O`).
+element id.
+
+**The assignable alphabet is `COUNTER_PAD_KEYS` alone** — digits, `.`, `/`, `*`. The letter keys
+(`P`/`A`/`O`/`M`/`B`) are **not** assignable and get no control anywhere: both counters have fifteen
+cells against thirteen pad keys, so some cells must live off the numpad, and a row of tiles for keys
+no layout can ever show is a row of controls for a pad you are not looking at (the author's call).
+They still **count** — that is the engine's one promise and it is untouched — they are simply fixed,
+because `getSetting()` reads the *control* and a key with no control always answers with its default
+cell. A letter binding saved before this rule is ignored on read and dropped from storage by the next
+Save, so there is no stale state to migrate.
 
 `hasSlot()` is the editor's predicate and the weaker half of `hasTile()`: an unbound slot gets an
 **editor** but no tile. That is the one place the two pads legitimately differ, and it has to be
 that way — nothing to count is not nothing to assign. `rowTemplate(present)` takes the predicate
 rather than assuming one, so the difference can't become two copies that drift.
 
-**The pad and the off-pad row together always cover the whole alphabet**, and this is load-bearing
-rather than tidiness: the split between them is derived from the layout alone (never from what is
-bound), so `renderSettings()` can build every key's control *before* `applySettings()` runs. A key
-with no control is a key `applySettings()` cannot restore — and a cell saved onto it would be
-silently lost on the way back in, since `counterKeymap()` reads controls.
+**The pad and the off-pad row together always cover the assignable alphabet**, and this is
+load-bearing rather than tidiness: the split between them is derived from the layout alone (never
+from what is bound), so `renderSettings()` can build every assignable key's control *before*
+`applySettings()` runs. A key with no control is a key `applySettings()` cannot restore — and a cell
+saved onto it would be silently lost on the way back in, since `counterKeymap()` reads controls.
+The letter keys sit outside that alphabet and so outside the trap: nothing can be saved onto a
+control that does not exist.
+
+The off-pad row therefore means exactly **"the keys the other layouts would give you"** — `.` `/` `*`
+under `'Numbers only'`, and *nothing* under `'Expanded'`, which is a state that could not arise while
+the letters were in it. `renderPadEditor()` hides the whole block when it is empty; an empty grid
+under a heading reads as a block that failed to load.
 
 **Rebinding swaps, never overwrites**: putting a cell on an occupied key hands the displaced cell
 the key the newcomer gave up. Refusing would make the pad argue with you; letting it through would
@@ -296,7 +322,7 @@ rather than from the controls, a stale blob is **healed on screen** instead of l
 
 Keys and layout stay orthogonal, exactly as `keymap` and `layout` do: choosing `'Expanded'` only
 *offers* `.` `/` `*` slots — they stay blank (dashed, `.keyEdit.isEmpty`) until a cell is put on
-one, which is how an off-pad cell (Plasma) gets a tile. Nothing auto-assigns.
+one, which is how a letter-bound cell (Plasma) gets a tile at all. Nothing auto-assigns.
 
 Percentages use **largest-remainder (Hare)** so the denominator column sums to exactly 100.0%.
 Do not port the original's force-sum loop (`../Marrow/Marrow.js:1151-1189`): it divides by each

@@ -953,6 +953,27 @@ registerReportSection({
     }
 });
 
+/* Case state — the same story as the descriptor lists, for the same reason.
+   Every answer is an ordinary control with an id (`<group>_<stain>_<part>`), so
+   MarrowSave's by-id capture and restore already carry them; what a restore
+   needs from this file is the ROWS, which only exist once the stain above them
+   has been named. renderStainList() is whole-list and idempotent, so it is safe
+   to call once per restore pass.
+
+   THE TAPES RIDE ALONG AS TEXT, in whatever key pair they were typed in. That is
+   the same bargain the counter's tape makes: the tape IS the tally, and storing
+   the derived counts instead would throw away the undo history it exists for.
+   The keys are a SETTING and are not part of a case, so a saved tape read back
+   under rebound keys reads as the new keys say — which is exactly what happens
+   to a tape already on screen when the keys are rebound, minus the
+   transliteration that would have kept it honest. */
+registerCaseState({
+    id: 'stains',
+    rebuild: function () {
+        stainLists.forEach(function (l) { renderStainList(l.group); });
+    }
+});
+
 /* Bound on #stainPanel, NOT on #inputPanel, and that is the whole point: a change
    event bubbles from the target outward, so a listener on the inner element runs
    before MarrowReport's on the outer one. The list must be rebuilt BEFORE

@@ -3892,3 +3892,138 @@ label + label {
     letter-spacing: 0.02em;
     color: #B4671E;
 }
+
+/* --- The Save page (#savePanel) ------------------------------------------- */
+
+/* Two lists and a name box, in the panel's own vocabulary: .fieldBlock sections,
+   .textBox input, .saveButton commit. Nothing here is a new idea, which is the
+   point — the save page is chrome, and chrome that invents a look is chrome you
+   have to learn.
+
+   The name and its button share one line: naming a marrow and saving it are one
+   act, and a Save button on its own line reads as a second decision. .saveButton
+   is display:block with a top margin (it was designed for the settings panels,
+   where it trails the last block), so both are overridden here rather than
+   softened in the shared rule. */
+.saveNameRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.saveNameInput {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: inherit;
+}
+
+.saveNameButton {
+    display: inline-block;
+    flex: 0 0 auto;
+    margin-top: 0;
+}
+
+/* What the autosave has just done, under the control that does the other kind of
+   saving. Quiet: it is a reassurance, not an instruction. */
+.saveStatus {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #5A6B7D;
+}
+
+/* Rows separated by hairlines rather than boxed like .dxCard. A saved marrow is
+   a line in a list — there is no content on the row to enclose, and nineteen
+   bordered boxes would be nineteen rectangles to read past. */
+.saveList {
+    border-top: 1px solid #E5EAEF;
+}
+
+.saveItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 2px;
+    border-bottom: 1px solid #E5EAEF;
+}
+
+/* This window's own draft. Legible, not actionable — it is on the list so you
+   can see which row NOT to touch when a second window has one too. */
+.saveItem--muted {
+    opacity: 0.72;
+}
+
+.saveItemText {
+    min-width: 0;
+}
+
+.saveItemName {
+    font-size: 13px;
+    color: #2c3c4e;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.saveItemUnnamed {
+    color: #8A98A6;
+    font-style: italic;
+}
+
+.saveItemWhen {
+    margin-top: 1px;
+    font-size: 11px;
+    color: #8A98A6;
+}
+
+.saveItemHere {
+    font-size: 11px;
+    color: #8A98A6;
+    white-space: nowrap;
+}
+
+.saveItemActions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+/* Chip geometry, outlined rather than filled: these sit in a list of many rows
+   and a filled button per row would make the list read as a wall of buttons. */
+.saveAction {
+    padding: 4px 12px;
+    border: 1px solid #C7D0DA;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #2c3c4e;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.saveAction:hover {
+    border-color: #2c3c4e;
+    background-color: #EEF1F4;
+}
+
+/* Red only on hover. A Delete that is red at rest draws the eye to the one thing
+   on the page nobody is looking for; red on hover says it in the half-second
+   before the click, which is when it matters. */
+.saveAction--danger:hover {
+    border-color: #C0392B;
+    background-color: #FCEFED;
+    color: #C0392B;
+}
+
+.saveAction:focus-visible {
+    outline: 2px solid #0075FF;
+    outline-offset: 2px;
+}
+
+.saveEmpty {
+    padding: 10px 2px;
+    font-size: 12px;
+    color: #8A98A6;
+}

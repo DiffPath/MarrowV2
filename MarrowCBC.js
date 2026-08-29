@@ -219,6 +219,56 @@ function cbcFlagged(name, flag) {
 
 registerReportSection({ id: 'cbc', fill: cbcTableHTML });
 
+
+/* ----------------------------------------------------------------------------
+   Case state
+
+   THE PARSED VALUES ARE SAVED; the paste they came from is not, and neither is
+   anything derived from it that identifies a person.
+
+   `#pbCBC` is class="noSave", so the raw text — which carries the name, the MRN
+   and the DOB — is already outside every capture. What is left in `cbcData` is a
+   whitelist of numeric components, which is report content: without it a
+   restored case loses its clinical table.
+
+   THE COLLECTION TIMESTAMP IS THE ONE JUDGEMENT CALL. A date tied to an
+   individual is an identifier under HIPAA's own Safe Harbor list, and it is not
+   a result — the marrow reads the same whichever draw it was. So it is dropped,
+   in the same spirit as reducing DOB to an integer age and then not saving that
+   either (see cbcAge above). A restored case shows the values without the
+   "Collected" line; re-pasting the CBC brings it back.
+
+   Flip SAVE_CBC_COLLECTED to keep it. It is a constant rather than an inline
+   `delete` because the decision belongs to whoever is deploying this, and it
+   should be one word to change and impossible to change by accident.
+
+   AGE IS NEVER SAVED. `cbcAge` stays out on purpose: the only thing that reads
+   it is the core cellularity autofill, and a restored case already carries the
+   cellularity that autofill produced. */
+const SAVE_CBC_COLLECTED = false;
+
+registerCaseState({
+    id: 'cbc',
+    capture: function () {
+        if (!cbcData) return null;
+        return {
+            collected: SAVE_CBC_COLLECTED ? cbcData.collected : null,
+            rows: cbcData.rows,
+            collapsed: cbcCollapsed
+        };
+    },
+    restore: function (saved) {
+        cbcData = saved && saved.rows
+            ? { collected: saved.collected || null, rows: saved.rows }
+            : null;
+        cbcCollapsed = !!(saved && saved.collapsed);
+        // Deliberately no cbcParsed event: the tabs that listen for one autofill
+        // their forms from it, and a restored case already holds the answers
+        // those autofills produced — including any the user overrode since.
+        cbcAge = null;
+    }
+});
+
 /* Live: reparse and re-render on every edit/paste of the CBC box.
 
    The event between the two is how a CBC reaches the Blood tab's findings

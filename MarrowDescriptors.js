@@ -553,6 +553,30 @@ function clearDescriptorList(group) {
     renderDescriptorList(group);
 }
 
+/* ----------------------------------------------------------------------------
+   Case state
+
+   NOTHING TO CAPTURE OR RESTORE. Every row of every list is an ordinary control
+   with an id — the select is `<group>Sel<i>`, the qualifier chips are
+   `<group>_<key>Q<value>` — so MarrowSave's generic by-id capture already holds
+   the whole list, and by-id restore already puts it back.
+
+   What it needs is the ROWS TO EXIST. A list of three descriptors is three
+   selects that only come into being one at a time: writing `pbAnisoDescSel0`
+   creates `pbAnisoDescSel1`, and until it does there is nothing for the next
+   value to be written to. So the only hook here is the rebuild — MarrowSave
+   writes what it can see, calls this, and goes round again until nothing
+   changes. Whole-list and idempotent, which is what that loop requires, and both
+   are true of renderDescriptorList() for its own reasons.
+-------------------------------------------------------------------------- */
+registerCaseState({
+    id: 'descriptors',
+    rebuild: function () {
+        Object.keys(descriptorGroups).forEach(renderDescriptorList);
+    }
+});
+
+
 /* Delegated from the static #inputPanel, bound once: the rows are replaced on
    every change, so nothing may be bound to them. Rebuilding BEFORE MarrowReport
    reads the DOM is the same ordering constraint the toggle groups have, and is

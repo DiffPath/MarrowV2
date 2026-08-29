@@ -65,20 +65,49 @@ low or adequate, monocytes never adequate, so a CBC saying so chooses nothing. T
 leaving the key out, and it's why an in-range eosinophil count is silence rather than a finding.
 
 
-**Thresholds ship unset, deliberately** — all 22 *blood* thresholds, exactly as the old app did.
-The aspirate's two predominance limits are the exception and ship at 4:1 and 1:1, because the old
-app committed to those values. What counts as marked
-anemia is a clinical judgement and the app has no business inventing one (and CLAUDE.md's
-"thresholds are meaningful" rule says so). An unset threshold parses to NaN, every comparison
-against NaN is false, and `bloodGradeFrom()` falls through to "no grade" — so out of the box a CBC
-picks the finding and leaves the grade alone. The NRBC limits (0.3 / 1.0) are the only ones the old
-app shipped with values, so they're the only ones carried over.
+**All 22 thresholds now ship with values.** They used to ship blank, as the old app's did, on the
+reasoning that what counts as marked anemia is a clinical judgement the app has no business
+inventing. That was reversed at the author's instruction: twenty-two empty boxes is not neutrality,
+it is a form nobody fills in, and an ungraded CBC on every case is itself a clinical outcome. Two
+rules generate the whole table, and each row's comment in `bloodCbcRules` says which one it follows
+and where it departs:
+
+- **Marked = the critical value**, the number the lab would phone. Four components have no published
+  critical value (lymphocytes, monocytes, eosinophils, basophils); there the severe end of the
+  conventional grading stands in.
+- **Mild = a round number 10–15% or less outside the reference range** — avowedly arbitrary, and
+  close enough to normal that "mild" means "abnormal and barely so".
+
+Three rows depart and say so: **neutropenia** takes the standing 1.5 / 0.5 lines rather than a bound
+derived from the reference floor, because those are what every other document the reader has seen
+uses; **eosinophilia** takes 1.5 / 5.0, the international consensus boundaries for hypereosinophilia
+and its severe band (Valent et al., *J Allergy Clin Immunol* 2012;130(3):607-612), which is why its
+mild bound sits at three times the reference ceiling; and **lymphopenia** has both bounds at 0.2,
+because `ignoreBetween: [0.2, 4.0]` means nothing above 0.2 ever reaches grading and every
+lymphopenia this app reports is already past the mild question.
+
+They are **defaults, not constants** — a `value` on the input, so `applySettings()` still writes a
+saved setting over one, and a box someone cleared and saved stays cleared. An empty threshold parses
+to NaN, every comparison against NaN is false, and `bloodGradeFrom()` falls through to "no grade";
+that remains the way to say *do not grade this one*, and shipping defaults must not take it away.
+**Restore defaults** (`bloodRestoreThresholdDefaults()`) puts the whole panel back, thresholds and
+NRBC limits alike — the counter's button and the counter's contract, reverting the controls and
+leaving Save to decide whether the reversion outlives the session. It is also how anyone whose saved
+settings predate the defaults gets them, since a stored `''` would otherwise win forever.
 
 The bounds read **outward from the reference range** and mirror between directions: for a High
-result "mild" is the one that hasn't gone far (below the mild bound) and "marked" is past the
+result "mild" is the one that hasn't gone far (at or below the mild bound) and "marked" is past the
 marked bound; Low is the reverse. Between them the finding is graded by neither, which is a real
-answer. The settings labels spell the operator out ("Mild ≥") because getting one backwards is
-silent — the grade just never fires.
+answer — and with these defaults it is the *common* answer, since mild sits near the reference range
+and marked at the critical value: a haemoglobin of 9 is anemia that neither word describes, and the
+report says "There is anemia" with no adjective. The settings labels spell the operator out
+("Mild ≥") because getting one backwards is silent.
+
+**The mild bound is inclusive, matching its label.** It was `>` against a label reading `≥` until the
+defaults landed, so a value sitting exactly on the bound — 130 platelets against `Mild ≥ 130` — was
+graded by neither word. Round default bounds make that likelier, since a CBC reports round numbers.
+`bloodGradeFrom()` also tests **marked first**, which states the priority plainly now that the two
+bounds can meet (they do on the lymphocyte row).
 
 Two knowing deviations from the old app, both where it was plainly broken rather than deciding
 something: NRBCs autofill from **either** the percentage or the absolute count (it required both,

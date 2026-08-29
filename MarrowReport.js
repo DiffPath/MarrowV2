@@ -503,9 +503,17 @@ document.addEventListener('DOMContentLoaded', function () {
        persists no case data by design, and settings live in localStorage,
        which a reload does not touch. The confirm is the button's whole
        safety: it is the one control in this bar that destroys rather than
-       copies, and a misclick would cost a whole case. */
+       copies, and a misclick would cost a whole case.
+
+       marrowNewCase() (MarrowSave.js) is what keeps that reasoning true now that
+       the app autosaves: without it the reload would find this tab's draft and
+       restore the case that was just cleared. It drops the draft and forgets the
+       caseId, so the reloaded page mints a fresh one and comes up empty. Named
+       saves are untouched, and the call is guarded because a template that never
+       loaded MarrowSave.js still has a working New button. */
     document.getElementById('newMarrowBtn')?.addEventListener('click', function () {
-        if (!window.confirm('Start a new marrow? This clears everything entered for the current case.')) return;
+        if (!window.confirm('Start a new marrow? This clears everything entered for the current case. Saved marrows are not affected.')) return;
+        if (typeof marrowNewCase === 'function') marrowNewCase();
         window.location.reload();
     });
 });

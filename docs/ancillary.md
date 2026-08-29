@@ -141,7 +141,11 @@ neither entity can ever leave `pending`, whatever the marrow shows.
   same reason: rounding it either way invents a fact.
 - **LDH and EPO are recorded as above/below/within the lab's own range, never as numbers.** The
   criteria are written that way, the range differs by assay and lab, and a raw number would invite the
-  app to own a cutoff it has no business owning — the same reason the blood thresholds ship unset.
+  app to own a cutoff it has no business owning. (This used to cite the blood thresholds shipping
+  blank as the same move. They no longer do — see [blood.md](blood.md) — and the two cases are not
+  alike: a blood threshold decides an *adjective* in the microscopic description, where these decide
+  whether a diagnostic criterion is met. A default adjective is editable and visible in the report; a
+  default criterion would be the engine inventing a diagnosis.)
 
 ## NGS parsing
 

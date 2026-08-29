@@ -26,6 +26,20 @@
   captured/restored by id; read one with `getSetting(id, fallback)`. Committed by a Save button,
   never on change. Other files render their own settings blocks against this store — see
   `renderSettings()` in `MarrowCounter.js` — and must mind the load-order trap below.
+- **`MarrowSave.js`** — the case **store**: the autosave draft, the named saves, and the Save
+  page's content. Sits here in the load order, before every tab, because it defines
+  `registerCaseState({ id, capture, restore, rebuild, settle })` and a tab calls that at its own
+  script scope exactly as it calls `registerReportSection()`. It runs nothing at load — the
+  bootstrap is a `setTimeout(0)` off `DOMContentLoaded`, which is the only ordering guaranteed to
+  come after `buildReportSections()` and the counters' final `render()`.
+  **One draft per case, rewritten in place** (`marrowDraftBM:<caseId>`), debounced and then
+  deferred to idle; named saves are a separate store (`marrowCasesBM`) written only by the Save
+  button. The `caseId` lives in sessionStorage — per tab, surviving a reload — and a
+  ping/answer handshake over the `storage` event forks it when a tab is *duplicated*, so two
+  windows can never overwrite each other's marrow. Capture is by id under `#inputPanel`, skipping
+  `.noSave` and `.setting`; restore is a fixed point (write, let the lists rebuild, repeat) rather
+  than a dependency graph, so it knows nothing about descriptors or stains.
+  See [save.md](save.md).
 - **`MarrowForm.js`** — the shared form vocabulary: `chipHTML()`, `addCommas()`,
   `settingsPanelSave()`, and the **toggle group** / **stop chip** behaviours every tab's chips are
   built on. Knows no tab, cell or report string. **Must load before `MarrowReport.js`** — see the

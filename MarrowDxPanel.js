@@ -565,6 +565,25 @@ function dxSetComment(text) {
     dxSyncComment();
 }
 
+/* Case state — the comment, which is the one piece of case data that lives in
+   the REPORT panel rather than the form, and so the one piece MarrowSave's
+   #inputPanel-scoped capture cannot reach.
+
+   Saved as TEXT, not as the body's innerHTML, and restored through
+   dxSetComment() — the same door a chosen suggestion comes through. dxCommentText
+   is already derived from innerText and dxSetComment rebuilds the paragraphs from
+   it, so the round trip is exact for anything this app wrote or the user typed,
+   and no markup out of storage is ever put back into the document.
+
+   No `rebuild`: the comment is one element that always exists, so it has nothing
+   to grow. It restores in one go before the control passes, and dxSetComment
+   calls dxSyncComment() to fold the section in or out. */
+registerCaseState({
+    id: 'comment',
+    capture: function () { return dxCommentText; },
+    restore: function (saved) { dxSetComment(saved || ''); }
+});
+
 /* Re-rank on any change anywhere in the input panel: this tab reads all of them,
    so there is no narrower signal to key on. `input` as well as `change` so a
    typed blast percentage or dysplasia count lands as it is typed. The report

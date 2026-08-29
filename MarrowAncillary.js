@@ -719,6 +719,49 @@ const ancImports = [
 
 renderAncillaryPanel();
 
+/* ----------------------------------------------------------------------------
+   Case state
+
+   THE ONLY TWO CONTROLS IN THE APP WITH NO ids, so the only two MarrowSave's
+   by-id capture cannot see — and that is not an oversight in either place. A
+   variant row is free text with no fixed identity (its gene is what names it,
+   and that is the thing being typed), and an abnormality select is one of a list
+   whose length is the state. Neither has an id to be keyed by, so both capture
+   and restore themselves here.
+
+   THE PASTE BOXES ARE NOT SAVED and need no mention beyond this one: both carry
+   class="noSave" for the reasons stated at the top of this file, so the capture
+   never sees them. What that costs on restore is the ISCN string, which is a
+   finding — `ancKaryotypeText()` reads it, and a restored case answers ''. The
+   abnormality LIST, which is what the diagnosis engine actually reads, comes
+   back whole; the karyotype text has to be re-pasted. That is the price of the
+   PHI rule as written, not a gap in this handler.
+
+   The status chips are ordinary chips with ids and ride the generic path. Their
+   `data-autoStatus` marker is not saved on purpose: it says "this chip was set
+   for you by a paste", and after a restore there is no paste in the box for it
+   to be taken back by. A restored Performed is simply yours.
+-------------------------------------------------------------------------- */
+registerCaseState({
+    id: 'ancillary',
+    capture: function () {
+        return { variants: ngsVariants(), abnormalities: ancAbnNamed() };
+    },
+    restore: function (saved) {
+        // renderNgsRows() adds the trailing empty row itself, and
+        // renderAncAbnList() reads the DOM it is given — so the empty case is
+        // the same call with nothing in it, not a special path.
+        renderNgsRows((saved && saved.variants) || []);
+
+        const host = document.getElementById('ancAbnList');
+        if (host) {
+            const named = (saved && saved.abnormalities) || [];
+            host.innerHTML = named.map(function (key) { return ancAbnSelectHTML(key, named); }).join('');
+            renderAncAbnList();     // appends the trailing empty select
+        }
+    }
+});
+
 /* No registerReportSection yet. The variants produce no report text until the
    comment/addendum work lands; when it does, it reads ngsVariants() and nothing
    in this file needs to change. The rows already carry `class="form"`, so that

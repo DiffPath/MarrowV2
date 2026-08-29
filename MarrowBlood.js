@@ -77,9 +77,16 @@ const bloodCells = [
     { id: 'meta',     label: 'Metas',    reportLabel: 'Metamyelocytes', defaultKey: '7', inDenom: true,  suffix: '%', hideWhenZero: true,  range: [0, 0],   lineage: 'myeloid' },
     { id: 'myelo',    label: 'Myelo',    reportLabel: 'Myelocytes',     defaultKey: '8', inDenom: true,  suffix: '%', hideWhenZero: true,  range: [0, 0],   lineage: 'myeloid' },
     { id: 'promyelo', label: 'Promyelo', reportLabel: 'Promyelocytes',  defaultKey: '9', inDenom: true,  suffix: '%', hideWhenZero: true,  range: [0, 0],   lineage: 'myeloid' },
-    { id: 'plasma',   label: 'Plasma',   reportLabel: 'Plasma Cells',   defaultKey: 'P', inDenom: true,  suffix: '%', hideWhenZero: true,  range: [0, 0],   lineage: 'other' },
-    { id: 'atypical', label: 'Atypical', reportLabel: 'Atypical Cells', defaultKey: 'A', inDenom: true,  suffix: '%', hideWhenZero: true,  range: [0, 0],   lineage: 'other' },
-    { id: 'other',    label: 'Other',    reportLabel: 'Other Cells',    defaultKey: 'O', inDenom: true,  suffix: '%', hideWhenZero: true,  range: [0, 0],   lineage: 'other' },
+    /* NO `defaultKey` on these three, and that is a binding decision rather than
+       an omission: a cell without one starts UNBOUND and cannot be counted until
+       someone puts it on a key in the settings. They used to sit on P/A/O, which
+       made them countable from the keyboard while showing nothing on the pad;
+       the author's instruction is that those keys should not count at all. The
+       cells remain, offered on every tile in Key bindings — a case that counts
+       plasma cells on blood binds one over a key it is not using. */
+    { id: 'plasma',   label: 'Plasma',   reportLabel: 'Plasma Cells',   inDenom: true,  suffix: '%', hideWhenZero: true,  range: [0, 0],   lineage: 'other' },
+    { id: 'atypical', label: 'Atypical', reportLabel: 'Atypical Cells', inDenom: true,  suffix: '%', hideWhenZero: true,  range: [0, 0],   lineage: 'other' },
+    { id: 'other',    label: 'Other',    reportLabel: 'Other Cells',    inDenom: true,  suffix: '%', hideWhenZero: true,  range: [0, 0],   lineage: 'other' },
 
     /* THE BLAST EQUIVALENTS, and the two conventions for counting them.
        Promonocytes ARE blast equivalents in every myeloid classification — the
@@ -95,10 +102,13 @@ const bloodCells = [
        that never presses either key is unchanged, which is why these are off the
        numeric pad by default.
 
-       Off-pad on a LETTER key, the same trade the original's uncountable
-       character: -1 cells should have had: no tile until someone assigns one in
-       the settings, and countable from the keyboard either way. Anyone working a
-       monocytic case binds one over a key they are not using.
+       UNBOUND BY DEFAULT (no `defaultKey`): no tile, and no keystroke either,
+       until someone assigns one in the settings. Anyone working a monocytic case
+       binds one over a key they are not using. They were on the letters M and B
+       until the author ruled that those must not count — which leaves the
+       promise the original's `character: -1` cells broke intact in the form that
+       matters: what you can count is what the pad shows, and what it does not
+       show is one click away rather than nowhere.
 
        lineage: promonocytes are monocytic and monocytes are already 'myeloid'
        here, so they follow the same side of the M:E ratio. The combined bucket is
@@ -324,48 +334,121 @@ const bloodDescriptorGroups = {
    monocytes are never called adequate — so a CBC saying so chooses nothing,
    exactly as the old map did by leaving the key out.
 
-   Thresholds are `pbCbc<key><Low|High><Mild|Marked>` and are DELIBERATELY
-   unset. The old app shipped all 22 blank too: what counts as marked anemia is
-   a clinical judgement and the app has no business inventing one. Until they
-   are set, a CBC picks the finding and leaves the grade alone — see
-   bloodGradeFrom().
+   ---------------------------------------------------------------------------
+   THE THRESHOLDS NOW SHIP WITH VALUES (`lowMild`/`lowMarked`/`highMild`/
+   `highMarked`), which reverses what this comment used to say. The old app
+   shipped all 22 blank and so did this one, on the reasoning that what counts as
+   marked anemia is a clinical judgement the app has no business inventing. The
+   author's instruction is that the judgement should be MADE, once, and then
+   edited — twenty-two empty boxes is not neutrality, it is a form nobody fills
+   in, and an ungraded CBC every time is itself a clinical outcome.
+
+   TWO RULES GENERATE THE WHOLE TABLE, both the author's:
+
+     MARKED is the CRITICAL VALUE — the number the lab would phone. Where a
+     component has no published critical value (there is none for a lymphocyte,
+     monocyte, eosinophil or basophil count), the severe end of its conventional
+     grading stands in, and the comment on that row says which.
+
+     MILD is a round number just outside the reference range — 10-15% out or
+     less. It is avowedly arbitrary; the point is that it sits close enough to
+     normal that "mild" means "abnormal and barely so".
+
+   BETWEEN THEM IS AN UNGRADED BAND, and that is a feature rather than a gap: a
+   haemoglobin of 9 is anemia that neither word describes, and bloodGradeFrom()
+   returning -1 for it prints "There is anemia" with no adjective. See there.
+
+   Reference ranges the mild bounds are read against (adult, sex-combined —
+   this app never sees a sex, so the male upper limit is used where they differ
+   and the resulting bound is the conservative one for a woman):
+
+     HGB 12.0-17.5 g/dL     ANC 1.8-7.7      ALC 1.0-4.0      AMC 0.2-1.0
+     AEC 0.0-0.5            ABC 0.0-0.2      PLT 150-450 K/uL
+
+   These are DEFAULTS, not constants: they render as the boxes' `value`, so a
+   saved setting still wins and "Restore defaults" puts them back. Nothing reads
+   this table at grading time — bloodGradeFrom() reads the controls, as it always
+   did.
 -------------------------------------------------------------------------- */
 const bloodCbcRules = [
+    /* Anemia marked < 7.0: the transfusion threshold and the usual low critical.
+       Mild ≥ 11.0 is 8% below the reference floor. */
     { key: 'Hgb', component: 'HGB', group: 'pbHgb', severity: 'pbHgbSev', unit: 'g/dL',
       low: 'anemia', normal: 'adequate', high: 'polycythemia',
-      lowName: 'Anemia', highName: 'Polycythemia' },
+      lowName: 'Anemia', highName: 'Polycythemia',
+      lowMild: '11.0', lowMarked: '7.0', highMild: '18.0', highMarked: '20.0' },
 
     // No severity: an MCV is microcytic or it is not — there is no mild about it.
     { key: 'Mcv', component: 'MCV', group: 'pbMcv',
       low: 'microcytic', normal: 'normocytic', high: 'macrocytic' },
 
+    /* THE ONE ROW WHERE CONVENTION BEATS THE 10-15% RULE, and it is worth the
+       exception: 1.5 and 0.5 are the standing mild/severe neutropenia lines
+       everywhere, 0.5 is a critical value in its own right, and a bound derived
+       from the reference floor instead would disagree with every other document
+       the reader has seen. High: no critical value exists for a neutrophil
+       count, so 30.0 stands in as the leukemoid range. */
     { key: 'Neut', component: 'Absolute Neutrophils', group: 'pbNeut', severity: 'pbNeutSev', unit: 'K/uL',
       low: 'low', normal: 'normal', high: 'high',
-      lowName: 'Neutropenia', highName: 'Neutrophilia' },
+      lowName: 'Neutropenia', highName: 'Neutrophilia',
+      lowMild: '1.5', lowMarked: '0.5', highMild: '9.0', highMarked: '30.0' },
 
     /* Epic flags absolute lymphocytes against a range so wide that the flag
        stops meaning much in the middle of it; the old app ignored the result
        entirely between 0.2 and 4.0 rather than report a lymphopenia nobody
-       would call. ../Marrow/MarrowText.js:137-142. */
+       would call. ../Marrow/MarrowText.js:137-142.
+
+       WHICH MAKES THE LOW PAIR ALMOST VESTIGIAL and its numbers deliberate
+       rather than careless: nothing below 4.0 and above 0.2 ever reaches
+       grading, so every lymphopenia this app reports is already under 0.2. Both
+       bounds are therefore 0.2 — contiguous, so the whole reachable range grades
+       as marked, and the mild box says truthfully where mild would have begun
+       had the ignore band not swallowed it. High: 5.0 is the lymphocytosis line
+       the CLL threshold is written on; there is no critical value, so 20.0
+       stands in. */
     { key: 'Lymph', component: 'Absolute Lymphocytes', group: 'pbLymph', severity: 'pbLymphSev', unit: 'K/uL',
       low: 'low', normal: 'normal', high: 'high',
       lowName: 'Lymphopenia', highName: 'Lymphocytosis',
-      ignoreBetween: [0.2, 4.0] },
+      ignoreBetween: [0.2, 4.0],
+      lowMild: '0.2', lowMarked: '0.2', highMild: '5.0', highMarked: '20.0' },
 
-    // Monocytosis grades; monocytopenia does not — the old map gave it high
-    // thresholds only, so a low monocyte count picks the finding and stops.
+    /* Monocytosis grades; monocytopenia does not — the old map gave it high
+       thresholds only, so a low monocyte count picks the finding and stops, and
+       there is no lowName here for a threshold row to hang on.
+
+       NOT 0.5, deliberately. That number is CMML's diagnostic floor and belongs
+       to the diagnosis engine, not to an adjective: a monocyte count of 0.6 is
+       diagnostically loud and morphologically unremarkable, and calling it
+       "marked monocytosis" in the microscopic description would be the report
+       arguing with itself. */
     { key: 'Mono', component: 'Absolute Monocytes', group: 'pbMono', severity: 'pbMonoSev', unit: 'K/uL',
-      low: 'low', high: 'high', highName: 'Monocytosis' },
+      low: 'low', high: 'high', highName: 'Monocytosis',
+      highMild: '1.5', highMarked: '3.0' },
 
+    /* THE ONE PAIR WITH PUBLISHED BOUNDARIES rather than derived ones: 1.5 is
+       hypereosinophilia and 5.0 the severe band, per the international consensus
+       on eosinophil disorders (Valent et al., J Allergy Clin Immunol
+       2012;130(3):607-612). Three times the reference ceiling for "mild" looks
+       wrong beside the other rows and is right here — it is the number the
+       literature uses. */
     { key: 'Eos', component: 'Absolute Eosinophils', group: 'pbEos', severity: 'pbEosSev', unit: 'K/uL',
-      high: 'high', highName: 'Eosinophilia' },
+      high: 'high', highName: 'Eosinophilia',
+      highMild: '1.5', highMarked: '5.0' },
 
+    // No critical value and no conventional grading; round numbers outside a
+    // reference ceiling of 0.2, and the likeliest row to want editing.
     { key: 'Baso', component: 'Absolute Basophils', group: 'pbBaso', severity: 'pbBasoSev', unit: 'K/uL',
-      high: 'high', highName: 'Basophilia' },
+      high: 'high', highName: 'Basophilia',
+      highMild: '0.5', highMarked: '1.0' },
 
+    /* Both marked bounds are the platelet critical values in wide use — 50 for
+       bleeding risk, 1000 for extreme thrombocytosis. Mild ≥ 130 is 13% below
+       the reference floor, which is the 10-15% rule read literally; the more
+       familiar 100 would be the other reasonable answer and is one edit away. */
     { key: 'Plt', component: 'PLT', group: 'pbPlt', severity: 'pbPltSev', unit: 'K/uL',
       low: 'decreased', normal: 'adequate', high: 'increased',
-      lowName: 'Thrombocytopenia', highName: 'Thrombocytosis' }
+      lowName: 'Thrombocytopenia', highName: 'Thrombocytosis',
+      lowMild: '130', lowMarked: '50', highMild: '500', highMarked: '1000' }
 ];
 
 /* How many NRBCs is "occasional". The only thresholds the old app shipped with
@@ -608,7 +691,19 @@ function renderBloodPanel() {
    fires. They read outward from the reference range in both directions: a mild
    anemia is one that has not fallen far (≥ the mild bound), a marked one has
    gone past the marked bound.
+
+   Every box ships with a default (see bloodCbcRules) rather than blank. It is a
+   `value` on the input, so applySettings() still writes a saved setting over it
+   and a box someone cleared and saved stays cleared — an empty threshold is a
+   real answer meaning "do not grade this one", and shipping defaults must not
+   take it away.
 -------------------------------------------------------------------------- */
+
+/* The default for one box, or '' where the rule declares none. One place, read
+   by both the render and Restore defaults, so the two cannot drift. */
+function bloodThresholdDefault(rule, direction, grade) {
+    return rule[direction.toLowerCase() + grade] || '';
+}
 
 function bloodThresholdPair(rule, direction) {
     const name = direction === 'Low' ? rule.lowName : rule.highName;
@@ -621,7 +716,8 @@ function bloodThresholdPair(rule, direction) {
     const box = function (grade, op) {
         const id = bloodThresholdId(rule, direction, grade);
         return `<label class="thresholdOp" for="${id}">${grade} ${op}</label>` +
-               `<input type="number" class="thresholdInput setting" id="${id}" step="0.1">`;
+               `<input type="number" class="thresholdInput setting" id="${id}" step="0.1"` +
+               ` value="${bloodThresholdDefault(rule, direction, grade)}">`;
     };
 
     return `<div class="findingLabel">${name}</div>
@@ -652,9 +748,37 @@ function renderBloodSettings() {
         </div>
         <div class="findingGroup">
             <div class="findingGrid">${nrbc}</div>
-        </div>`;
+        </div>
+        ${/* The counter's button, same class and same contract: it reverts the
+              CONTROLS, and Save still decides whether the reversion outlives the
+              session. It earns its place here the moment the boxes ship with
+              values — twenty-two numbers you can edit need one way back, and it
+              is also how anyone whose saved settings predate the defaults gets
+              them. */''}
+        <button type="button" class="counterReset" id="bloodThresholdReset">Restore defaults</button>`;
 
     settingsPanelSave(panel);
+}
+
+/* Defaults back into the boxes — thresholds and the NRBC limits alike, since
+   both are "numbers this panel ships with" and a button that restored only some
+   of them would be a button you cannot trust. */
+function bloodRestoreThresholdDefaults() {
+    bloodCbcRules.forEach(function (rule) {
+        if (!rule.severity) return;
+        ['Low', 'High'].forEach(function (direction) {
+            if (!(direction === 'Low' ? rule.lowName : rule.highName)) return;
+            ['Mild', 'Marked'].forEach(function (grade) {
+                const box = document.getElementById(bloodThresholdId(rule, direction, grade));
+                if (box) box.value = bloodThresholdDefault(rule, direction, grade);
+            });
+        });
+    });
+
+    bloodNrbcLimits.forEach(function (limit) {
+        const box = document.getElementById(limit.id);
+        if (box) box.value = limit.value;
+    });
 }
 
 
@@ -685,18 +809,32 @@ function bloodThresholdId(rule, direction, grade) {
    the old app's (../Marrow/MarrowText.js:150-180).
 
    An unset threshold is NaN, and every comparison against NaN is false, so it
-   falls through to -1: no thresholds configured means findings get picked and
-   grades get left alone. That is the out-of-the-box behavior by design. */
+   falls through to -1: a box someone cleared means "do not grade this one", and
+   a page whose settings block never rendered grades nothing at all. That was the
+   out-of-the-box behaviour for every row until the defaults landed; it is still
+   the behaviour of any row left empty.
+
+   MARKED IS TESTED FIRST, which matters now that the two bounds can meet. The
+   lymphocyte row ships 0.2 for both, so an ALC of 0.15 satisfies neither `>= 0.2`
+   nor... it satisfies `< 0.2`, and would have been checked for mild first under
+   the old order and found not to be. Testing the far bound first states the
+   priority plainly rather than relying on the two never overlapping.
+
+   THE BOUNDS ARE INCLUSIVE ON THE MILD SIDE, matching the labels. They used to
+   be `>` and `<` against labels that read `≥` and `≤`, so a value landing
+   exactly on the mild bound — 130 platelets against `Mild ≥ 130` — was graded by
+   neither word. Silent, and exactly the failure the labels exist to prevent;
+   round default bounds make it likelier, since a CBC reports round numbers. */
 function bloodGradeFrom(rule, direction, value) {
     const mild = parseFloat(getSetting(bloodThresholdId(rule, direction, 'Mild'), ''));
     const marked = parseFloat(getSetting(bloodThresholdId(rule, direction, 'Marked'), ''));
 
     if (direction === 'High') {
-        if (value < mild) return 0;
         if (value > marked) return 1;
+        if (value <= mild) return 0;
     } else {
-        if (value > mild) return 0;
         if (value < marked) return 1;
+        if (value >= mild) return 0;
     }
     return -1;
 }
@@ -1150,6 +1288,21 @@ bloodCounter.render();
 registerReportSection({ id: 'pbDiff', fill: bloodCounter.fillTable });
 registerReportSection({ id: 'pb', fill: fillBlood, heading: 'Peripheral Blood Smear' });
 
+/* Case state — the tape is an ordinary control with an id and rides MarrowSave's
+   generic capture, but restoring its VALUE from code fires no `input` event, so
+   the pad's percentages, the count in the rail and the report table would all
+   still be showing the previous case. refresh() is the counter's own answer to
+   "the tape changed underneath you" and is exactly what the input handler calls.
+
+   `settle`, not `rebuild`: nothing here grows a row, so once is enough, and once
+   is also right — refresh() calls fillReport(), which is not work to repeat
+   sixty times.
+
+   THE TAPE IS SAVED AS TYPED, in key characters. The key bindings are a SETTING
+   and outlive any case, so this is stable in practice; a case saved under one
+   set of bindings and loaded under another re-reads as the new bindings say. */
+registerCaseState({ id: 'pbCounter', settle: function () { bloodCounter.refresh(); } });
+
 /* NAMING A POIKILOCYTE CLAIMS ANISOPOIKILOCYTOSIS. The descriptor list is
    always on screen now, so a schistocyte can be named before the chip is
    ticked — and a named poikilocyte has exactly one thing it can mean, so the
@@ -1170,3 +1323,9 @@ document.getElementById('inputPanel')?.addEventListener('change', function (e) {
 /* A pasted CBC answers half this form. MarrowCBC announces the parse and knows
    nothing about who listens; this is the half that cares. */
 document.addEventListener('cbcParsed', bloodApplyCBC);
+
+/* Bound on the settings panel, which the shell owns and renderBloodSettings()
+   never replaces — the same reason the counter binds its own reset there. */
+document.getElementById('bloodSettingsPanel')?.addEventListener('click', function (e) {
+    if (e.target.closest('#bloodThresholdReset')) bloodRestoreThresholdDefaults();
+});

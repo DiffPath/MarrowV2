@@ -149,6 +149,14 @@
         <script src="MarrowRef.js"></script>
 
         <script src="MarrowSettings.js"></script>
+        <!-- Case persistence: the autosave draft and the named saves. LOADS
+             EARLY, before every tab, for the same reason MarrowReport.js does —
+             it defines registerCaseState(), and a tab file calls it at its own
+             script scope. It registers nothing itself and runs nothing at load;
+             its whole bootstrap is a setTimeout(0) off DOMContentLoaded, which
+             is what puts the restore after buildReportSections() and after the
+             counters' final render(). -->
+        <script src="MarrowSave.js"></script>
         <script src="MarrowForm.js"></script>
         <script src="MarrowDescriptors.js"></script>
         <script src="MarrowReport.js"></script>

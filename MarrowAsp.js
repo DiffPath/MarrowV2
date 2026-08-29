@@ -71,11 +71,11 @@ const aspCells = [
     { id: 'myelo',    label: 'Myelo',    defaultKey: '8', inDenom: true, suffix: '%', hideWhenZero: false, lineage: 'myeloid' },
     { id: 'promyelo', label: 'Promyelo', defaultKey: '.', inDenom: true, suffix: '%', hideWhenZero: false, lineage: 'myeloid' },
 
-    /* Off the numeric pad, as on blood. The original gave these character: -1,
-       which made them literally uncountable; a letter key costs nothing and the
-       engine draws them no tile unless someone assigns one. */
-    { id: 'atypical', label: 'Atypical', reportLabel: 'Atypical Cells', defaultKey: 'A', inDenom: true, suffix: '%', hideWhenZero: true, range: [0, 0], lineage: 'other' },
-    { id: 'other',    label: 'Other',    reportLabel: 'Other Cells',    defaultKey: 'O', inDenom: true, suffix: '%', hideWhenZero: true, range: [0, 0], lineage: 'other' },
+    /* Off the pad and UNBOUND, as on blood: no `defaultKey`, so no tile and no
+       keystroke until someone assigns one in the settings. They sat on the letter
+       keys A and O until the author ruled that those must not count. */
+    { id: 'atypical', label: 'Atypical', reportLabel: 'Atypical Cells', inDenom: true, suffix: '%', hideWhenZero: true, range: [0, 0], lineage: 'other' },
+    { id: 'other',    label: 'Other',    reportLabel: 'Other Cells',    inDenom: true, suffix: '%', hideWhenZero: true, range: [0, 0], lineage: 'other' },
 
     /* The blast equivalents. Both keys, both conventions and the reasoning are
        bloodCells' — one list would be wrong, since the two specimens disagree on
@@ -89,8 +89,8 @@ const aspCells = [
        marrow can only say nobody has published one. Do not copy the blast row's
        [0, 3] onto the combined row; a range assembled from one cell's reference
        and a guess at another's is a number the reader would check and not find. */
-    { id: 'promono',  label: 'Promonos',    reportLabel: 'Promonocytes',          defaultKey: 'M', inDenom: true, suffix: '%', hideWhenZero: true, lineage: 'myeloid' },
-    { id: 'proBlast', label: 'Pros/blasts', reportLabel: 'Blasts & Promonocytes', defaultKey: 'B', inDenom: true, suffix: '%', hideWhenZero: true, lineage: 'blast', excludes: ['blast'] }
+    { id: 'promono',  label: 'Promonos',    reportLabel: 'Promonocytes',          inDenom: true, suffix: '%', hideWhenZero: true, lineage: 'myeloid' },
+    { id: 'proBlast', label: 'Pros/blasts', reportLabel: 'Blasts & Promonocytes', inDenom: true, suffix: '%', hideWhenZero: true, lineage: 'blast', excludes: ['blast'] }
 ];
 
 /* Four cells, one line. Never hidden: "Neutrophils & Precursors" is the row the
@@ -791,6 +791,16 @@ aspCounter.render();
    order and lands after the blood prose. */
 registerReportSection({ id: 'aspDiff', fill: aspCounter.fillTable, after: 'pbDiff' });
 registerReportSection({ id: 'asp', fill: fillAspirateSection });
+
+/* Case state — see the matching note in MarrowBlood.js. The tape is captured by
+   id; refresh() is what makes the pad, the M:E ratio and the report table agree
+   with it again, since assigning a textarea's value from code fires no event.
+
+   syncAspPredominance() is deliberately NOT called: the predominance chip is
+   itself saved, so a restore already holds whatever the ratio decided at the
+   time AND anything the user chose over it. Re-deriving it here would overwrite
+   the override — the autofill answers a paste, not a reload. */
+registerCaseState({ id: 'aspCounter', settle: function () { aspCounter.refresh(); } });
 
 /* The ratio decides the predominance, so it re-decides when the ratio can have
    changed — a keystroke on the tape, or an edited threshold. Not on every change
