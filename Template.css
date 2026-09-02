@@ -904,14 +904,20 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
    switch — the thing a bare <span> would have quietly cost. The input stays
    ADJACENT to .toggleSwitch, which is the contract every rule above keys on;
    only the text label may come before it. */
+/* LEFT-ALIGNED, like everything else in a panel. It used to centre, and the
+   centring was the ASPIRATE'S decision sitting on the shared class: that tab's
+   pair of switches is a preamble that reads as a header over the pad, which is a
+   fact about the aspirate and not about switch rows. The Stains tab's
+   digital-imaging attestation inherited it and floated in the middle of a panel
+   whose every other line — the two stain-class titles, the specimen labels —
+   starts at the same left edge.
+
+   The centring now lives on .counterZone > .toggleFieldRow, where its reasoning
+   already did. */
 .toggleFieldRow {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    /* Centred in the panel: these two switches are the tab's preamble, not part
-       of the labelled form below, so they read as a header rather than lining up
-       under the label column. */
-    justify-content: center;
     /* Two statements share this line, so the gap BETWEEN a pair and the next has
        to beat the gap INSIDE a pair — otherwise the middle switch sits equidistant
        from both texts and reads as belonging to either. That is the whole reason
@@ -1207,8 +1213,14 @@ input[type="checkbox"].chipInput:indeterminate + .chip {
     column-gap: 16px;
 }
 
+/* The middle track is `auto` and sized by the widest thing in it — the keypad —
+   so the row stretches wider than its own two switches and has to centre them
+   inside it. That centring is this tab's, not every switch row's: it used to sit
+   on .toggleFieldRow and left the Stains tab's lone attestation floating in the
+   middle of an otherwise left-aligned panel. */
 .counterZone > .toggleFieldRow {
     grid-column: 2;
+    justify-content: center;
     margin-bottom: 8px;
 }
 
@@ -3330,13 +3342,23 @@ label + label {
 
 /* --- Topic body ---------------------------------------------------------- */
 
-.refDocBody {
+/* THE APP'S PROSE SPEC, and the About page shares it rather than restating it —
+   these are the only two places in the app that set body text in a panel, and
+   two copies of "13px / 1.55 / #2c3c4e" is how they drift into two sizes. Same
+   reasoning as REPORT_PARAGRAPH in MarrowReport.js: one copy of the bytes.
+
+   Grouped here rather than renamed to something neutral because `.refP` is on
+   29 blocks of clinical content in MarrowRefData.js, and churning that file to
+   improve a selector name is not a trade worth making. */
+.refDocBody,
+.aboutDoc {
     font-size: 13px;
     line-height: 1.55;
     color: #2c3c4e;
 }
 
-.refP {
+.refP,
+.aboutP {
     margin: 0 0 10px;
 }
 
@@ -4026,4 +4048,115 @@ label + label {
     padding: 10px 2px;
     font-size: 12px;
     color: #8A98A6;
+}
+
+
+/* --- The About page (#infoPanel) ------------------------------------------ */
+
+/* It was the last thing in the app still wearing browser defaults: an <h3> at
+   the browser's own size and weight, body text at 16px where every other panel
+   sets 13, `<br><br>` doing the work of paragraphs, and links in an rgb(0,172,238)
+   cyan that appears nowhere else — the app's accent is #0075FF.
+
+   NO HEADING, deliberately. Every other panel opens with a .fieldLabel, and this
+   one would have to read "About" directly under a tab that already says About.
+   The two paragraphs are the section structure; there is nothing here a label
+   would tell you that the words do not.
+
+   The prose spec is shared with the reference reader — see .refDocBody above. */
+.aboutDoc {
+    max-width: 68ch;    /* .refDoc's measure: the same prose wants the same line */
+}
+
+/* Stacked and left-aligned rather than run together with <br>, so each is its
+   own hit target at a comfortable height. */
+.aboutLinks {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+/* .refLink's shape — an inline-flex pill that tints on hover — in the accent
+   colour rather than that control's muted grey, because this one is a link you
+   are meant to notice rather than an affordance beside a form row.
+
+   The negative margin is what keeps the row of text starting at the panel's
+   own left edge: the padding exists to give the hover tint a body, and without
+   it the links would sit indented from the paragraphs above them by exactly the
+   amount of that padding. */
+.aboutLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 8px;
+    margin-left: -8px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #0075FF;
+    transition: background-color 0.15s ease;
+}
+
+.aboutLink:hover {
+    background-color: #EEF4FF;
+}
+
+.aboutLink:focus-visible {
+    outline: 2px solid #0075FF;
+    outline-offset: 2px;
+}
+
+/* Slightly over the text, which is what stops a 13px glyph reading as smaller
+   than the word beside it. The plain variants, not the -square ones: every icon
+   in this app is a bare glyph (fa-bone, fa-tint, fa-copy) and a filled tile
+   here was the one exception. */
+.aboutLink i {
+    font-size: 15px;
+    width: 16px;
+    text-align: center;
+}
+
+
+/* --- The peripheral blood comment list ------------------------------------ */
+
+/* One row per standing comment: a small tick carrying its id, then the sentence.
+   The id is on the CHIP rather than in the text because that is how the author
+   refers to them out loud ("put RBCC8 on it"), and a chip is a hit target where
+   a bold prefix inside a label is only a word. */
+.pbCommentRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+/* Fixed width so the sentences all start at the same x — a ragged left edge down
+   a list of thirty-six is much harder to scan than the two extra characters on
+   PLTC1 are worth. */
+.pbCommentTick {
+    flex: none;
+    width: 58px;
+    justify-content: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* The sentence is a <label> for its own checkbox, so the whole line is clickable
+   — the same "two hit targets, one input" contract .toggleField keeps. */
+.pbCommentText {
+    font-size: 13px;
+    line-height: 1.45;
+    color: #2c3c4e;
+    cursor: pointer;
+    user-select: none;
+    padding-top: 2px;
+}
+
+/* HEMC1's fill-in boxes sit inside its sentence, so they take the text's size
+   and baseline rather than .cellNum's centred numeric look. */
+.pbHemField {
+    display: inline-block;
+    width: auto;
+    text-align: left;
+    margin: 0 2px;
 }

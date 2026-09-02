@@ -83,11 +83,16 @@
    Keys and timings
 -------------------------------------------------------------------------- */
 
-const CASE_SAVES_KEY    = 'marrowCasesBM';      // localStorage: named saves
-const CASE_DRAFT_PREFIX = 'marrowDraftBM:';     // localStorage: one per case
-const CASE_BEAT_PREFIX  = 'marrowBeatBM:';      // localStorage: liveness
-const CASE_PING_PREFIX  = 'marrowPingBM:';      // localStorage: "anyone holding this?"
-const CASE_ID_KEY       = 'marrowCaseIdBM';     // sessionStorage: this tab's case
+/* Every key carries TEMPLATE_STORE_SCOPE (MarrowSettings.js), so each template
+   gets its own drawer — its own named saves, its own drafts, its own liveness.
+   Without that a peripheral blood case would appear in the marrow's save list and
+   the two pages would fight over one draft slot. 'BM' reproduces the marrow's
+   original key strings exactly, so no existing data is orphaned. */
+const CASE_SAVES_KEY    = 'marrowCases' + TEMPLATE_STORE_SCOPE;   // localStorage: named saves
+const CASE_DRAFT_PREFIX = 'marrowDraft' + TEMPLATE_STORE_SCOPE + ':';  // localStorage: one per case
+const CASE_BEAT_PREFIX  = 'marrowBeat' + TEMPLATE_STORE_SCOPE + ':';   // localStorage: liveness
+const CASE_PING_PREFIX  = 'marrowPing' + TEMPLATE_STORE_SCOPE + ':';   // "anyone holding this?"
+const CASE_ID_KEY       = 'marrowCaseId' + TEMPLATE_STORE_SCOPE;  // sessionStorage: this tab's case
 
 const CASE_SNAPSHOT_VERSION = 1;
 

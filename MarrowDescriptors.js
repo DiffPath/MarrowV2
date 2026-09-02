@@ -83,6 +83,14 @@ const descriptorVocabulary = {
     echinocytes:         { label: 'Echinocytes',          text: 'echinocytes',          qual: 'quant' },
     elliptocytes:        { label: 'Elliptocytes',         text: 'elliptocytes',         qual: 'quant' },
     howellJolly:         { label: 'Howell-Jolly bodies',  text: 'Howell-Jolly bodies',  qual: 'quant' },
+    /* macrocytes/microcytes are the PERIPHERAL BLOOD template's, and they are
+       here rather than in PBRbc.js for the reason the table exists: one
+       descriptor, one set of words, whichever group offers it. The marrow's own
+       aniso list does not offer them — a marrow calls the same finding
+       macrocytic or microcytic on the RBC indices row — which is exactly what a
+       group being a CHOICE OF KEYS is for. */
+    macrocytes:          { label: 'Macrocytes',           text: 'macrocytes',           qual: 'quant' },
+    microcytes:          { label: 'Microcytes',           text: 'microcytes',           qual: 'quant' },
     macroovalocytes:     { label: 'Macroovalocytes',      text: 'macroovalocytes',      qual: 'quant' },
     microspherocytes:    { label: 'Microspherocytes',     text: 'microspherocytes',     qual: 'quant' },
     ovalocytes:          { label: 'Ovalocytes',           text: 'ovalocytes',           qual: 'quant' },

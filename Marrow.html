@@ -92,13 +92,20 @@
                 <div class="panelBody" id="refBody"></div>
             </div>
 
+            <!-- Styled from Template.css like every other panel: no inline
+                 colours, no <h3> at the browser's own size, no <br><br> standing
+                 in for paragraphs. The prose spec is shared with the reference
+                 reader (.refDocBody / .aboutDoc) so the two cannot drift. -->
             <div class="panel" id="infoPanel" style="display: none">
                 <div class="panelBody">
-                    <h3 style="margin-top: 0px">About:</h3>
-                    This application was entirely coded by myself, Michael Moravek, MD, and is currently under construction. The project is not intended for clinical use in its current state.<br><br>
-                    If you have any questions or feedback, feel free to contact me:<br><br>
-                    <a href="mailto: MichaelMoravekMD@gmail.com" style="color: rgb(0,172,238); text-decoration: none;"><i class="fas fa-envelope-square" style="color: rgb(0,172,238); font-size: 12pt"></i> MichaelMoravekMD@gmail.com</a><br>
-                    <a href="https://twitter.com/moravekmd" target="_blank" style="color: rgb(0,172,238); text-decoration: none;"><i class="fab fa-twitter-square" style="color: rgb(0,172,238); font-size: 12pt"></i> @MoravekMD</a>
+                    <div class="aboutDoc">
+                        <p class="aboutP">This application was entirely coded by myself, Michael Moravek, MD, and is currently under construction. The project is not intended for clinical use in its current state.</p>
+                        <p class="aboutP">If you have any questions or feedback, feel free to contact me:</p>
+                        <div class="aboutLinks">
+                            <a class="aboutLink" href="mailto:MichaelMoravekMD@gmail.com"><i class="fas fa-envelope"></i>MichaelMoravekMD@gmail.com</a>
+                            <a class="aboutLink" href="https://twitter.com/moravekmd" target="_blank" rel="noopener"><i class="fab fa-twitter"></i>@MoravekMD</a>
+                        </div>
+                    </div>
                 </div>
             </div>
 

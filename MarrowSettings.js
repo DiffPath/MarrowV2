@@ -12,7 +12,26 @@
    further wiring.
    ========================================================================= */
 
-const MARROW_SETTINGS_KEY = 'marrowSettingsBM';
+/* ----------------------------------------------------------------------------
+   Storage scope — which template's drawer this page writes into.
+
+   Declared here because this file loads first among the content scripts, and
+   MarrowSave.js reads it for the case keys so the two cannot disagree about
+   which template they belong to.
+
+   The strings are built as `<thing><scope>` and 'BM' is the marrow's, which
+   reproduces `marrowSettingsBM` and the case keys EXACTLY as they were before
+   this was configurable — nobody's saved settings or drafts are orphaned. A
+   second template says `storeScope: 'PB'` in its config and gets its own drawer:
+   its own settings blob, its own named saves, its own autosave drafts. Without
+   it the peripheral blood page's cases would land in the marrow's save list.
+
+   The `marrow` prefix is now historical. It stays because renaming it is exactly
+   the kind of cosmetic change that costs a user their data. */
+const TEMPLATE_STORE_SCOPE =
+    (typeof templateConfig !== 'undefined' && templateConfig.storeScope) || 'BM';
+
+const MARROW_SETTINGS_KEY = 'marrowSettings' + TEMPLATE_STORE_SCOPE;
 
 
 /* ----------------------------------------------------------------------------

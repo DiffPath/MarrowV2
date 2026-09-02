@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <!-- See the note in Marrow.html: the report strings are UTF-8 and reach
-             the clipboard, so this is a correctness fix rather than a display one. -->
+        <!-- REQUIRED, not cosmetic. The scripts are UTF-8 and the report strings
+             contain en dashes, em dashes and ≥ / ×; without this a page served
+             over HTTP is decoded as windows-1252 and those bytes reach the
+             CLIPBOARD as mojibake ("0.5â€"1%"), which is a report defect rather
+             than a display one. -->
         <meta charset="utf-8">
         <title>Report Template</title>
         <link rel="stylesheet" href="Template.css">
@@ -76,10 +79,17 @@
                  TOP-LEVEL PAGES — siblings of the template view. Only one of
                  these (or the template pair above) is visible at a time.
                  ============================================================ -->
+            <!-- The reference section. #inputPanel is not in headerObject and so
+                 stays visible when this opens, which is the point: a quick link
+                 from a form row puts the criteria BESIDE the control you are
+                 answering rather than instead of it.
+
+                 #refBar is a third variant of the shared dark header strip (see
+                 .panelHeader / .copyHeader in Template.css) and is filled by
+                 MarrowRef.js, which also owns #refBody. -->
             <div class="panel" id="helpPanel" style="display: none">
-                <div class="panelBody">
-                    <!-- Help / changelog content goes here. -->
-                </div>
+                <div class="panelHeader refBar" id="refBar"></div>
+                <div class="panelBody" id="refBody"></div>
             </div>
 
             <!-- Styled from Template.css like every other panel: no inline
@@ -117,7 +127,29 @@
 
         <!-- Load order matters: templateConfig must exist before Template.js runs.
              This line is the ONLY difference between template entry pages. -->
-        <script src="LiverConfig.js"></script>
+        <script src="PBConfig.js"></script>
         <script src="Template.js"></script>
+
+        <!-- Content scripts. The first four are the marrow page's shared
+             libraries, loaded rather than copied: none of them declares a marrow
+             id or a marrow string. Order is the marrow page's order and
+             load-bearing for the same reasons - MarrowForm before MarrowReport
+             (both bind change on #inputPanel and the toggle handler must clear a
+             group before fillReport reads it), and PBClinical before MarrowCBC
+             (which binds to #pbCBC at its own script scope, so the box must
+             already exist). See docs/pb.md. -->
+        <script src="MarrowSettings.js"></script>
+        <script src="MarrowSave.js"></script>
+        <script src="MarrowForm.js"></script>
+        <script src="MarrowDescriptors.js"></script>
+        <script src="MarrowReport.js"></script>
+
+        <!-- This template's own tabs. -->
+        <script src="PBClinical.js"></script>
+        <script src="MarrowCBC.js"></script>
+        <script src="PBRbc.js"></script>
+        <script src="PBWbc.js"></script>
+        <script src="PBPlt.js"></script>
+        <script src="PBComment.js"></script>
     </body>
 </html>

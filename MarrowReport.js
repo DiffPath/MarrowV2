@@ -366,15 +366,25 @@ document.addEventListener('DOMContentLoaded', function () {
    so there is no bullet to protect; when that line is rebuilt, that path is
    the one to port. */
 
-/* Button id -> the section ids it copies. 'microscopic' is DERIVED rather than
-   listed: it is everything the other buttons do not claim, so a newly
-   registered section is microscopic by default instead of silently falling out
-   of every copy. */
-const COPY_CLAIMED = {
+/* Button id -> the section ids it copies. FROM THE CONFIG, because the section
+   ids are the template's own: the marrow's Copy Final takes its specimen line,
+   the peripheral blood page's takes a final diagnosis. The literal below is the
+   marrow's and stays as the fallback, so a config that says nothing behaves
+   exactly as this file did before it was a config at all.
+
+   `catchAll` is DERIVED rather than listed: it is everything the other buttons
+   do not claim, so a newly registered section lands there by default instead of
+   silently falling out of every copy. The marrow calls it 'microscopic'; a
+   template whose buttons claim everything simply has no catch-all. */
+const COPY_CLAIMED = (typeof templateConfig !== 'undefined' && templateConfig.copyClaims) || {
     spec:         ['spec'],
     copyComment:  ['dxCommentSection'],
     copyClinical: ['cbc']
 };
+
+const COPY_CATCH_ALL = (typeof templateConfig !== 'undefined' && templateConfig.copyCatchAll !== undefined)
+    ? templateConfig.copyCatchAll
+    : 'microscopic';
 
 function copySectionIds(buttonId) {
     if (COPY_CLAIMED[buttonId]) return COPY_CLAIMED[buttonId];
@@ -484,7 +494,7 @@ async function copyToClipboard(payload) {
 /* Wired on the same event the sections are built on; listeners run in add
    order, so the containers exist by the time this runs. */
 document.addEventListener('DOMContentLoaded', function () {
-    Object.keys(COPY_CLAIMED).concat('microscopic').forEach(function (buttonId) {
+    Object.keys(COPY_CLAIMED).concat(COPY_CATCH_ALL || []).forEach(function (buttonId) {
         document.getElementById(buttonId)?.addEventListener('click', async function () {
             const payload = copyPayload(copySectionIds(buttonId));
             if (!payload) { showAlert('error', 'No text to copy'); return; }
@@ -511,8 +521,13 @@ document.addEventListener('DOMContentLoaded', function () {
        caseId, so the reloaded page mints a fresh one and comes up empty. Named
        saves are untouched, and the call is guarded because a template that never
        loaded MarrowSave.js still has a working New button. */
-    document.getElementById('newMarrowBtn')?.addEventListener('click', function () {
-        if (!window.confirm('Start a new marrow? This clears everything entered for the current case. Saved marrows are not affected.')) return;
+    const newButton = (typeof templateConfig !== 'undefined' && templateConfig.newButton) || {
+        id: 'newMarrowBtn',
+        confirm: 'Start a new marrow? This clears everything entered for the current case. Saved marrows are not affected.'
+    };
+
+    document.getElementById(newButton.id)?.addEventListener('click', function () {
+        if (!window.confirm(newButton.confirm)) return;
         if (typeof marrowNewCase === 'function') marrowNewCase();
         window.location.reload();
     });

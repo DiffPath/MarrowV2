@@ -716,7 +716,12 @@ function renderStainPanel() {
        case's assessment, and its sentence is the report's closing line - the
        input sits where the output lands. A switch, not a chip: it is a claim
        that stands by itself, the same reasoning as the aspirate's preamble
-       toggles. */
+       toggles.
+
+       It borrows that tab's ROW, not its placement. .toggleFieldRow is left
+       aligned like every other line in a panel; the aspirate centres its own
+       copy over the pad from .counterZone (Template.css), which is where a fact
+       about the aspirate belongs. */
     panel.innerHTML = block('Special Stains', 'special') + block('Immunohistochemical Stains', 'immuno') +
         `<div class="fieldBlock"><div class="toggleFieldRow">` +
         `${toggleFieldHTML('stainDigitalImaging', 'Digital imaging used in diagnostic assessment')}` +

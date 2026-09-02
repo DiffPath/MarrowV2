@@ -28,6 +28,11 @@
 const templateConfig = {
     pageTitle: 'Bone Marrow Template',
 
+    /* Which storage drawer this page writes into — settings, named saves and
+       autosave drafts (see MarrowSettings.js). 'BM' reproduces the key strings
+       this template has always used. */
+    storeScope: 'BM',
+
     /* Slide-out drawer links. `active: true` marks the current page. */
     navLinks: [
         { label: 'Bone Marrow',      icon: 'fas fa-bone',       href: 'Marrow.html', active: true },
