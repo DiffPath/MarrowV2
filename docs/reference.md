@@ -14,17 +14,29 @@ paragraph, an epidemiology paragraph and a practice note. All true, all sourced,
 between the reader and the box they opened the page for. A reference you have to scroll
 past prose to use is a reference you stop opening.
 
-What a topic may contain:
+**Every entity page has the same shape** (standardized 2026-09):
 
-- the criteria box,
-- an **ICC 2022** divergence block where the two classifications differ,
-- a table where the classification itself is a table (MDS-IB's three subtypes, CMML's
-  subtyping cut-offs, the MF grades),
-- for the bench topics only, the short prose that *is* the answer.
+1. a `refBox` titled **WHO-HAEM5**: the criteria, then everything else as `notes`;
+2. a `refTable`, only where the classification itself is a table (MDS-IB's three subtypes,
+   CMML's subtyping cut-offs, AML-MR's Box 2.25);
+3. a `refDiverge` titled **ICC 2022**: a bullet list of differences, subject unstated
+   ("Requires ≥ 10% blasts", not "ICC requires…"), with an optional table below it.
 
-Detail that qualifies a criterion goes in **that criterion's own `notes`**, inside the box,
-where it is read with the criterion rather than after it. PV's footnote b, PMF's
-three-way major criterion 3, MDS-IB's and/or trap all live there.
+No prose outside the boxes, no headings, no asides. A page holding several boxes titles each
+by entity instead (the AML differentiation subtypes, post-PV and post-ET MF). `refP` and
+`refH` are for the bench pages only, where the short prose *is* the answer.
+
+Detail that qualifies a criterion goes in the box's **`notes`**, where it is read with the
+criterion rather than after it: PV's footnote b, PMF's three-way major criterion 3,
+MDS-IB's and/or. Morphology, immunophenotype, prognosis and differentials go there as well.
+
+`refNote`, table captions, the rbc card `also` line and prose-bodied ICC blocks were all
+removed in that pass. Each was a format with no content of its own to justify it.
+
+**Notes are written for a hematopathologist.** Short declaratives. No explaining why a
+criterion exists ("which is what lets…", "the trap this criterion exists to name"), no
+mention of this app's rules, cards or comments, and no editorial voice ("the great mimic",
+"earns its keep").
 
 Two things were removed outright and should not come back:
 
@@ -53,10 +65,8 @@ same instruction cut the over-explanations: no table caption or note that restat
 obvious ("lower bound inclusive"), no worked arithmetic for trivia, no maintenance
 instructions rendered to the reader.
 
-The box header is also dropped where it would repeat the page title — a page headed
-*Polycythaemia vera* does not need a box headed *Polycythaemia vera*. It is kept where it
-distinguishes (`CMML — WHO-HAEM5` above an ICC block, the two post-MPN boxes) or where the
-box is not the entity (`The count`, `The threshold`).
+The box header never repeats the page title. It names the classification (`WHO-HAEM5`,
+pairing with the `ICC 2022` box below), or the entity on a page holding several boxes.
 
 
 ## What it is for
@@ -291,7 +301,7 @@ referenceTopics.push({
 
 `body()` is called at render time and returns an HTML string. Write it with the markup
 vocabulary at the top of `MarrowRefData.js` — `refBox`, `refDiverge`, `refTable`, `refCite`,
-`refP`, `refH`, `refUL`, `refOL`, `refJump` — for the same reason the report has
+`refP`, `refH`, `refUL`, `refJump` — for the same reason the report has
 `REPORT_PARAGRAPH`: a criteria box built two ways is one that will eventually look two ways.
 
 **The reader is a pathologist.** Never define a term of the trade — "hyper- and
@@ -305,9 +315,9 @@ bodies — the section's only bold is structural (box titles, group labels, `ref
 also how WHO's own boxes set their thresholds; no em- or en-dashes — a hyphen or no dash at
 all (cytogenetic minus signs are not dashes and stay); genes keep `<i>`, which is notation
 rather than emphasis. On the format side there is **one visual language**: `refDiverge` is a
-`refBox` with an "ICC 2022" title bar (it was a blue bubble, and that was a third block style
-for no third kind of thing), criteria-group labels and table headers share one label style,
-and `refCite` is the same small print as a table caption.
+`refBox` with an "ICC 2022" title bar and no CSS of its own (it was a blue bubble, then a box
+with its own smaller body text), and criteria-group labels and table headers share one label
+style.
 
 **A quantitative claim outside a criteria box needs a `refCite` or an `unverified` flag.**
 Those are the only two honest states for a number in this file, and shipping one with
@@ -327,10 +337,11 @@ cells.
 
 Three rules for the figures, all learned the hard way in one sitting:
 
-- **Geometry is computed, not typed.** `rbcSpikes()` takes `[angle, radius]` pairs; even
-  spacing gives an echinocyte, an irregular fixed table gives an acanthocyte. Eighteen
-  hand-written path strings would be eighteen chances to fat-finger a shape nobody notices
-  is wrong.
+- **Geometry is computed where it can be.** `rbcCrenated()` builds the echinocyte's even
+  scallops, and the acanthocyte is an outline built from an `[angle, length]` table of
+  wide-based, blunt spurs. (An earlier acanthocyte drawn as a star polygon, and a later one
+  drawn as a ball on sticks, both read wrongly: real spurs are short, thick at the base and
+  blunt.) The few typed paths (helmet, sickle, teardrop) carry their geometry in a comment.
 - **Nothing is random.** An acanthocyte's spicules are irregular and the temptation is
   `Math.random()`. A figure that redraws differently every render is unsettling and
   impossible to check. The irregularity is a fixed table.
@@ -340,16 +351,16 @@ Three rules for the figures, all learned the hard way in one sitting:
   now uses the real circle-intersection points (the arithmetic is in the comment); the
   blister cell uses a `clipPath`, which is correct by construction.
 
-Two other things worth knowing: `stroke-linejoin: round` with a thick stroke is what makes a
-spicule **blunt**, so the same point list is a club or a thorn depending on one property —
-that is the entire echinocyte/acanthocyte distinction. And `rbcScaleRing()` is drawn **last,
-on top**: behind the cell it is invisible wherever the cell is bigger, which is the one case
-it exists for.
+Two other things worth knowing. **The cells are shaded, not flat** (2026-09): a radial
+gradient per cell type (`rbcDefs()`: disc, dense, teardrop, target, full, inclusion), scaled
+to each shape by `objectBoundingBox`, so an ellipse gets an elliptical pallor for free. Flat
+discs read as diagrams of target cells. And `rbcScaleRing()` is drawn **last, on top**:
+behind the cell it is invisible wherever the cell is bigger, which is the one case it exists
+for.
 
 ### Photomicrographs alongside the schematics
 
-Eleven cards also carry a photograph, in `images/rbc/`, manifested in
-`MarrowRefImages.js`. **Drawing above, photograph below — never one instead of the other.**
+Ten cards carry a photograph, in `images/rbc/`, manifested in `MarrowRefImages.js`. **Drawing above, photograph below — never one instead of the other.**
 They answer different questions: the schematic shows the defining feature at full expression
 with nothing else in the field; the photograph shows it among overlapping cells at real stain
 variation.
@@ -374,8 +385,16 @@ Four rules, and each of them cost something to learn:
   thrown away; those cards are schematic-only. The check is a canvas, an average and a
   comparison, and at a 2-in-12 failure rate it is worth doing every time.
 
+- **Show the cell, not the field.** The Commons images are low-power fields, and squeezed
+  into a card the cell in question was a few pixels wide. `rbcPhotoViews` (in
+  `MarrowRefData.js`, because the manifest is generated) gives each photo a `crop` in its own
+  pixels, chosen by looking at the image; the card shows the crop and a click opens the full
+  field. **A replaced file needs its crop chosen again.** `hide: true` takes a photo out:
+  `bite-cells.jpg` is a text infographic, not a smear, so the bite-cell card is
+  schematic-only.
+
 To add your own: drop it in `images/rbc/`, add an entry with `source: 'own'` and
-`verified: true`, and delete the Commons file it replaces.
+`verified: true`, give it a crop in `rbcPhotoViews`, and delete the Commons file it replaces.
 
 ### Keep the first table column short
 

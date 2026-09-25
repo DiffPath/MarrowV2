@@ -217,16 +217,15 @@ const descriptorVocabulary = {
        cytoplasm, so the same key.
 
        THE TERMS ARE WHO-HAEM5 TABLE 2.10's (docs/who/mds-dysplasia-table-2.10.md),
-       at the author's instruction. Two consequences: `megaloblastoid` keeps its
-       KEY but prints "megaloblastic changes" - the introduction says in terms
-       that megaloblastic is "preferred over the term 'megaloblastoid'" - and
-       the erythroid lists offer `multinuclearity` (the table's erythroid word)
-       while `multinucleation` stays for the plasma and megakaryocyte lists,
-       which is the word the table uses THERE. */
+       at the author's instruction, with two deliberate departures:
+       `megaloblastoid` keeps its KEY but prints "megaloblastic changes" - the
+       introduction says in terms that megaloblastic is "preferred over the term
+       'megaloblastoid'" - and every list says `multinucleation`, although the
+       table writes "multinuclearity" for the erythroid lineage (the author's
+       call, 2026-09). */
     nuclearBudding:             { label: 'Nuclear budding',        text: 'nuclear budding',              qual: 'quant' },
     internuclearBridging:       { label: 'Internuclear bridging',  text: 'internuclear bridging',        qual: 'quant' },
     nuclearContourIrregularity: { label: 'Nuclear contours',       text: 'nuclear contour irregularity', qual: 'quant' },
-    multinuclearity:            { label: 'Multinuclearity',        text: 'multinuclearity',              qual: 'quant' },
     multinucleation:            { label: 'Multinucleation',        text: 'multinucleation',              qual: 'quant' },
     megaloblastoid:             { label: 'Megaloblastic changes',  text: 'megaloblastic changes',        qual: 'quant' },
     karyorrhexis:               { label: 'Karyorrhexis',           text: 'karyorrhexis',                 qual: 'quant' },

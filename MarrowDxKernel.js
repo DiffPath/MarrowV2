@@ -642,11 +642,41 @@ function dxPct(n) {
     return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
+/* A classification's tag on a name. A name that already ends in its own
+   parenthetical takes the tag inside it — "(MDS-IB2; WHO-HAEM5)" rather than
+   "(MDS-IB2) (WHO-HAEM5)", which is how a person would write it. Only a
+   parenthetical that stands as its own word: the "(5q)" of "del(5q)" is part of
+   the name. */
+function dxTag(name, tag) {
+    return /\s\([^()]*\)$/.test(name) ? name.replace(/\)$/, `; ${tag})`) : `${name} (${tag})`;
+}
+
 /* The two classifications' names, joined for use inside a sentence. */
 function dxNameLine(who, icc) {
     if (!icc || icc === who) return dxLower(who);
-    return `${dxLower(who)} (WHO-HAEM5); ${dxLower(icc)} (ICC 2022)`;
+    return `${dxTag(dxLower(who), 'WHO-HAEM5')} and ${dxTag(dxLower(icc), 'ICC 2022')}`;
 }
+
+function dxCap(s) {
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+/* "an ASXL1 mutation", "ASXL1 and SRSF2 mutations" — the article follows the
+   letter as it is SAID, so an SF3B1, an NPM1, a TP53. */
+function dxGenePhrase(genes) {
+    if (genes.length > 1) return `${addCommas(genes)} mutations`;
+    return `${/^[AEFHILMNORSX]/.test(genes[0]) ? 'an' : 'a'} ${genes[0]} mutation`;
+}
+
+/* The one sentence every comment ends on while a study is out. */
+function dxPendingSentence(f) {
+    const waiting = dxPendingStudies(f);
+    if (!waiting.length) return '';
+    return `${dxCap(addCommas(waiting))} studies are pending; an addendum will follow.`;
+}
+
+/* The one sentence every addendum opens with. */
+const DX_ADDENDUM_LEAD = 'This addendum incorporates the ancillary study results.';
 
 
 /* ---------------------------------------------------------------------------
@@ -688,22 +718,22 @@ function dxDefiningConfirmed(rule, f) {
     return !rule.definedBy || rule.definedBy.finding(f) === true;
 }
 
-/* "In correlation with cytogenetic studies demonstrating deletion of 5q, " — the
-   opening that turns an assertion into a condition. Empty when the alteration is
-   in hand, which is what lets the flat sentence stand unchanged. */
+/* "If cytogenetic studies show deletion of 5q, " — the opening that turns an
+   assertion into a condition. Empty when the alteration is in hand, which is
+   what lets the flat sentence stand unchanged. */
 function dxConfirmationPrefix(rule, f) {
     if (dxDefiningConfirmed(rule, f)) return '';
     const d = rule.definedBy;
-    return `In correlation with ${d.study} studies demonstrating ${d.phrase}, `;
+    return `If ${d.study} studies show ${d.phrase}, `;
 }
 
 /* The classification sentence in whichever mood the genetics allow. `register`
-   is the verb the family uses: the MDS, MPN and overlap comments classify, the
-   AML comments are diagnostic of. */
+   is the verb the family uses: the MDS, MPN and overlap comments are
+   "consistent with", the AML comments are "diagnostic of". */
 function dxClassificationSentence(rule, f, line, register) {
     const verb = register === 'diagnostic'
         ? ['are diagnostic of', 'would be diagnostic of']
-        : ['are best classified as', 'would be best classified as'];
+        : ['are consistent with', 'would be consistent with'];
     const prefix = dxConfirmationPrefix(rule, f);
     return prefix
         ? `${prefix}the findings ${verb[1]} ${line}.`
@@ -730,3 +760,37 @@ function dxFindingReported(value) {
    by adding a file and a script tag, never by editing this line.
 ------------------------------------------------------------------------------ */
 const dxRules = [];
+
+
+/* ---------------------------------------------------------------------------
+   THE AXIS — and why `family` could not carry this
+
+   `family` says which workup bonus and which cross-family bonuses reach a rule.
+   It is a statement about neighbours WITHIN one question. The axis is a
+   statement about which question is being asked at all, and there are two:
+
+       myeloid    is this marrow a myeloid neoplasm, and which one?
+       lymphoid   is there a lymphoid infiltrate, and is it neoplastic?
+
+   THE TWO ARE NOT ALTERNATIVES, WHICH IS THE WHOLE POINT. Every other pair of
+   rules in this table competes: a marrow that is polycythemia vera is not also
+   essential thrombocythemia, and ranking them against each other is exactly
+   what the engine is for. A marrow can perfectly well be a myelodysplastic
+   neoplasm AND carry a small B-cell lymphoma, and it happens often enough to
+   have a name. So a lymphoid candidate at 6 sitting above a myelodysplastic one
+   at 5 is not a ranking, it is a category error — the reader would read "rather
+   than", where the answer is "as well as".
+
+   Everything upstream of presentation is unaffected: gates, points, buckets and
+   the three-valued contract are all per-rule and do not care. What the axis
+   changes is the two places that compare candidates to each other — the
+   residual-category demotion (MarrowDxEngine.js), which must only be triggered
+   by a better fit for the SAME question, and the Differential view
+   (MarrowDxSteps.js), which groups by it and takes a threshold per axis.
+
+   Defaulted rather than declared, so the thirty-seven myeloid rules stay as
+   they are and only a rule that is NOT the default has to say so.
+------------------------------------------------------------------------------ */
+function dxAxis(rule) {
+    return rule.axis || 'myeloid';
+}

@@ -35,7 +35,7 @@ function dxPlasmaAtLeast10(f) {
 function dxPlasmaPhrase(f) {
     const p = f.plasma;
     let phrase = p.clonal === true
-        ? 'a clonal' + (p.restriction ? ' (' + p.restriction + '-restricted)' : '')
+        ? (p.restriction ? 'a ' + p.restriction + '-restricted' : 'a clonal')
         : 'a';
     phrase += ' plasma cell population';
     // The reading short of restriction, in the author's words: "a kappa
@@ -44,14 +44,14 @@ function dxPlasmaPhrase(f) {
         phrase += ' with a ' + p.predominance + ' predominance';
     }
     if (p.marrowPct !== null) {
-        phrase += ' comprising approximately ' + dxPct(p.marrowPct) + '% of marrow cells';
-        if (p.pctBasis === 'cd138' || p.pctBasis === 'cd138Range') phrase += ' by CD138';
+        phrase += ' (about ' + dxPct(p.marrowPct) + '% of marrow cells' +
+            (p.pctBasis === 'cd138' || p.pctBasis === 'cd138Range' ? ' by CD138)' : ')');
     }
     return phrase;
 }
 
-const DX_PLASMA_CORRELATE = 'Correlation with serum protein electrophoresis, free light ' +
-    'chain studies, imaging, and clinical findings is recommended.';
+const DX_PLASMA_CORRELATE = 'Correlation with serum protein studies, free light chains and ' +
+    'imaging is recommended.';
 
 dxRules.push(
     {
@@ -78,14 +78,13 @@ dxRules.push(
         ],
         /* Always, while the rule is live: nothing in this app can tell myeloma
            from a smoldering process or an amyloidosis-associated clone. */
-        caution: function () {
-            return 'Subclassification of a plasma cell neoplasm (including the distinction of ' +
-                'plasma cell myeloma from smoldering myeloma) requires serum protein studies and ' +
-                'clinical correlation, which are beyond the scope of this evaluation.';
+        check: function () {
+            return 'Myeloma versus smoldering myeloma needs the serum studies and clinical data ' +
+                '(myeloma-defining events).';
         },
         comment: function (f) {
-            const parts = ['Sections and smears show ' + dxPlasmaPhrase(f) + '.'];
-            parts.push('The findings are those of a plasma cell neoplasm.');
+            const parts = ['There is ' + dxPlasmaPhrase(f) + '.'];
+            parts.push('The findings are consistent with a plasma cell neoplasm.');
             parts.push(DX_PLASMA_CORRELATE);
             return parts.join(' ');
         }
@@ -109,16 +108,17 @@ dxRules.push(
                 return f.plasma.predominance !== null ? true : null;
             }]
         ],
-        caution: function () {
-            return 'The designation of MGUS additionally requires a serum monoclonal protein ' +
-                'below 3 g/dL and the absence of myeloma-defining events, which cannot be ' +
-                'assessed on the marrow alone.';
+        check: function () {
+            return 'MGUS also requires a serum M-protein below 3 g/dL and no myeloma-defining events.';
         },
+        /* THE CLONE IS BELOW 10%, which is what this rule gates on — not "plasma
+           cells not increased", which the old sentence said on cases that had
+           just recorded them as increased. */
         comment: function (f) {
-            const parts = ['Sections and smears show ' + dxPlasmaPhrase(f) + '.'];
-            parts.push('In the absence of increased plasma cells, the findings are compatible ' +
-                'with a monoclonal gammopathy of undetermined significance.');
-            parts.push(DX_PLASMA_CORRELATE);
+            const parts = ['There is ' + dxPlasmaPhrase(f) + '.'];
+            parts.push('With clonal plasma cells below 10%, the findings are compatible with a ' +
+                'monoclonal gammopathy of undetermined significance (MGUS), pending serum protein ' +
+                'studies and clinical evaluation.');
             return parts.join(' ');
         }
     },

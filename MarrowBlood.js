@@ -173,10 +173,30 @@ const bloodSeverity = [{ label: 'Mild', value: 'mild' }, { label: 'Marked', valu
    Same two chips, different words, hence a second table rather than a rule. */
 const bloodPltSeverity = [{ label: 'Mild', value: 'mildly' }, { label: 'Marked', value: 'markedly' }];
 
+/* ERYTHROCYTOSIS, NOT POLYCYTHEMIA, at the author's ask — and the `value` is the
+   report word, so this line is the report string (bloodHgbText interpolates it:
+   "The peripheral blood smear shows mild erythrocytosis.").
+
+   The two are used interchangeably in speech and are not interchangeable in a
+   report. Erythrocytosis is the raised red cell measurement, which is all a
+   blood count can show; polycythemia is the word the classification attaches to
+   the NEOPLASM, and WHO-HAEM5 writes polycythemia vera's own major criterion as
+   erythrocytosis for exactly that reason. A microscopic description that says
+   "polycythemia" of a raised hemoglobin has named a disease off a number.
+
+   POLYCYTHEMIA VERA IS UNTOUCHED wherever it appears — the entity keeps its
+   name, in the rule table, the reference topics and every comment. The rename is
+   the finding only. `f.counts.erythrocytosis` already used this word for the
+   criterion, so the chip and the criterion now agree instead of disagreeing.
+
+   ONE MIGRATION COST, stated because it is silent: the chip's element id goes
+   from `pbHgb_polycythemia` to `pbHgb_erythrocytosis`, and MarrowSave captures by
+   id — so a case saved with the old chip selected restores without it. Only that
+   chip, only on cases saved before this change. */
 const bloodHgb = [
     { label: 'Anemia', value: 'anemia' },
     { label: 'Adequate', value: 'adequate' },
-    { label: 'Polycythemia', value: 'polycythemia' }
+    { label: 'Erythrocytosis', value: 'erythrocytosis' }
 ];
 
 const bloodMcv = [
@@ -374,8 +394,11 @@ const bloodCbcRules = [
     /* Anemia marked < 7.0: the transfusion threshold and the usual low critical.
        Mild ≥ 11.0 is 8% below the reference floor. */
     { key: 'Hgb', component: 'HGB', group: 'pbHgb', severity: 'pbHgbSev', unit: 'g/dL',
-      low: 'anemia', normal: 'adequate', high: 'polycythemia',
-      lowName: 'Anemia', highName: 'Polycythemia',
+      low: 'anemia', normal: 'adequate', high: 'erythrocytosis',
+      /* The settings row's label. Renamed with the chip so the threshold boxes
+         and the finding they grade use one word; the box IDs come off `key`
+         ('Hgb'), so saved thresholds are unaffected. */
+      lowName: 'Anemia', highName: 'Erythrocytosis',
       lowMild: '11.0', lowMarked: '7.0', highMild: '18.0', highMarked: '20.0' },
 
     // No severity: an MCV is microcytic or it is not — there is no mild about it.

@@ -189,6 +189,14 @@ function dxMdsIb2TakesCase(f) {
 const dxExcludeMdsFibrosis = ['MF-2 / MF-3 fibrosis (MDS with increased blasts and fibrosis)',
     function (f) { return dxBandAtLeast(f.fibrosis.grade, 2) === true; }];
 
+/* hMDS's predisposition genes, as an NGS panel would report them: GATA2, DDX41,
+   the telomerase complex, SAMD9/9L and the Fanconi genes. */
+function dxMdsHPredisposition(f) {
+    return ['GATA2', 'DDX41', 'TERT', 'TERC', 'DKC1', 'RTEL1', 'SRP72',
+        'SAMD9', 'SAMD9L', 'FANCL', 'BRCA2', 'PALB2', 'BRIP1']
+        .filter(function (g) { return f.genetics.somaticGenes.indexOf(g) !== -1; });
+}
+
 /* ---------------------------------------------------------------------------
    The MDS-IB likelihood ladder, shared by all three subtypes
 
@@ -275,47 +283,44 @@ const dxMdsIbHypercellular = ['hypercellular marrow for age', 1, function (f) {
 function dxMdsIbCaution(f) {
     const notes = [];
 
-    /* AUER RODS MAKE THE CASE MDS-IB2 AT ANY BLAST COUNT IN THIS RANGE, and they
-       are now recordable — the Blasts row of the Aspirate and Blood tabs carries
-       them, and dxMdsIb2TakesCase gates on them. What has NOT changed is that
-       their ABSENCE is not a finding: there is no chip to leave un-ticked, so
-       f.blasts.auerRods is true or null and never false (see findingAuerRods).
-
-       So the reminder stays on every case that did not name them, and it is not
-       boilerplate — silence here means "nobody looked", and the difference
-       between IB1 and IB2 may be sitting on the slide unread. Naming them turns
-       the note into a statement of what the classification did with them, which
-       is the sentence a reader needs when the subtype is not the one the blast
-       percentage would predict. */
-    if (f.blasts.auerRods === true) {
-        notes.push('Auer rods are recorded. Their presence classifies the case as MDS with ' +
-            'increased blasts-2 (MDS-IB2) in WHO-HAEM5 at any blast count within the MDS with ' +
-            'increased blasts range, irrespective of the blast percentage.');
-    } else {
-        notes.push('No Auer rods have been recorded. Their presence, at any blast count within ' +
-            'this range, classifies the case as MDS with increased blasts-2 (MDS-IB2) in ' +
-            'WHO-HAEM5; their absence is not recorded as a finding, so the smears should be ' +
-            'reviewed for them directly.');
+    /* AUER RODS MAKE THE CASE MDS-IB2 AT ANY BLAST COUNT IN THIS RANGE
+       (dxMdsIb2TakesCase gates on them). Said in the report only where the rods,
+       not the count, are what make it IB2; the reminder to look for them when
+       none are recorded is dxMdsIbCheck's. */
+    if (f.blasts.auerRods === true &&
+        dxMdsIbBand(f, DX_BLAST_ICC, DX_BLAST_AML, 5, DX_BLAST_AML) !== true) {
+        notes.push('Auer rods are present, which places the case in MDS-IB2 regardless of the ' +
+            'blast percentage.');
     }
 
     /* Monoallelic TP53 is present in about a third of cases and — unusually for
        this gene — means nothing prognostically here: "outcomes for patients with
        monoallelic TP53 mutations do not appear to differ from those with wildtype
-       TP53". Which is why it is stated and never scored. The ICC half matters
-       because mdsIB2's iccFor renames the case on a single mutation above 10%
-       VAF, with no multi-hit requirement — so the two classifications genuinely
-       part company on this case, and the reader should be told rather than left
-       to notice the names disagree. */
+       TP53". Which is why it is stated and never scored. The ICC half (mdsIB2's
+       iccFor renames the case on a single mutation above 10% VAF) is on the
+       card, in dxMdsIbCheck. */
     if (f.genetics.tp53 === true && f.genetics.tp53MultiHit !== true) {
-        notes.push('A single TP53 mutation is present. Monoallelic TP53 mutation is found in ' +
-            'approximately one third of cases of MDS with increased blasts, and the outcome of ' +
-            'these patients does not appear to differ from that of patients with wildtype ' +
-            'TP53; biallelic (multi-hit) inactivation would reclassify the case as MDS with ' +
-            'biallelic TP53 inactivation. Note that ICC 2022 names a TP53-mutated category at ' +
-            '10–19% blasts on any somatic TP53 mutation above a 10% variant allele fraction, ' +
-            'without requiring multi-hit status.');
+        notes.push('A single TP53 mutation is present; without biallelic inactivation it does not ' +
+            'change the classification.');
     }
 
+    return notes.join(' ');
+}
+
+/* The MDS-IB notes that stay on the card. */
+function dxMdsIbCheck(f) {
+    const notes = [];
+    /* Their ABSENCE is not recordable (f.blasts.auerRods is true or null), so
+       silence means nobody looked — and the subtype may be sitting on the slide. */
+    if (f.blasts.auerRods !== true) {
+        notes.push('Auer rods are not recorded. Review the smears: their presence makes the case ' +
+            'MDS-IB2 at any blast count in this range.');
+    }
+    if (f.genetics.tp53 === true && f.genetics.tp53MultiHit !== true) {
+        notes.push('Monoallelic TP53 (about a third of MDS-IB) does not change outcome. ICC names ' +
+            'a TP53-mutated MDS/AML at 10–19% blasts on any TP53 mutation above 10% VAF, ' +
+            'without multi-hit status.');
+    }
     return notes.join(' ');
 }
 
@@ -334,22 +339,25 @@ function dxMdsIbCaution(f) {
 ------------------------------------------------------------------------------ */
 function dxMdsCaution(options) {
     const thrombocytosisAllowed = !!(options && options.thrombocytosisAllowed);
+    const secondaryCauses = !!(options && options.secondaryCauses);
 
     return function (f) {
-        const notes = ['Cytopenia and dysplasia are not specific findings: drugs, toxic ' +
-            'exposures, infection, nutritional deficiency — in particular of vitamin B12 and ' +
-            'folate — and immune disorders can produce ' +
-            'both, and these should be excluded before a myelodysplastic neoplasm is ' +
-            'diagnosed. No case should be classified without knowledge of the clinical and ' +
-            'drug history, or reclassified while the patient is receiving growth factor ' +
-            'therapy, including erythropoietin.'];
+        const notes = [];
+
+        /* THE CHAPTER'S GENERAL PRECAUTION, in the one line a sign-out carries —
+           and only where it is a live question: a morphologically defined,
+           low-blast MDS (MDS-LB, MDS-h) with no clonal marker in hand. A del(5q),
+           an SF3B1 mutation or 14% blasts has already answered it. The growth
+           factor and drug-history halves are the pathologist's (dxMdsCheck). */
+        if (secondaryCauses && f.genetics.anySomatic !== true && !f.genetics.abnormalities.length) {
+            notes.push('Correlation to exclude secondary causes of dysplasia (medications, ' +
+                'nutritional deficiency, infection) is recommended.');
+        }
 
         if (dxCytopeniaWaived(f)) {
-            notes.push('No lineage reaches the thresholds defining cytopenia (hemoglobin ' +
-                '<13 g/dL in men and <12 g/dL in women, neutrophils <1.8 × 10⁹/L, platelets ' +
-                '<150 × 10⁹/L). WHO-HAEM5 nonetheless permits the diagnosis at milder ' +
-                'degrees of anemia where the morphological and cytogenetic findings are ' +
-                'definitive, as they are here; the decision is a clinical one.');
+            notes.push('Although no lineage meets the cytopenia thresholds, WHO-HAEM5 allows the ' +
+                'diagnosis with milder anemia when the morphologic and cytogenetic findings are ' +
+                'definitive.');
         }
 
         /* THE REDIRECT OUT OF THE FAMILY. "Persistent neutrophilia, monocytosis,
@@ -366,29 +374,30 @@ function dxMdsCaution(options) {
             proliferative.push('thrombocytosis');
         }
         if (proliferative.length) {
-            notes.push(`A ${addCommas(proliferative)} accompanies the cytopenia and dysplasia. ` +
-                `If persistent, this generally warrants classification as a ` +
-                `myelodysplastic/myeloproliferative neoplasm or a myeloproliferative ` +
-                `neoplasm rather than as a myelodysplastic neoplasm.`);
-        }
-
-        /* WHAT THE BLAST PERCENTAGE RESTS ON, said wherever it is thinner than
-           the recommendation — because in this family the blast percentage is
-           frequently the whole classification (MDS-LB / IB1 / IB2 / AML). */
-        if (f.blasts.marrowBasis === 'counted' && f.blasts.countedCells > 0 &&
-            f.blasts.countedCells < 500) {
-            notes.push(`The marrow blast percentage rests on a ${f.blasts.countedCells}-cell ` +
-                `differential; a 500-cell count of all nucleated cells is recommended where ` +
-                `the blast percentage determines the classification.`);
-        } else if (f.blasts.marrowBasis === 'cd34' || f.blasts.marrowBasis === 'cd34Range') {
-            notes.push('The blast percentage is estimated from CD34 immunohistochemistry ' +
-                'rather than from a differential count. The two are not equivalent, and a ' +
-                '500-cell aspirate or touch preparation differential should be performed ' +
-                'where one can be obtained.');
+            notes.push(`The ${addCommas(proliferative)}, if persistent, would favor an MDS/MPN or ` +
+                `MPN.`);
         }
 
         return notes.join(' ');
     };
+}
+
+/* The family's card notes: what the pathologist should confirm before signing,
+   and what the blast percentage rests on where that is thinner than the 500-cell
+   count the classification assumes (in this family it is often the whole
+   classification). The CD34 basis itself is in the report's findings sentence. */
+function dxMdsCheck(f) {
+    const notes = ['Confirm the drug history is known and the patient is not on growth factor ' +
+        'therapy (including erythropoietin).'];
+    if (f.blasts.marrowBasis === 'counted' && f.blasts.countedCells > 0 &&
+        f.blasts.countedCells < 500) {
+        notes.push(`The blast percentage rests on a ${f.blasts.countedCells}-cell count; a ` +
+            `500-cell differential is recommended where it decides the classification.`);
+    } else if (f.blasts.marrowBasis === 'cd34' || f.blasts.marrowBasis === 'cd34Range') {
+        notes.push('A CD34 estimate is not equivalent to a 500-cell differential; perform one if ' +
+            'the aspirate or touch preparation allows.');
+    }
+    return notes.join(' ');
 }
 
 /* ---------------------------------------------------------------------------
@@ -436,40 +445,43 @@ function dxTp53Caution(f) {
     const single = g.tp53 === true && g.tp53MultiHit !== true;
 
     if (g.tp53MultiHit === true && g.tp53VariantCount === 1 && g.del17p === true) {
-        notes.push('Biallelic status here rests on a 17p deletion reported by chromosome ' +
-            'banding. WHO-HAEM5 notes that detection of a 17p13.1 deletion alone is not ' +
-            'usually sufficient to establish TP53 copy-number loss: confirmation by FISH ' +
-            'for the TP53 locus, or another copy-number technique alongside sequencing of ' +
-            'at least exons 4–11, is recommended.');
+        notes.push('Biallelic status rests on a 17p deletion by karyotype; FISH for TP53 copy ' +
+            'loss is recommended to confirm it.');
     }
 
     if (single) {
-        notes.push('A single TP53 mutation is reported. Monoallelic TP53 alteration is not ' +
-            'this entity — its outcomes resemble those of TP53-wildtype disease — and ' +
-            'biallelic involvement requires a second mutation, TP53 copy loss, or ' +
-            'copy-neutral loss of heterozygosity. Copy-neutral LOH is not recorded by this ' +
-            'application and must be excluded from the molecular report directly.');
+        notes.push('Only a single TP53 mutation is reported; biallelic inactivation requires a ' +
+            'second mutation, TP53 copy loss, or copy-neutral loss of heterozygosity.');
         if (g.tp53Vaf !== null && g.tp53Vaf > DX_TP53_PRESUMPTIVE_VAF) {
-            notes.push('The variant allele fraction of ' + dxPct(g.tp53Vaf) + '% may be regarded ' +
-                'as presumptive, though not definitive, of copy loss on the trans allele or ' +
-                'copy-neutral loss of heterozygosity, provided a constitutional TP53 variant ' +
-                'has been ruled out.');
+            notes.push('The TP53 variant allele fraction of ' + dxPct(g.tp53Vaf) + '% suggests, ' +
+                'but does not establish, loss of the other allele, provided a germline variant ' +
+                'is excluded.');
         }
     }
 
     if (g.tp53MultiHit === null && g.tp53 === true) {
-        notes.push('Multi-hit status is unresolved. Where comprehensive analysis is not ' +
-            'available, WHO-HAEM5 notes that a TP53 variant allele fraction of ≥40% ' +
-            'and/or complex cytogenetics may carry a similarly poor prognosis.');
+        notes.push('Multi-hit TP53 status is not established.');
     }
 
+    return notes.join(' ');
+}
+
+/* The MDS-biTP53 card notes: what this app cannot record, and the prognostic
+   fallback for an unresolved multi-hit status. */
+function dxTp53Check(f) {
+    const g = f.genetics;
+    const notes = [];
+    if (g.tp53 === true && g.tp53MultiHit !== true) {
+        notes.push('Copy-neutral LOH is not recorded in this app; check the molecular report.');
+    }
+    if (g.tp53MultiHit === null && g.tp53 === true) {
+        notes.push('Without multi-hit analysis, a TP53 VAF of 40% or more and/or a complex ' +
+            'karyotype carries a similar prognosis.');
+    }
     if (g.tp53MultiHit === true) {
-        notes.push('Cases in which proerythroblasts constitute ≥30% of marrow cellularity ' +
-            'are classified as acute erythroid leukemia rather than as this entity; ' +
-            'proerythroblasts are not enumerated by this application. This entity should ' +
-            'also be distinguished from the defined types of acute myeloid leukemia.');
+        notes.push('Proerythroblasts of 30% or more would make this acute erythroid leukemia; ' +
+            'they are not counted in this app.');
     }
-
     return notes.join(' ');
 }
 
@@ -643,16 +655,11 @@ dxRules.push(
                takes the case to MDS-biTP53 through dxExcludeBiTp53 and would be a
                different diagnosis rather than a modifier of this one. */
             if (f.genetics.tp53 === true) {
-                notes.push('A TP53 mutation is present. In MDS with 5q deletion this is ' +
-                    'associated with a decreased response to lenalidomide and an increased ' +
-                    'risk of transformation to acute myeloid leukemia, and is detectable at ' +
-                    'diagnosis in as many as 18% of cases.');
+                notes.push('The TP53 mutation predicts a reduced response to lenalidomide and a ' +
+                    'higher risk of progression.');
             } else if (f.genetics.tp53 === null) {
-                notes.push('TP53 mutation status is not established. It is detectable at ' +
-                    'diagnosis in as many as 18% of cases of MDS with 5q deletion and predicts ' +
-                    'a decreased response to lenalidomide; strong p53 expression in ≥1% of ' +
-                    'marrow cells by immunohistochemistry has also been associated with a ' +
-                    'higher risk of transformation and a shorter overall survival.');
+                notes.push('TP53 mutation status should be determined, as it predicts response ' +
+                    'to lenalidomide.');
             }
 
             /* WHY THE ENGINE IS NOT OFFERING MDS-SF3B1, said before the reader
@@ -660,10 +667,10 @@ dxRules.push(
                secondary event, so ring sideroblasts do not take the case out of
                this category — the exclusion runs the other way, and only one of
                the two rules should be on screen. */
-            if (f.genetics.sf3b1 === true || f.ringSideroblasts.state === 'present') {
-                notes.push('Ring sideroblasts and SF3B1 mutation do not exclude this ' +
-                    'diagnosis. SF3B1 is mutated in approximately 20% of cases of MDS with 5q ' +
-                    'deletion, where it is probably a secondary event.');
+            if (f.genetics.sf3b1 === true) {
+                notes.push('The SF3B1 mutation does not alter the classification.');
+            } else if (f.ringSideroblasts.state === 'present') {
+                notes.push('Ring sideroblasts do not alter the classification.');
             }
 
             /* THE OTHER FALSE ALARM. A JAK2 or MPL mutation alongside del(5q) is
@@ -672,20 +679,20 @@ dxRules.push(
                DIFFERENT clones — so this is worth saying precisely because the
                engine will have a myeloproliferative candidate on the list. */
             if (f.drivers.jak2V617F === true || f.drivers.mplW515 === true) {
-                notes.push('A concomitant JAK2 or MPL mutation is present. In MDS with 5q ' +
-                    'deletion these do not appear to alter the disease phenotype or ' +
-                    'prognosis, and the two abnormalities have in some cases been shown to ' +
-                    'occupy different clones.');
+                notes.push(`The concurrent ${f.drivers.jak2V617F === true ? 'JAK2' : 'MPL'} ` +
+                    'mutation does not alter the classification.');
             }
 
-            /* Not a criterion and not scored — the chapter reports it as a marker
-               of where the disease has got to, which is a different claim from
-               how likely the diagnosis is. */
+            return notes.filter(Boolean).join(' ');
+        },
+        /* Not a criterion and not scored — the chapter reports thrombocytopenia
+           as a marker of where the disease has got to. */
+        check: function (f) {
+            const notes = [dxMdsCheck(f)];
             if (f.cytopenia.thrombocytopenia === true) {
-                notes.push('Thrombocytopenia is uncommon in MDS with 5q deletion and ' +
-                    'reflects more advanced disease.');
+                notes.push('Thrombocytopenia is uncommon in MDS-5q and suggests more advanced ' +
+                    'disease.');
             }
-
             return notes.join(' ');
         }
     },
@@ -856,18 +863,15 @@ dxRules.push(
                this circumstance and a reader offered "MDS-SF3B1, pending" needs
                to know what to sign out if sequencing never happens. */
             if (f.genetics.sf3b1 === null && dxAtLeast(f.ringSideroblasts.pct, 15) === true) {
-                notes.push('SF3B1 mutation analysis is not available. Ring sideroblasts ' +
-                    'constituting ≥ 15% of the erythroid precursors may substitute for the ' +
-                    'molecular criterion, in which case the term "MDS with low blasts and ring ' +
-                    'sideroblasts" is used rather than MDS with low blasts and SF3B1 mutation.');
+                notes.push('If SF3B1 testing is not available, ring sideroblasts of 15% or more ' +
+                    'allow the designation MDS with low blasts and ring sideroblasts.');
             }
 
             /* The reported fraction, when it is below the floor the box sets. */
             if (f.genetics.sf3b1 === true && f.genetics.sf3b1Vaf !== null &&
                 f.genetics.sf3b1Vaf < 5) {
-                notes.push('The SF3B1 variant allele fraction is below 5% and does not qualify ' +
-                    'for this diagnosis; SF3B1 mutations in this entity are typically ' +
-                    'heterozygous and at a high allele fraction (median: 35–43%).');
+                notes.push(`The SF3B1 variant allele fraction of ${dxPct(f.genetics.sf3b1Vaf)}% ` +
+                    'is below the 5% required for MDS-SF3B1.');
             }
 
             /* THE NON-NEOPLASTIC MIMICS, and the reason they are a caution rather
@@ -877,15 +881,10 @@ dxRules.push(
                the list in front of them rather than to pretend it can check it.
                Fires on the finding, not on the diagnosis — ring sideroblasts
                anywhere raise the same question. */
-            if (f.ringSideroblasts.state === 'present') {
-                notes.push('Non-neoplastic causes of ring sideroblasts should be excluded, ' +
-                    'including alcohol, toxins such as lead and benzene, drugs such as ' +
-                    'isoniazid, copper deficiency (which may be induced by zinc ' +
-                    'administration), and congenital sideroblastic anemia.');
-                if (f.counts.microcytic === true || dxBelow(f.age, 40) === true) {
-                    notes.push('Congenital sideroblastic anemia typically presents at a much ' +
-                        'younger age and with a microcytic rather than a macrocytic anemia.');
-                }
+            /* Once the mutation is in hand the mimics are moot. */
+            if (f.ringSideroblasts.state === 'present' && f.genetics.sf3b1 !== true) {
+                notes.push('Non-neoplastic causes of ring sideroblasts (alcohol, lead, ' +
+                    'isoniazid, copper deficiency) should be excluded.');
             }
 
             /* The prognosis, and the two findings that take it away. Worth saying
@@ -898,20 +897,21 @@ dxRules.push(
                     /* "co-mutation of X" rather than "the co-mutation X",
                        because the phrasing has to survive one gene and five
                        without a number-agreement branch. */
-                    notes.push('MDS with low blasts and SF3B1 mutation otherwise has the most ' +
-                        'favorable outcome of the MDS types, but co-mutation of ' +
-                        adverse.genes.join(', ') + ' has been associated with a significantly ' +
-                        'worse outcome. Mutations in DNMT3A, TET2 and ASXL1, by contrast, do ' +
-                        'not appear to affect it.');
-                } else {
-                    notes.push('MDS with low blasts and SF3B1 mutation has the most favorable ' +
-                        'outcome of the MDS types; the favorable outcome is lost as soon as an ' +
-                        'excess of blasts appears, and multilineage dysplasia carries no ' +
-                        'significant prognostic impact in the presence of the mutation.');
+                    notes.push('Co-mutation of ' + addCommas(adverse.genes) + ' is associated ' +
+                        'with a worse outcome.');
                 }
             }
 
             return notes.filter(Boolean).join(' ');
+        },
+        check: function (f) {
+            const notes = [dxMdsCheck(f)];
+            if (f.ringSideroblasts.state === 'present' && f.genetics.sf3b1 !== true &&
+                (f.counts.microcytic === true || dxBelow(f.age, 40) === true)) {
+                notes.push('Consider congenital sideroblastic anemia, which presents younger and ' +
+                    'microcytic.');
+            }
+            return notes.join(' ');
         }
     },
     /* WRITTEN FROM ITS OWN CRITERIA BOX (WHO-HAEM5, "Myelodysplastic neoplasm with
@@ -1014,16 +1014,18 @@ dxRules.push(
            VAF above 10% once the blast count reaches 10%. A monoallelic case at
            12% blasts is therefore ICC's entity and not WHO's. */
         diverges: function (f) { return dxAtLeast(f.blasts.marrow, DX_BLAST_ICC) === true; },
-        divergence: 'At 10–19% blasts ICC 2022 classifies this as MDS/AML with mutated TP53 — on ' +
-            'any somatic TP53 mutation at a variant allele fraction above 10%, without requiring ' +
-            'multi-hit status — whereas WHO-HAEM5 retains MDS with biallelic TP53 inactivation ' +
-            'below 20% and requires biallelic involvement.',
+        divergence: 'At 10–19% blasts ICC calls this MDS/AML with mutated TP53, on any TP53 ' +
+            'mutation above 10% VAF without multi-hit status. WHO-HAEM5 keeps MDS-biTP53 up to ' +
+            '20% and requires biallelic inactivation.',
         /* The entity's own caution FIRST, then the family's. The family caution
            opens with the general precaution about cytopenia and dysplasia not
            being specific findings, which is the right last word but the wrong
            first one on a rule whose specific traps are this numerous. */
         caution: function (f) {
             return [dxTp53Caution(f), dxMdsCaution()(f)].filter(Boolean).join(' ');
+        },
+        check: function (f) {
+            return [dxTp53Check(f), dxMdsCheck(f)].filter(Boolean).join(' ');
         }
     },
 
@@ -1093,12 +1095,10 @@ dxRules.push(
            by the box — and on that case the blast count is not 10-19%, so ICC's
            MDS/AML category does not apply and there is no divergence to print. */
         diverges: function (f) { return dxBlastAtLeast(f, DX_BLAST_ICC) === true; },
-        divergence: 'ICC 2022 classifies 10–19% blasts as MDS/AML rather than as a subtype of MDS; ' +
-            'WHO-HAEM5 retains MDS-IB2. Both names are given because the distinction changes ' +
-            'how the case is treated. WHO-HAEM5 notes that MDS-IB2 may be regarded as ' +
-            'AML-equivalent for therapeutic purposes and for clinical trial eligibility, which ' +
-            'narrows the practical distance between the two names.',
-        caution: function (f) { return [dxMdsIbCaution(f), dxMdsCaution()(f)].filter(Boolean).join(' '); }
+        divergence: 'ICC classifies 10–19% blasts as MDS/AML. WHO-HAEM5 keeps MDS-IB2 but allows ' +
+            'it to be treated as AML-equivalent for therapy and trial eligibility.',
+        caution: function (f) { return [dxMdsIbCaution(f), dxMdsCaution()(f)].filter(Boolean).join(' '); },
+        check: function (f) { return [dxMdsIbCheck(f), dxMdsCheck(f)].filter(Boolean).join(' '); }
     },
     {
         id: 'mdsIB1',
@@ -1133,7 +1133,8 @@ dxRules.push(
             dxMdsIbHypercellular
         ],
         expects: [dxMdsIbDysmeg],
-        caution: function (f) { return [dxMdsIbCaution(f), dxMdsCaution()(f)].filter(Boolean).join(' '); }
+        caution: function (f) { return [dxMdsIbCaution(f), dxMdsCaution()(f)].filter(Boolean).join(' '); },
+        check: function (f) { return [dxMdsIbCheck(f), dxMdsCheck(f)].filter(Boolean).join(' '); }
     },
     {
         id: 'mdsF',
@@ -1184,14 +1185,14 @@ dxRules.push(
            range. */
         iccFor: function (f) {
             return dxBlastAtLeast(f, DX_BLAST_ICC) === true
-                ? 'MDS/AML, with fibrosis (a qualifier, not a separate entity)'
-                : 'MDS with excess blasts, with fibrosis (a qualifier, not a separate entity)';
+                ? 'MDS/AML with fibrosis'
+                : 'MDS with excess blasts, with fibrosis';
         },
         diverges: function () { return true; },
-        divergence: 'ICC 2022 treats fibrosis as a qualifier appended to the blast-defined ' +
-            'category rather than as the separate entity WHO-HAEM5 recognises, and at 10–19% ' +
-            'blasts that category is MDS/AML rather than MDS with excess blasts.',
-        caution: function (f) { return [dxMdsIbCaution(f), dxMdsCaution()(f)].filter(Boolean).join(' '); }
+        divergence: 'ICC treats fibrosis as a qualifier on the blast-defined category, not a ' +
+            'separate entity; at 10–19% blasts that category is MDS/AML.',
+        caution: function (f) { return [dxMdsIbCaution(f), dxMdsCaution()(f)].filter(Boolean).join(' '); },
+        check: function (f) { return [dxMdsIbCheck(f), dxMdsCheck(f)].filter(Boolean).join(' '); }
     },
 
     /* ---- Morphologically defined ----------------------------------------- */
@@ -1205,7 +1206,7 @@ dxRules.push(
         prior: 0,
         priorReason: 'hypoplastic MDS is 10-15% of MDS',
         who: 'MDS, hypoplastic (MDS-h)',
-        icc: 'MDS, NOS with hypocellularity (a qualifier, not a separate entity)',
+        icc: 'MDS, NOS with hypocellularity',
         requires: [
             ['marrow cellularity <30%, or <20% at age ≥70', dxHypoplasticCellularity],
             /* The blood limb is what implements this box's "not fulfilling
@@ -1320,8 +1321,7 @@ dxRules.push(
             }]
         ],
         diverges: function () { return true; },
-        divergence: 'ICC 2022 records hypocellularity as a qualifier rather than as the separate ' +
-            'entity WHO-HAEM5 recognises.',
+        divergence: 'ICC treats hypocellularity as a qualifier, not a separate entity.',
         /* THE ONE MDS TYPE WITH A NON-NEOPLASTIC DIFFERENTIAL OF ITS OWN, which
            is why it gets a sentence the rest of the family does not. Hypoplastic
            MDS, aplastic anemia and paroxysmal nocturnal hemoglobinuria share a
@@ -1330,59 +1330,45 @@ dxRules.push(
            hematopoiesis — so the three overlap in exactly the marrow that
            reaches this rule. */
         caution: function (f) {
-            const notes = [];
-
-            notes.push('Hypoplastic MDS overlaps clinically and morphologically with aplastic ' +
-                'anemia and paroxysmal nocturnal hemoglobinuria, which share a T cell-mediated ' +
-                'attack on hematopoietic stem and progenitor cells and an association with ' +
-                'clonal hematopoiesis, and the diagnosis requires that the hypocellularity not ' +
-                'be explained by a non-neoplastic bone marrow failure condition. Where ' +
-                'cellularity is extremely low it may be virtually impossible to distinguish the ' +
-                'two by cytomorphology; aplastic anemia typically shows a marked decrease in ' +
-                'megakaryocytes and in hemoglobin F-containing erythroblasts, and may itself ' +
-                'show dyserythropoietic changes — which is why erythroid dysplasia alone does ' +
-                'not support this diagnosis. Flow cytometric screening for a PNH clone and ' +
-                'correlation with the clinical findings are recommended, and where cytogenetic ' +
-                'analysis fails, FISH for MDS-associated alterations may further separate the ' +
-                'two.');
+            const notes = ['Aplastic anemia and PNH are the main differentials; flow cytometry ' +
+                'for a PNH clone is recommended.'];
 
             if (f.genetics.somaticGenes.indexOf('PIGA') !== -1) {
-                notes.push('A PIGA mutation is reported. Where a PIGA mutation is demonstrated ' +
-                    'in the absence of bona fide features of MDS, classification as paroxysmal ' +
-                    'nocturnal hemoglobinuria is preferred.');
+                notes.push('Without definite features of MDS, the PIGA mutation would favor PNH.');
             }
 
             /* The chapter's four predisposition groups, as an NGS panel would
                report them. Named and never gated, because this application cannot
-               tell a germline variant from a somatic one — and that is precisely
-               the question the chapter is asking. Neither the germline status nor
-               the family history it asks to be weighed is recorded anywhere. */
-            const predisposition = ['GATA2', 'DDX41', 'TERT', 'TERC', 'DKC1', 'RTEL1', 'SRP72',
-                'SAMD9', 'SAMD9L', 'FANCL', 'BRCA2', 'PALB2', 'BRIP1']
-                .filter(function (g) { return f.genetics.somaticGenes.indexOf(g) !== -1; });
-            notes.push(predisposition.length
-                ? 'A variant in ' + addCommas(predisposition) + ' is reported. This application ' +
-                    'does not record whether a variant is germline; germline testing should be ' +
-                    'considered, since patients with a germline predisposition to bone marrow ' +
-                    'failure do not usually respond to immunosuppressive therapy.'
-                : 'A genetic predisposition to bone marrow failure — germline GATA2, DDX41, ' +
-                    'Fanconi anemia or telomerase complex gene mutation — should be excluded, ' +
-                    'particularly in younger patients, on the basis of comorbidities and family ' +
-                    'history; neither the germline status of a reported variant nor the family ' +
-                    'history is recorded by this application.');
-
-            /* Same clause mdsLB carries, and the sf3b1 === null guard is exactly
-               right rather than a duplicate of the exclude above: once
-               dxMdsSf3b1TakesCase is an exclude, a SEQUENCED SF3B1 case can no
-               longer reach this rule at all. */
-            if (dxAtLeast(f.ringSideroblasts.pct, 15) === true && f.genetics.sf3b1 === null) {
-                notes.push('Ring sideroblasts constitute ≥15% of the erythroid precursors. ' +
-                    'SF3B1 mutation analysis is recommended; MDS with low blasts and SF3B1 ' +
-                    'mutation (MDS-SF3B1) should be considered.');
+               tell a germline variant from a somatic one. */
+            const predisposition = dxMdsHPredisposition(f);
+            if (predisposition.length) {
+                notes.push('Germline testing should be considered for the ' +
+                    addCommas(predisposition) + (predisposition.length > 1 ? ' variants.' : ' variant.'));
             }
 
-            notes.push(dxMdsCaution()(f));
+            /* Same clause mdsLB carries: once dxMdsSf3b1TakesCase is an exclude, a
+               SEQUENCED SF3B1 case can no longer reach this rule at all. */
+            if (dxAtLeast(f.ringSideroblasts.pct, 15) === true && f.genetics.sf3b1 === null) {
+                notes.push('SF3B1 testing is recommended given ring sideroblasts of 15% or more.');
+            }
+
+            notes.push(dxMdsCaution({ secondaryCauses: true })(f));
             return notes.filter(Boolean).join(' ');
+        },
+        /* THE ONE MDS TYPE WITH A NON-NEOPLASTIC DIFFERENTIAL OF ITS OWN. What
+           separates it from aplastic anemia is for the pathologist to weigh, so it
+           is said here rather than in the report. */
+        check: function (f) {
+            const notes = ['At very low cellularity hypoplastic MDS and aplastic anemia may be ' +
+                'indistinguishable on morphology; erythroid dysplasia alone does not support ' +
+                'MDS-h. FISH for MDS-associated abnormalities helps if cytogenetics fail.'];
+            if (!dxMdsHPredisposition(f).length) {
+                notes.push('Exclude an inherited marrow failure syndrome (GATA2, DDX41, Fanconi ' +
+                    'anemia, telomere genes) in a younger patient; germline status and family ' +
+                    'history are not recorded here.');
+            }
+            notes.push(dxMdsCheck(f));
+            return notes.join(' ');
         }
     },
     {
@@ -1541,10 +1527,8 @@ dxRules.push(
            say: the diagnosis line prints both names, and the reader should know
            there is nothing to reconcile between them. */
         diverges: function () { return true; },
-        divergence: 'The divergence here is one of nomenclature rather than of criteria. ' +
-            'WHO-HAEM5 names the entity by its blast level — MDS with low blasts — where ICC ' +
-            '2022 keeps it as the residual category, MDS, not otherwise specified. Both subtype ' +
-            'it identically, by whether one lineage or more than one is dysplastic.',
+        divergence: 'Names only: the criteria are the same. WHO-HAEM5 names it by blast level, ICC ' +
+            'as the residual MDS, NOS; both subtype by single versus multilineage dysplasia.',
         caution: function (f) {
             const notes = [];
 
@@ -1560,9 +1544,8 @@ dxRules.push(
                see the open item in docs/diagnosis.md. */
             if (f.dysplasia.erythroid.features.length === 1 &&
                 f.dysplasia.erythroid.features[0] === 'megaloblastoid') {
-                notes.push('The only erythroid feature recorded is megaloblastoid change, which ' +
-                    'is common in this setting but is by itself insufficient to establish ' +
-                    'dyserythropoiesis. Vitamin B12 and folate deficiency should be excluded.');
+                notes.push('Megaloblastoid change alone does not establish dyserythropoiesis; ' +
+                    'vitamin B12 and folate deficiency should be excluded.');
             }
 
             /* "Identification of rare (≤1%) peripheral blood blasts in conjunction
@@ -1572,11 +1555,8 @@ dxRules.push(
                records one occasion and has no view of a prior differential, so the
                second sentence can only ever be a prompt. */
             if (f.blasts.blood !== null && f.blasts.blood > 0 && f.blasts.blood < 2) {
-                notes.push('Rare blasts are present in the blood. In conjunction with fewer ' +
-                    'than 5% marrow blasts this does not alter the classification, but the ' +
-                    'finding of rare circulating blasts on two separate occasions may qualify ' +
-                    'as MDS with increased blasts; correlation with any prior differential is ' +
-                    'recommended.');
+                notes.push('Rare circulating blasts do not change the classification, but if ' +
+                    'seen on two occasions the case may qualify as MDS-IB1.');
             }
 
             /* Ring sideroblasts "are typically <15% of erythroid precursors" in
@@ -1585,15 +1565,14 @@ dxRules.push(
                that exists precisely for where sequencing is unavailable, so the
                reader should be told sequencing would settle it. */
             if (dxAtLeast(f.ringSideroblasts.pct, 15) === true && f.genetics.sf3b1 === null) {
-                notes.push('Ring sideroblasts constitute ≥15% of the erythroid precursors, ' +
-                    'above the proportion typical of this category. SF3B1 mutation analysis is ' +
-                    'recommended; a mutation would reclassify the case as MDS with low blasts ' +
-                    'and SF3B1 mutation (MDS-SF3B1).');
+                notes.push('SF3B1 testing is recommended; a mutation would reclassify the case ' +
+                    'as MDS-SF3B1.');
             }
 
-            notes.push(dxMdsCaution()(f));
+            notes.push(dxMdsCaution({ secondaryCauses: true })(f));
             return notes.filter(Boolean).join(' ');
-        }
+        },
+        check: dxMdsCheck
     }
 
 );

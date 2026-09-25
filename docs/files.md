@@ -137,10 +137,14 @@
   entity's criteria box is the unit of work and should be the unit of reading — one file now answers
   one pasted box. `MarrowDxKernel.js` (three-valued helpers, shared gates and thresholds, the shared
   formatters, and `dxRules` declared **empty**), then `MarrowDxMds.js`, `MarrowDxMpn.js`,
-  `MarrowDxMdsMpn.js`, `MarrowDxAml.js` and `MarrowDxCh.js` each pushing their own helpers *and*
-  rules, then `MarrowDxEngine.js` (scoring, ranking, comment assembly) and `MarrowDxPanel.js`
+  `MarrowDxMdsMpn.js`, `MarrowDxAml.js`, `MarrowDxPcn.js`, `MarrowDxCh.js`, `MarrowDxBmf.js` and
+  `MarrowDxLymphoid.js` (the one non-myeloid axis)
+  each pushing their own helpers *and*
+  rules, then `MarrowDxEngine.js` (scoring, ranking, comment assembly), `MarrowDxSteps.js` (the
+  Differential view: the top candidates within one defining criterion of the leader, and the study
+  that would settle each outstanding criterion) and `MarrowDxPanel.js`
   (render, views, comment box). **Script order in `Marrow.html` is the rule table's order**, since
-  each family appends; the three ordering constraints are stated there. The split moved no logic —
+  each family appends; the four ordering constraints are stated there. The split moved no logic —
   four trailing commas went where the array literal became `push()` calls, and `dxLower` / `dxPct` /
   `dxNameLine` were hoisted to the kernel because four families use them.
 

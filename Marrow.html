@@ -184,7 +184,7 @@
 
         <!-- The Diagnosis tab, which was one 4000-line file and is now eleven.
              THIS BLOCK'S ORDER IS THE RULE TABLE'S ORDER: the kernel declares
-             `dxRules` empty and each family file pushes onto it, so the six
+             `dxRules` empty and each family file pushes onto it, so the seven
              family lines below are the order candidates sit in before scoring,
              which dxUnresolvedPair() and the tie-breaks read. Reordering them
              reorders the table; it does not merely move code.
@@ -196,13 +196,19 @@
                - MarrowDxMpn before MarrowDxMdsMpn. The CMML rule reads dxMpn
                  at load time, not at call time, so a later MPN file is a
                  ReferenceError and not a subtle bug.
-               - MarrowDxLikelihood AFTER all six families and BEFORE the
+               - MarrowDxBmf after MarrowDxCh, and for the same kind of reason
+                 the MPN pair has: the aplastic anemia rule reads
+                 dxExcludeDefinedNeoplasm, a const declared in the boundary
+                 file, at load time.
+               - MarrowDxLikelihood AFTER all seven families and BEFORE the
                  engine. Its audit checks every entity weight against the
                  finished dxRules — a weight naming no rule is otherwise a typo
                  that never fires and never complains — and the engine calls
                  into it from dxEvaluate.
-               - Engine, then Panel, after all of the above. dxRank() reads the
-                 finished array; the panel renders what the engine returns. -->
+               - Engine, then Steps, then Panel, after all of the above.
+                 dxRank() reads the finished array; MarrowDxSteps reads the
+                 engine's evaluated result and dxRankScore; the panel calls into
+                 Steps for its Differential view. -->
         <script src="MarrowDxKernel.js"></script>
         <script src="MarrowDxMds.js"></script>
         <script src="MarrowDxMpn.js"></script>
@@ -210,8 +216,15 @@
         <script src="MarrowDxAml.js"></script>
         <script src="MarrowDxPcn.js"></script>
         <script src="MarrowDxCh.js"></script>
+        <script src="MarrowDxBmf.js"></script>
+        <!-- The lymphoid axis. Last of the families, and the only one that is
+             not a myeloid question: its rules declare `axis: 'lymphoid'`, which
+             is what stops them being ranked against the myeloid candidates when
+             a marrow can perfectly well be both. See dxAxis in the kernel. -->
+        <script src="MarrowDxLymphoid.js"></script>
         <script src="MarrowDxLikelihood.js"></script>
         <script src="MarrowDxEngine.js"></script>
+        <script src="MarrowDxSteps.js"></script>
         <script src="MarrowDxPanel.js"></script>
     </body>
 </html>

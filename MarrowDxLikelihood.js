@@ -788,6 +788,110 @@ function dxMergeEvidence(local, registry) {
 
 
 /* ----------------------------------------------------------------------------
+   A HYPOCELLULAR MARROW — the input the OTHER audit names as its worked example
+
+   dxInputCoverageAudit's header (below) says it plainly: "the pathologist clicks
+   Hypercellular, five entities list age-adjusted hypercellularity among their
+   criteria, and the ranking does not move." The other end of the same chip had
+   the same problem until the marrow failure family arrived and made it the
+   deciding finding of four rules.
+
+   IT IS DELIBERATELY NOT A FAMILY WEIGHT. Hypocellularity does not mean one
+   thing to the mds family — it defines hMDS and is a minority finding in
+   MDS-IB — so a family entry would be the between-family statement this input
+   is precisely not. Entity overrides only.
+
+   AND mdsH IS IN THE TABLE ALONGSIDE THE NEW RULES ON PURPOSE. Weighting
+   aplastic anemia for the finding while leaving its one real competitor unpaid
+   would be the uneven-migration bias docs/diagnosis.md warns about, arriving by
+   the front door: the pair would then be separated by which rule happened to be
+   written second. Both are paid, and they are separated where their chapters
+   separate them — the dysplasia gate.
+
+   THE `against` LIMBS ARE ASYMMETRIC and it is the gate question, not a
+   judgement about the finding. `aplasticAnemia` GATES on hypocellularity, so a
+   normocellular marrow has already left that candidate's differential and a
+   negative weight would be arithmetic on a dead rule — the polycythemia vera
+   precedent in the anemia entry above. `mdsH` gates on the tighter PERCENTAGE
+   (< 30%, or < 20% at age ≥ 70), which is null whenever nobody typed one, so a
+   normocellular CHIP genuinely does argue against it while its gate is still
+   unanswered. That is the case where a weight does real work.
+-------------------------------------------------------------------------- */
+
+dxLikelihood.marrowHypocellular = {
+    label: 'a hypocellular marrow for age',
+    kind: 'case',
+    source: 'WHO-HAEM5 MDS, hypoplastic (docs/who/mds-h-and-mds-ib.md) — "hMDS is ' +
+        'characterized by significantly decreased marrow cellularity, a feature shared with ' +
+        'aplastic anaemia", and cellularity below 30% (below 20% at age >= 70) is its first ' +
+        'essential criterion. For the marrow failure rules the finding is definitional and ' +
+        'carries no criteria box at all (MarrowDxBmf.js); the single-lineage aplasias are ' +
+        'described in normocellular marrows, which is what their negative weights say.',
+    test: function (f) { return f.cellularity.hypoForAge; },
+    entity: {
+        aplasticAnemia: { for: 4, against: 0 },
+        mdsH: { for: 3, against: -2 },
+        /* A SINGLE LINEAGE IS MISSING, NOT THE MARROW. Each of these three is
+           described in a marrow of normal cellularity — the whole point of the
+           word "pure" — so a hypocellular marrow is evidence that the process is
+           the trilineage one instead. Negative `for`, and `against` left at 0:
+           most marrows in this table are not hypocellular, so paying every one
+           of them a point towards a rare aplasia is the fibrosisMf2/pv bug. */
+        prca: { for: -2, against: 0 },
+        amegakaryocytic: { for: -2, against: 0 },
+        agranulocytosis: { for: -2, against: 0 }
+    }
+};
+
+
+/* ----------------------------------------------------------------------------
+   A MISSING LINEAGE IS AN EXPLANATION, AND THREE RULES IN THIS TABLE ASSERT
+   THERE ISN'T ONE
+
+   "Idiopathic", "of undetermined significance" and "no morphologic evidence of
+   a myeloid neoplasm" are all claims that the marrow did not account for the
+   blood count. A marrow with no erythroid precursors in it accounts for the
+   anemia completely, and the same for the other two lines — so where an
+   aplasia is demonstrated, those three rules are not merely outranked, they are
+   saying something the case contradicts.
+
+   IT WAS FOUND BY RUNNING THE VIGNETTES, not by reading the rules. Acquired
+   amegakaryocytic thrombocytopenia scored 0 against ICUS's 4 on a marrow with
+   an isolated thrombocytopenia and no megakaryocytes, and the missing weight on
+   the marrow failure side (now a +4 support, MarrowDxBmf.js) was only half of
+   it: ICUS was being paid full price for an unexplained cytopenia that had just
+   been explained.
+
+   THE GRANULOCYTIC LEFT SHIFT IS DELIBERATELY NOT IN THE TEST, though the
+   agranulocytosis rule scores it. A myeloid left shift is one of the commonest
+   findings in marrow practice — reactive, recovering, infected — and reading it
+   as an explanation for a cytopenia would penalise ICUS on half the marrows in
+   the differential. Only the three ABSENCES are specific enough.
+-------------------------------------------------------------------------- */
+
+dxLikelihood.lineageAplasia = {
+    label: 'a lineage is absent from the marrow, which explains the cytopenia',
+    kind: 'case',
+    source: 'The essential criteria of CHIP/CCUS/ICUS (WHO-HAEM5 Clonal haematopoiesis, ' +
+        'docs/who/ch-clonal-hematopoiesis.md and ccus.md) each require the cytopenia to be ' +
+        'UNEXPLAINED; a demonstrated single-lineage aplasia is an explanation. No weight is ' +
+        'declared for the marrow failure rules here — each scores its own lineage in its own ' +
+        'supports, since which lineage is missing is the whole difference between them.',
+    test: function (f) {
+        return dxAnyOf([f.lineages.erythroid.absent, f.lineages.granulocytic.absent,
+            f.lineages.megakaryocytic.absent]);
+    },
+    entity: {
+        icus: { for: -3, against: 0 },
+        ccus: { for: -2, against: 0 },
+        /* Smaller, and for the reason its own driver-mutation clause gives: the
+           statement stays true, it is just no longer the headline. */
+        noNeoplasm: { for: -2, against: 0 }
+    }
+};
+
+
+/* ----------------------------------------------------------------------------
    The audit
 
    Runs once at load and warns to the console. Everything it checks is a mistake
@@ -1008,6 +1112,18 @@ const DX_INPUT_NOT_EVIDENCE = {
     'plasma.pctBasis': 'where plasma.marrowPct came from (counted vs CD138); comment wording, not a finding',
     'genetics.explicitlyPending': 'study status, read by the engine for comment wording rather than by a rule',
     'cellularity.expectedBand': 'the age band hyperForAge/hypoForAge are computed against',
+    /* The lymphoid row's own bookkeeping: `assessed` is what turns "no aggregate
+       descriptor named" into a real negative rather than silence, so every
+       tri-state below it already carries its answer and a rule reading it
+       directly would be asking whether somebody typed something. */
+    'lymphoid.assessed': 'whether the lymphocyte row was answered at all; the tri-states below it carry it',
+    /* The count is QUOTED by the involvement comment and SCORED as
+       counts.lymphocytosis, which is the laboratory's own flag — this app
+       publishes no threshold for it, because the 5 ×10⁹/L that matters is
+       chronic lymphocytic leukemia's and this family names no entity. The same
+       split plasma.pctBasis is declared under: the comment reads it, no rule
+       does, and the audit only ever runs the rules. */
+    'counts.lymphocyteAbs': 'the number the involvement comment quotes; counts.lymphocytosis is the scored form',
     /* THE CHIP ITSELF IS STILL NOT READ BY A RULE, AND THAT IS NOW CORRECT — but
        it was not before, and the difference is the whole point of this audit.
        Rules ask the age-adjusted question, and marrowFindings() answers it from

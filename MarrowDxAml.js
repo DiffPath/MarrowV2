@@ -174,109 +174,73 @@ function dxAmlIccFor(spec, f) {
     return dxIccName(spec.icc || (spec.iccFallback ? DX_ICC_RARE : null), f);
 }
 
-/* The findings sentence — what was seen, before what it is called. Kept to the
-   two things that actually bear on an acute leukemia: how many blasts, and what
-   the karyotype showed. */
+/* The findings sentence — what was seen, before what it is called: the blast
+   count, and the karyotype finding if there is one. */
 function dxAmlFindings(f, abnKey) {
     const parts = [];
     if (f.blasts.marrow !== null) {
-        parts.push(`Blasts account for approximately ${dxPct(f.blasts.marrow)}% of marrow cells` +
-            (f.blasts.marrowBasis && f.blasts.marrowBasis.indexOf('cd34') === 0
-                ? ', estimated by CD34 immunohistochemistry.' : '.'));
+        parts.push(dxBlastSentence(f));
     } else if (f.blasts.blood !== null) {
-        parts.push(`Blasts account for approximately ${dxPct(f.blasts.blood)}% of peripheral blood leucocytes.`);
+        parts.push(`Blasts comprise ${dxPct(f.blasts.blood)}% of blood leukocytes.`);
     }
-    /* THE ABNORMALITY IS REPORTED ONLY IF IT WAS ACTUALLY FOUND. This sentence
-       used to be printed from `spec.abn` — the rule's own defining lesion — with
-       no reference to the case at all, so a marrow whose karyotype had not
-       resulted read "Cytogenetic studies show t(15;17)(q24.1;q21.2)/PML::RARA."
-       That is a fabricated result, and the most dangerous form this bug takes:
-       every other version of it states a conclusion the reader can weigh, while
-       this one states a laboratory finding that does not exist. */
+    /* THE ABNORMALITY IS REPORTED ONLY IF IT WAS ACTUALLY FOUND. Printed from
+       the rule's own lesion, this once read "Cytogenetic studies show
+       t(15;17)(q24.1;q21.2)/PML::RARA" on a karyotype that had not resulted — a
+       fabricated laboratory finding, the most dangerous form this bug takes. */
     if (abnKey && dxFindingReported(dxAbn(f, abnKey))) {
         parts.push(`Cytogenetic studies show ${ancAbnPhrase(abnKey)}.`);
     }
     return parts.join(' ');
 }
 
-/* The comment for a defining-lesion AML. Two paragraphs: what was found, then
-   what it is called — the shape of a real sign-out, and the reason dxSetComment
-   splits on a blank line. */
+/* BELOW ICC'S 10% FLOOR the two classifications disagree about whether this is
+   acute leukemia at all, and the name line cannot show it (ICC has no AML name to
+   print), so the comment says it — in one sentence, as a classification. */
+const DX_AML_ICC_BELOW_FLOOR = 'By ICC 2022, which requires at least 10% blasts, the case ' +
+    'would be classified as a myelodysplastic neoplasm.';
+
+/* The comment for a defining-lesion AML: what was found, what it is called. */
 function dxAmlComment(spec, f, mode, rule) {
     const who = dxWhoName(spec.who, f);
     const icc = dxAmlIccFor(spec, f);
-    const line = dxNameLine(who, icc);
+    const parts = [];
+    if (mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+    parts.push(dxAmlFindings(f, spec.abn));
 
-    const head = mode === 'addendum'
-        ? 'The previously reported findings have been reviewed in conjunction with the ' +
-          'now-available studies.'
-        : dxAmlFindings(f, spec.abn);
+    /* EVERY RULE IN THIS SET IS DEFINED BY ITS LESION, so "diagnostic of" is only
+       available once the lesion is in hand; until then the sentence is written
+       in the conditional. */
+    parts.push(dxClassificationSentence(rule, f, dxNameLine(who, icc), 'diagnostic'));
 
-    /* EVERY RULE IN THIS SET IS DEFINED BY ITS LESION — that is what the factory
-       above is for — so "diagnostic of" is only ever available once the lesion is
-       in hand. Until then the same sentence is written in the conditional. */
-    const parts = [dxClassificationSentence(rule, f, line, 'diagnostic')];
-
-    /* THE DIVERGENCE THAT IS THE WHOLE POINT OF THIS SET. Below ICC's floor the
-       two classifications genuinely disagree about whether this is acute
-       leukemia, and the comment has to say so — silently printing the WHO name
-       would hide a difference that changes treatment. */
-    if (dxBlastAtLeast(f, DX_BLAST_ICC) === false) {
-        parts.push('WHO-HAEM5 no longer requires a minimum blast count for a genetically defined ' +
-            'acute myeloid leukemia, so this case is classified as above. ICC 2022 requires at ' +
-            'least 10% blasts or blast equivalents for the same diagnosis and is not met; by that ' +
-            'classification the case would be assessed as a myelodysplastic neoplasm.');
-    }
+    if (dxBlastAtLeast(f, DX_BLAST_ICC) === false) parts.push(DX_AML_ICC_BELOW_FLOOR);
 
     if (spec.urgent) {
-        parts.push('Acute promyelocytic leukemia is a medical emergency: the clinical service should be ' +
-            'notified urgently, confirmatory PML::RARA testing expedited, and the patient ' +
-            'monitored for disseminated intravascular coagulation.');
+        parts.push(dxDefiningConfirmed(rule, f)
+            ? 'This is a medical emergency; urgent notification of the clinical team and ' +
+              'monitoring for disseminated intravascular coagulation are recommended.'
+            : 'Given the possibility of acute promyelocytic leukemia, expedited PML::RARA testing, ' +
+              'urgent notification of the clinical team and monitoring for disseminated ' +
+              'intravascular coagulation are recommended.');
     }
-
-    const waiting = dxPendingStudies(f);
-    if (waiting.length) {
-        parts.push(`${addCommas(waiting).replace(/^./, function (c) { return c.toUpperCase(); })} ` +
-            `studies are outstanding and an addendum will follow.`);
-    }
-
-    return (head ? head + '\n\n' : '') + parts.join(' ');
+    return parts.filter(Boolean).join(' ');
 }
 
-/* The comment for a mutation-defined type. Same two-paragraph shape as
-   dxAmlComment; `finding` is the one sentence that names what was found and
-   `extra` an optional clause the entity cares about. */
+/* The comment for a mutation-defined type. `finding` names what was found and
+   `extra` is an optional sentence the entity cares about. */
 function dxAmlMutationComment(spec, f, mode, rule) {
     const who = dxWhoName(spec.who, f);
     const icc = dxBlastAtLeast(f, spec.iccMin) === false ? null : dxIccName(spec.icc, f);
-    const line = dxNameLine(who, icc);
-
-    /* `spec.finding` states the mutation as a fact ("An NPM1 mutation is
-       present"), so it may only be printed once the mutation is one — the same
-       rule dxAmlFindings applies to the karyotype sentence. */
-    const finding = dxDefiningConfirmed(rule, f) ? spec.finding + '.' : '';
-
-    const head = mode === 'addendum'
-        ? 'The previously reported findings have been reviewed in conjunction with the ' +
-          'now-available studies.'
-        : [dxAmlFindings(f, null), finding].filter(Boolean).join(' ');
-
-    const parts = [dxClassificationSentence(rule, f, line, 'diagnostic')];
-    const extra = spec.extra ? spec.extra(f.genetics) : '';
-    if (extra) parts.push(extra);
-
+    const parts = [];
+    if (mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+    parts.push(dxAmlFindings(f, null));
+    /* Stated as a fact, so printed only once the mutation is one. */
+    if (dxDefiningConfirmed(rule, f)) parts.push(spec.finding);
+    parts.push(dxClassificationSentence(rule, f, dxNameLine(who, icc), 'diagnostic'));
+    if (spec.extra) parts.push(spec.extra(f.genetics));
     if (dxBlastAtLeast(f, spec.iccMin) === false) {
-        parts.push('WHO-HAEM5 no longer requires a minimum blast count for a genetically defined ' +
-            'acute myeloid leukemia; ICC 2022 requires at least 10% blasts or blast equivalents, ' +
-            'which is not met.');
+        parts.push('ICC 2022 requires at least 10% blasts for this diagnosis, which is not met.');
     }
-
-    const waiting = dxPendingStudies(f);
-    if (waiting.length) {
-        parts.push(`${addCommas(waiting).replace(/^./, function (c) { return c.toUpperCase(); })} ` +
-            `studies are outstanding and an addendum will follow.`);
-    }
-    return (head ? head + '\n\n' : '') + parts.join(' ');
+    return parts.filter(Boolean).join(' ');
 }
 
 /* Does WHO-HAEM5's myelodysplasia-related category apply? Its three routes in,
@@ -289,85 +253,51 @@ function dxAmlMrWho(f) {
 }
 
 /* AML-MR's comment, which has more to reconcile than any other in this set: the
-   two classifications can reach the category by different routes, name it
-   differently, and split it differently. */
+   two classifications reach the category by different routes and name it
+   differently. Each asymmetry is said only when the case lands on it, and as a
+   classification rather than as the reason for one. */
 function dxAmlMrComment(f, mode) {
     const g = f.genetics;
-    const found = [];
-    if (g.mrICC.present === true) {
-        found.push(`a myelodysplasia-related gene mutation (${addCommas(g.mrICC.genes)})`);
-    }
-    /* The report wording, not the on-screen label: "Complex (≥3)" is a chip and
-       "a complex karyotype (≥3 abnormalities)" is a sentence. Named directly
-       rather than wrapped in "a myelodysplasia-related cytogenetic abnormality
-       (…)", which nested one parenthetical inside another. */
-    const cyto = g.mrCytoWHO.keys.length ? g.mrCytoWHO.keys : g.mrCytoICC.keys;
-    if (cyto.length) found.push(addCommas(cyto.map(ancAbnPhrase)));
-    if (f.history.antecedentMyeloid === true) {
-        found.push(f.history.antecedent === 'mdsMpn'
-            ? 'a documented history of MDS/MPN' : 'a documented history of MDS');
-    }
+    const parts = [];
+    if (mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+    parts.push(dxAmlFindings(f, null));
 
-    const head = mode === 'addendum'
-        ? 'The previously reported findings have been reviewed in conjunction with the ' +
-          'now-available studies.'
-        : [dxAmlFindings(f, null),
-           found.length ? `The case shows ${addCommas(found)}.` : ''].filter(Boolean).join(' ');
+    const cyto = g.mrCytoWHO.keys.length ? g.mrCytoWHO.keys : g.mrCytoICC.keys;
+    if (cyto.length) parts.push(`Cytogenetic studies show ${addCommas(cyto.map(ancAbnPhrase))}.`);
+    if (g.mrICC.present === true) parts.push(`Molecular studies show ${dxGenePhrase(g.mrICC.genes)}.`);
+    if (f.history.antecedentMyeloid === true) {
+        parts.push(`There is a history of ${f.history.antecedent === 'mdsMpn' ? 'MDS/MPN' : 'MDS'}.`);
+    }
 
     const whoName = dxWhoName('acute myeloid leukemia, myelodysplasia-related', f);
-    const parts = [];
-
-    /* THE ASYMMETRIES, said only when the case actually lands on one. A RUNX1-only
-       genotype is ICC's category and not WHO's; an antecedent MDS carries WHO's
-       category by itself and is only a qualifier for ICC. Printing either
-       unconditionally would attribute to a classification a position it does not
-       take on this case. */
-    const whoApplies = dxAmlMrWho(f) === true;
     const iccGene = g.mrICC.present === true;
     const iccCyto = g.mrCytoICC.present === true;
+    const iccName = iccGene ? 'AML with myelodysplasia-related gene mutations'
+        : (iccCyto ? 'AML with myelodysplasia-related cytogenetic abnormalities' : null);
+    const whoApplies = dxAmlMrWho(f) === true;
 
-    /* NONE OF THE THREE ROUTES ESTABLISHED IS ITS OWN CASE, and it used to fall
-       through to the `else` below — which asserted "the findings are those of AML
-       with myelodysplasia-related cytogenetic abnormalities (ICC 2022)" on a case
-       where no cytogenetic abnormality, no mutation and no history had been
-       established. The category has three ways in and this case has taken none of
-       them yet; the honest sentence names what would settle it. */
-    if (!whoApplies && !iccGene && !iccCyto) {
-        parts.push('The blast count is that of an acute myeloid leukemia. Assignment to the ' +
-            'myelodysplasia-related category requires a qualifying cytogenetic abnormality or ' +
-            'gene mutation, neither of which is established; in correlation with cytogenetic ' +
-            'and molecular studies demonstrating one, the findings would be those of ' +
-            `${whoName} (WHO-HAEM5); AML with myelodysplasia-related gene mutations or ` +
-            'cytogenetic abnormalities (ICC 2022).');
-    } else if (whoApplies && (iccGene || iccCyto)) {
-        parts.push(`The findings are those of ${whoName} (WHO-HAEM5); ` +
-            (iccGene ? 'AML with myelodysplasia-related gene mutations'
-                     : 'AML with myelodysplasia-related cytogenetic abnormalities') +
-            ' (ICC 2022).');
+    /* NONE OF THE THREE ROUTES ESTABLISHED: the category has three ways in and
+       this case has taken none of them yet, so the sentence is conditional. */
+    if (!whoApplies && !iccName) {
+        parts.push('If a myelodysplasia-related cytogenetic abnormality or gene mutation is ' +
+            `demonstrated, the findings would be consistent with ${dxTag(whoName, 'WHO-HAEM5')} ` +
+            'and AML with myelodysplasia-related gene mutations or cytogenetic abnormalities ' +
+            '(ICC 2022).');
+    } else if (whoApplies && iccName) {
+        parts.push(`The findings are consistent with ${dxNameLine(whoName, iccName)}.`);
     } else if (whoApplies) {
-        parts.push(`The findings are those of ${whoName} (WHO-HAEM5).`);
-        if (f.history.antecedentMyeloid === true && !iccGene && !iccCyto) {
-            parts.push('A history of MDS is itself sufficient for the WHO-HAEM5 category; ICC 2022 ' +
-                'records it as the qualifier “progressing from MDS” rather than as a defining ' +
-                'criterion, and would classify the case on its other features.');
-        } else {
-            parts.push('The abnormality is not among ICC 2022’s myelodysplasia-related criteria, ' +
-                'so that classification would assign the case on its other features.');
-        }
+        parts.push(`The findings are consistent with ${dxTag(whoName, 'WHO-HAEM5')}.`);
+        parts.push(f.history.antecedentMyeloid === true
+            ? 'By ICC 2022 the history of MDS is a qualifier, and the case would be classified on ' +
+              'its other features.'
+            : 'By ICC 2022 this abnormality is not myelodysplasia-related, and the case would be ' +
+              'classified on its other features.');
     } else {
-        parts.push('The findings are those of ' +
-            (iccGene ? 'AML with myelodysplasia-related gene mutations'
-                     : 'AML with myelodysplasia-related cytogenetic abnormalities') +
-            ' (ICC 2022). The criterion met is not among WHO-HAEM5’s, which would classify the ' +
-            'case on its other features.');
+        parts.push(`The findings are consistent with ${dxTag(iccName, 'ICC 2022')}. By WHO-HAEM5 ` +
+            'this finding is not myelodysplasia-related, and the case would be classified on its ' +
+            'other features.');
     }
-
-    const waiting = dxPendingStudies(f);
-    if (waiting.length) {
-        parts.push(`${addCommas(waiting).replace(/^./, function (c) { return c.toUpperCase(); })} ` +
-            `studies are outstanding and an addendum will follow.`);
-    }
-    return (head ? head + '\n\n' : '') + parts.join(' ');
+    return parts.filter(Boolean).join(' ');
 }
 
 /* One rule per defining lesion, from the table above.
@@ -485,11 +415,8 @@ dxRules.push(
             const marrowLow = f.blasts.marrow !== null && f.blasts.marrow < 5;
             const bloodLow = f.blasts.blood === null || f.blasts.blood < 2;
             if (!marrowLow || !bloodLow) return '';
-            return 'The NPM1 mutation is present at a variant allele fraction below 10%, without ' +
-                'an increase in blood or bone marrow blasts. Outcome data for such cases are ' +
-                'lacking and definitive classification as acute myeloid leukemia may not be ' +
-                'possible; the possibility of a subclonal variant should be considered and close ' +
-                'follow-up is warranted.';
+            return 'With an NPM1 variant allele fraction below 10% and no increase in blasts, ' +
+                'classification as AML may not be definitive; close follow-up is recommended.';
         },
         whoFor: function (f) { return dxWhoName('Acute myeloid leukemia with NPM1 mutation', f); },
         iccFor: function (f) {
@@ -501,17 +428,16 @@ dxRules.push(
                 who: 'Acute myeloid leukemia with NPM1 mutation',
                 icc: 'AML with mutated NPM1',
                 iccMin: DX_BLAST_ICC,
-                finding: 'An NPM1 mutation is present',
+                finding: 'Molecular studies show an NPM1 mutation.',
                 /* FLT3-ITD status belongs in an NPM1 comment whichever way it
                    reads: the pair is the commonest genotype in normal-karyotype
                    AML, and it decides ELN risk and whether an inhibitor is added.
                    Saying "not detected" is as useful as saying "detected", which
                    is why the absent case is printed too rather than omitted. */
                 extra: function (g) {
-                    if (g.flt3Itd === true) return 'A FLT3 internal tandem duplication is also present, ' +
-                        'which places the case in the intermediate ELN 2022 risk group and is ' +
-                        'relevant to therapy.';
-                    if (g.flt3Itd === false) return 'FLT3 internal tandem duplication was not detected.';
+                    if (g.flt3Itd === true) return 'A FLT3 internal tandem duplication is also ' +
+                        'present (ELN 2022 intermediate risk).';
+                    if (g.flt3Itd === false) return 'FLT3 internal tandem duplication is not detected.';
                     return '';
                 }
             }, f, ctx.mode, ctx.rule);
@@ -565,10 +491,17 @@ dxRules.push(
            penetrance at a median of 24.5 years. Fires only when the laboratory
            actually reported the mutation as biallelic. */
         caution: function (f) {
-            if (f.genetics.cebpaBiallelic !== true) return '';
-            return 'The CEBPA mutation is reported as biallelic. Approximately 5-10% of biallelic ' +
-                'CEBPA cases carry a germline N-terminal CEBPA variant; germline testing and ' +
-                'referral for genetic counselling should be considered.';
+            if (f.genetics.cebpa !== true) return '';
+            return f.genetics.cebpaBiallelic === true
+                ? 'A biallelic CEBPA mutation raises the possibility of a germline variant; ' +
+                  'germline testing and genetic counseling should be considered.'
+                : 'About 10% of CEBPA-mutated AML arises on a germline variant; germline testing ' +
+                  'should be considered.';
+        },
+        check: function (f) {
+            if (f.genetics.cebpa !== true) return '';
+            return 'Germline testing is done on cultured skin fibroblasts; a mutation persisting ' +
+                'in remission at a VAF near 50% is suspicious.';
         },
         whoFor: function (f) {
             /* WHO keeps 20% here. Below it there is no WHO CEBPA entity to name. */
@@ -582,74 +515,40 @@ dxRules.push(
         },
         comment: function (f, ctx) {
             const g = f.genetics;
-            /* WHICH CONFIGURATION WAS REPORTED — and only if one was. The final
-               branch used to be unconditional, so a case whose sequencing had not
-               resulted read "A CEBPA mutation is reported." with nothing behind
-               it. `dxDefiningConfirmed` is the same gate the classification
-               sentence below uses, so the two cannot disagree. */
-            let reported = '';
-            if (g.cebpaBzip === true) reported = 'An in-frame bZIP CEBPA mutation is reported.';
-            else if (g.cebpaBiallelic === true) reported = 'Biallelic CEBPA mutation is reported.';
-            else if (dxDefiningConfirmed(ctx.rule, f)) reported = 'A CEBPA mutation is reported.';
+            const parts = [];
+            if (ctx.mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+            parts.push(dxAmlFindings(f, null));
 
-            const head = ctx.mode === 'addendum'
-                ? 'The previously reported findings have been reviewed in conjunction with the ' +
-                  'now-available studies.'
-                : [dxAmlFindings(f, null), reported].filter(Boolean).join(' ');
+            /* WHICH CONFIGURATION WAS REPORTED — and only if one was. */
+            if (g.cebpaBzip === true) parts.push('Molecular studies show an in-frame bZIP CEBPA mutation.');
+            else if (g.cebpaBiallelic === true) parts.push('Molecular studies show biallelic CEBPA mutations.');
+            else if (dxDefiningConfirmed(ctx.rule, f)) parts.push('Molecular studies show a CEBPA mutation.');
 
-            /* NAME ICC'S ENTITY ONLY WHEN ITS CRITERION IS ACTUALLY ESTABLISHED.
-               Printing it unconditionally produced a comment that asserted "AML
-               with in-frame bZIP CEBPA mutations (ICC 2022)" and then said in the
-               next sentence that the reading frame was unconfirmed — a
-               contradiction in consecutive sentences, and the same class of error
-               as a comment naming a study as outstanding while using its result. */
-            const named = g.cebpaBzip === true
-                ? 'acute myeloid leukemia with CEBPA mutation (WHO-HAEM5); AML with in-frame ' +
-                  'bZIP CEBPA mutations (ICC 2022)'
-                : 'acute myeloid leukemia with CEBPA mutation (WHO-HAEM5)';
-            /* Built through the shared prefix rather than dxClassificationSentence
-               because this entity's ICC half is conditional on the bZIP finding,
-               so the name is assembled here and cannot come from result.icc. The
-               mood still has to move when the mutation is not established. */
-            const prefix = dxConfirmationPrefix(ctx.rule, f);
-            const body = [prefix
-                ? `${prefix}the findings would be those of ${named}.`
-                : `The findings are those of ${named}.`];
+            /* ICC'S ENTITY ONLY WHEN ITS CRITERION IS ESTABLISHED (in-frame bZIP),
+               and WHO'S ONLY AT 20% — below it WHO has no CEBPA AML to name. */
+            const whoMet = dxBlastAtLeast(f, DX_BLAST_AML) !== false;
+            const whoName = dxWhoName('acute myeloid leukemia with CEBPA mutation', f);
+            const iccName = g.cebpaBzip === true && dxBlastAtLeast(f, DX_BLAST_ICC) !== false
+                ? dxIccName('AML with in-frame bZIP CEBPA mutations', f) : null;
+            const line = whoMet && iccName ? dxNameLine(whoName, iccName)
+                : (whoMet ? dxTag(whoName, 'WHO-HAEM5') : (iccName ? dxTag(iccName, 'ICC 2022') : null));
 
-            /* The limitation, stated rather than hidden. The criterion is
-               positional and this tool reads the laboratory's words.
-
-               THE DISCORDANCE IS THREE-WAY, NOT TWO, and this is the practical
-               point: ELN 2022 assigns favorable risk to in-frame bZIP mutations
-               ONLY, irrespective of allelic state. So a biallelic non-bZIP case is
-               WHO-HAEM5's entity and carries none of the favorable prognosis the
-               name implies — in one 741-case series only 64% of the cases meeting
-               WHO-HAEM5 also met ICC (Leuk Res 2023, PMID 37690321). Naming the
-               entity without naming the risk would be the misleading half. */
-            if (g.cebpaBzip !== true) {
-                body.push('WHO-HAEM5 requires either biallelic mutation or a single mutation in the ' +
-                    'basic leucine zipper (bZIP) region; ICC 2022 requires an in-frame bZIP ' +
-                    'mutation and does not accept the biallelic criterion. The mutation’s position ' +
-                    'and reading frame should be confirmed against the molecular report, as the ' +
-                    'entity is not established without them, and ELN 2022 assigns favorable risk ' +
-                    'only to in-frame bZIP mutations.');
+            if (line) {
+                const prefix = dxConfirmationPrefix(ctx.rule, f);
+                parts.push(prefix
+                    ? `${prefix}the findings would be diagnostic of ${line}.`
+                    : `The findings are diagnostic of ${line}.`);
             }
-            if (dxBlastAtLeast(f, DX_BLAST_AML) === false) {
-                body.push('WHO-HAEM5 retains a ≥20% blast requirement for this type, which is not ' +
-                    'met; ICC 2022 requires ≥10%.');
+            if (!whoMet) {
+                parts.push('WHO-HAEM5 requires at least 20% blasts for this type, which is not met.');
             }
-            /* GERMLINE, ALWAYS. About 10% of CEBPA-mutated AML is germline, and
-               the classic two-hit pattern — an N-terminal germline frameshift plus
-               an acquired bZIP in-frame indel — is precisely the biallelic
-               genotype that reads as reassuringly sporadic. The test is cheap to
-               state and the consequence of missing it reaches the patient's
-               family, so it is said on every case rather than on a guess about
-               which ones look familial. */
-            body.push('Approximately 10% of CEBPA-mutated acute myeloid leukemia arises on a ' +
-                'germline CEBPA variant. Germline testing on cultured skin fibroblasts should be ' +
-                'considered irrespective of family history, particularly if the mutation persists ' +
-                'at complete remission at a variant allele fraction near 50%.');
-            return head + '\n\n' + body.join(' ');
+            /* ELN 2022 assigns favorable risk to in-frame bZIP mutations only, so a
+               biallelic non-bZIP case carries none of the prognosis the name implies. */
+            if (g.cebpaBzip !== true && g.cebpa === true) {
+                parts.push('The location and reading frame of the mutation should be confirmed; ' +
+                    'ICC 2022 and ELN 2022 favorable risk require an in-frame bZIP mutation.');
+            }
+            return parts.filter(Boolean).join(' ');
         }
     },
     {
@@ -706,10 +605,8 @@ dxRules.push(
                 : dxIccName('MDS/AML with mutated TP53', f);
         },
         diverges: function () { return true; },
-        divergence: 'WHO-HAEM5 does not recognise a TP53-defined acute myeloid leukemia; such ' +
-            'cases fall to AML, myelodysplasia-related where the accompanying cytogenetic ' +
-            'criteria are met. ICC 2022 defines the entity on any somatic TP53 mutation at a ' +
-            'variant allele fraction above 10%, irrespective of allelic status.'
+        divergence: 'WHO-HAEM5 has no TP53-defined AML; such cases are usually AML-MR. ICC ' +
+            'defines it on any TP53 mutation above 10% VAF, whatever the allelic status.'
     },
     {
         id: 'amlMr',
@@ -799,11 +696,9 @@ dxRules.push(
                 (f.history.antecedentMyeloid === true &&
                  f.genetics.mrCytoWHO.present !== true && f.genetics.mrICC.present !== true);
         },
-        divergence: 'The two classifications define this category differently. ICC 2022 counts ' +
-            'RUNX1 among the myelodysplasia-related genes and WHO-HAEM5 does not; their ' +
-            'cytogenetic lists differ in both directions, ICC including +8 and del(20q) and ' +
-            'WHO-HAEM5 including del(11q) and −13/del(13q); and a history of MDS or MDS/MPN is ' +
-            'itself sufficient for the WHO category, whereas ICC 2022 records it as a qualifier.',
+        divergence: 'ICC adds RUNX1 to the gene list. The cytogenetic lists differ both ways (ICC ' +
+            'adds +8 and del(20q); WHO-HAEM5 adds del(11q) and −13/del(13q)). A history of MDS or ' +
+            'MDS/MPN defines the WHO-HAEM5 category but is only a qualifier in ICC.',
         comment: function (f, ctx) { return dxAmlMrComment(f, ctx.mode); }
     },
     {
@@ -868,68 +763,42 @@ dxRules.push(
         },
         iccFor: function (f) { return dxIccName('AML, not otherwise specified (NOS)', f); },
         comment: function (f, ctx) {
-            const head = ctx.mode === 'addendum'
-                ? 'The previously reported findings have been reviewed in conjunction with the ' +
-                  'now-available studies.'
-                : dxAmlFindings(f, null);
-
-            const parts = ['The findings are those of acute myeloid leukemia.'];
+            const parts = [];
+            if (ctx.mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+            parts.push(dxAmlFindings(f, null));
 
             /* WHAT THIS COMMENT MUST NOT DO is imply the classification is
-               finished. The genetically defined types are diagnosed at any blast
-               count in WHO-HAEM5 and at 10% in ICC, so a case that reaches this
-               residual rule with the studies still out is not "AML, NOS" — it is
-               an AML whose subtype is not yet known, and those are different
-               claims. */
-            const waiting = dxPendingStudies(f);
-            if (waiting.length) {
-                parts.push(`Subclassification requires the outstanding ${addCommas(waiting)} studies; ` +
-                    `several genetically defined types are diagnosed below the ` +
-                    `20% blast threshold. An addendum will follow.`);
+               finished while the studies are out: an AML whose subtype is not yet
+               known is not "AML, NOS". The pending line (dxComment) says the rest. */
+            if (dxPendingStudies(f).length) {
+                parts.push('The findings are diagnostic of acute myeloid leukemia.');
             } else {
-                parts.push('No defining genetic abnormality has been identified. WHO-HAEM5 assigns ' +
-                    'a type by differentiation on the morphologic and immunophenotypic findings; ' +
-                    'ICC 2022 classifies the case as AML, not otherwise specified.');
+                parts.push('No defining genetic abnormality is identified. The findings are ' +
+                    'consistent with acute myeloid leukemia defined by differentiation (WHO-HAEM5) ' +
+                    'and AML, NOS (ICC 2022); the WHO-HAEM5 type is assigned by immunophenotype.');
             }
-            return (head ? head + '\n\n' : '') + parts.join(' ');
+            return parts.filter(Boolean).join(' ');
         },
-        /* TWO SAFETY NOTES, and they sit on the RESIDUAL rather than on the
-           defining types because both are about what a case with no named lesion
-           might still turn out to be. A case that reached this rule has ≥20%
-           blasts and nothing to explain them, which is the one situation in the
-           AML set where the classification is not the last question. */
+        /* TWO SAFETY NOTES, on the RESIDUAL because both are about what a case
+           with no named lesion might still turn out to be. */
         caution: function (f) {
             const notes = [];
 
-            /* BASOPHILIA WITH BCR::ABL1 UNKNOWN. This is the app's only caution
-               that can change the DISEASE rather than the subtype: a basophilic
-               acute leukemia may be CML in blast crisis, which the engine
-               already models (`cml`) but cannot reach without the fusion result.
-               Fires only while BCR::ABL1 is genuinely unknown — a negative result
-               settles it and a positive one takes the case to `cml` — which is
-               what keeps it from becoming a sentence that prints on every case. */
+            /* BASOPHILIA WITH BCR::ABL1 UNKNOWN: the one caution that can change the
+               DISEASE rather than the subtype (CML in blast phase). Fires only while
+               BCR::ABL1 is genuinely unknown. */
             if (f.drivers.bcrAbl === null &&
                 dxAtLeast(f.counts.basophilPct, DX_BASOPHILIA_PCT) === true) {
-                notes.push('Basophilia is present and BCR::ABL1 status is not established. ' +
-                    'BCR::ABL1 testing by FISH or RT-PCR should be performed on any acute ' +
-                    'leukemia with a basophilic component, as the findings may represent ' +
-                    'chronic myeloid leukemia in blast phase rather than de novo acute ' +
-                    'myeloid leukemia.');
+                notes.push('Given the basophilia, BCR::ABL1 testing is recommended to exclude CML ' +
+                    'in blast phase.');
             }
 
-            /* A NORMAL KARYOTYPE DOES NOT EXCLUDE THE CRYPTIC LESIONS, and two of
-               the eight defining types are largely cryptic: NUP98 rearrangements
-               are undetected by karyotype in 88.2% of cases and the karyotype is
-               frankly normal in about half, and the pericentric inversions of
-               MECOM were missed in 16 of 17. Both are types this engine will
-               offer the moment the abnormality is recorded — so the gap is in the
-               assay, not in the rules, and the comment has to say which. */
+            /* A NORMAL KARYOTYPE DOES NOT EXCLUDE THE CRYPTIC LESIONS: NUP98
+               rearrangements are undetected by karyotype in most cases, and the
+               pericentric MECOM inversions are frequently missed. */
             if (!f.genetics.karyotypeOutstanding && !f.genetics.abnormalities.length) {
-                notes.push('Conventional cytogenetics are normal. A normal karyotype does not ' +
-                    'exclude a defining genetic abnormality: NUP98 rearrangements are cryptic ' +
-                    'in the majority of cases and the pericentric inversions involving MECOM ' +
-                    'are frequently missed, so targeted FISH or a fusion transcript assay is ' +
-                    'required before the case is classified by differentiation alone.');
+                notes.push('A normal karyotype does not exclude cryptic NUP98 or MECOM ' +
+                    'rearrangements; FISH or a fusion transcript assay is recommended.');
             }
 
             return notes.join(' ');

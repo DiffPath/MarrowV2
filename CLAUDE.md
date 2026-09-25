@@ -68,9 +68,9 @@ before working on that file, not before every session. This table is a summary;
 | `MarrowStains.js` | the Stains tab. Registers `specialStains` and `immunostains`, which print **tables** rather than prose | [docs/stains.md](docs/stains.md) |
 | `MarrowAncillary.js` | the Ancillary tab: NGS first (status row, import box, variant list), then cytogenetics (status row, import box, and the growing list of **disease-defining abnormalities** the diagnosis engine reads). BCR::ABL1 and the Clinical and History blocks remain off screen — their readers answer null, which costs those entities their genetic points but takes nothing out of the differential (an unanswered gate is `pending`, ranked level with `supported`). **Registers no report section** | [docs/ancillary.md](docs/ancillary.md) |
 | `MarrowFindings.js` | `marrowFindings()`, one normalised **three-valued** view of the whole case. Deliberately the ONE file that knows other tabs' group names | [docs/diagnosis.md](docs/diagnosis.md) |
-| `MarrowDx*.js` (ten files) | the Diagnosis tab: a gated, scored suggestion engine over `marrowFindings()`. Registers `dxCommentSection`. **Open the one family you need, not the set** — see below | [docs/diagnosis.md](docs/diagnosis.md), [mpn](docs/diagnosis-mpn.md), [aml](docs/diagnosis-aml.md), [mds/mpn](docs/diagnosis-mds-mpn.md) |
+| `MarrowDx*.js` (thirteen files) | the Diagnosis tab: a gated, scored suggestion engine over `marrowFindings()`. Registers `dxCommentSection`. **Open the one family you need, not the set** — see below | [docs/diagnosis.md](docs/diagnosis.md), [mpn](docs/diagnosis-mpn.md), [aml](docs/diagnosis-aml.md), [mds/mpn](docs/diagnosis-mds-mpn.md), [bmf](docs/diagnosis-bmf.md), [lymphoid](docs/diagnosis-lymphoid.md) |
 
-**The Diagnosis tab is ten files, split by disease family**, because one entity's criteria box is
+**The Diagnosis tab is thirteen files, split by disease family**, because one entity's criteria box is
 the unit of work and it should be the unit of reading. `MarrowDxKernel.js` holds the three-valued
 helpers, the shared gates and thresholds, the shared formatters (`dxLower`, `dxPct`, `dxNameLine`)
 and `dxRules` **declared empty**; each family file appends to it with `dxRules.push(...)`, so the
@@ -85,11 +85,13 @@ ranks, and `MarrowDxPanel.js` renders.
 | `MarrowDxAml.js` | acute myeloid leukaemia |
 | `MarrowDxPcn.js` | the plasma cell family: plasma cell neoplasm, MGUS, no evidence of a PCN. **Marrow-side criteria only, written without a pasted chapter** — the comments say what serum studies must still settle, and the rules should be read against the MGUS/myeloma chapters when they are pasted |
 | `MarrowDxCh.js` | the boundaries: CHIP, CCUS, ICUS, no neoplasm |
+| `MarrowDxBmf.js` | bone marrow failure: aplastic anemia and the three single-lineage aplasias (pure red cell aplasia, acquired amegakaryocytic thrombocytopenia, agranulocytosis). **The one family with no classification behind it** — neither WHO-HAEM5 nor ICC classifies a non-neoplasm, so no criteria box exists to paste and the `docs/who/` remedy is permanently unavailable. Loads after `MarrowDxCh` (it reads `dxExcludeDefinedNeoplasm` at load time) |
+| `MarrowDxLymphoid.js` | the lymphoid axis: no infiltrate / benign lymphoid aggregates / involvement by a lymphoid neoplasm / indeterminate. **Phase 1 of three, and it names no entity** — a marrow does not classify a lymphoid neoplasm and this app records no flow cytometry at all, so the rules answer involvement and pattern and hand classification off in the comment. **The only family declaring `axis: 'lymphoid'`**, which is why `dxAxis` exists |
 
-**`MarrowDxLikelihood.js` is the eleventh file, and the only one keyed by input rather than by
+**`MarrowDxLikelihood.js` is the one file keyed by input rather than by
 entity.** It holds the per-input likelihood registry — each finding declared once, with a family
 default, per-entity overrides, an explicit `against` weight for the false case, and optional
-`ladder` groups so threshold rungs compete instead of stacking. It loads **after all six family
+`ladder` groups so threshold rungs compete instead of stacking. It loads **after all eight family
 files and before the engine**: its audit checks every entity weight against the finished `dxRules`
 (a weight naming no rule is otherwise a typo that never fires and never complains), and the engine
 calls into it from `dxEvaluate`.
@@ -192,9 +194,19 @@ an `unverified` flag** — those are the only two honest states, and shipping a 
 neither is what produced that fivefold error. See [docs/reference.md](docs/reference.md).
 
 Each family file holds **its own helpers above its own rules**, which is the property that makes the
-split worth having. Three ordering constraints, all stated in `Marrow.html`: kernel first;
+split worth having. Four ordering constraints, all stated in `Marrow.html`: kernel first;
 `MarrowDxMpn` before `MarrowDxMdsMpn` (the CMML rule reads `dxMpn` at load time, so the wrong order
-is a `ReferenceError`, not a subtle bug); engine and panel after all six families.
+is a `ReferenceError`, not a subtle bug); `MarrowDxCh` before `MarrowDxBmf` for the same kind of
+reason (the aplastic anemia rule reads `dxExcludeDefinedNeoplasm`); engine, then **`MarrowDxSteps`**
+(the Differential view — it reads the engine's evaluated result and `dxRankScore`, and the panel
+calls into it), then panel, after all eight families.
+
+**The lymphoid rules are the one family that is not a myeloid question, and `dxAxis` is what says
+so.** A marrow can be a myelodysplastic neoplasm *and* carry a lymphoid infiltrate, so those
+candidates are not alternatives and must not be ranked against each other. The axis defaults to
+`'myeloid'` and changes exactly two behaviours: the residual-category demotion only fires on a
+better fit for the **same** question, and the Differential view takes its threshold per axis and
+renders one table each. See [docs/diagnosis-lymphoid.md](docs/diagnosis-lymphoid.md).
 
 **The Specimen tab's template selection is a prior on the ranking** (`dxWorkupBonus`,
 `MarrowDxEngine.js`): the workup's family gets `DX_WORKUP_POINTS` and — the one exception to
@@ -384,6 +396,8 @@ Read the one you need; none of these load automatically.
 - [The MPN candidates](docs/diagnosis-mpn.md) — Eight entities plus the overlap; fibrosis may gate, megakaryocyte morphology may not.
 - [The AML candidates](docs/diagnosis-aml.md) — Twelve rules; the blast count means different things in the two classifications.
 - [The MDS/MPN overlap candidates](docs/diagnosis-mds-mpn.md) — CMML from its own criteria box: the count-dependent requirement rule, and the three criteria this app cannot answer.
+- [The bone marrow failure candidates](docs/diagnosis-bmf.md) — The family with no criteria box: aplastic anemia against hypoplastic MDS, the three single-lineage aplasias, Camitta severity counted three-valued, and the reticulocyte count the app cannot read.
+- [The lymphoid candidates](docs/diagnosis-lymphoid.md) — The other axis: involvement and pattern rather than classification, why no rule names an entity, and what `dxAxis` changes.
 - [The Ancillary tab](docs/ancillary.md) — NGS parsing, cytogenetics, study status, the Clinical block.
 - [The reference section](docs/reference.md) — The book icon: topics, provenance flags, the quick-link contract, and where they may and may not go.
 - [Chips, toggle groups, descriptors](docs/forms.md) — The shared form vocabulary and its CSS contracts. Read before adding any control.

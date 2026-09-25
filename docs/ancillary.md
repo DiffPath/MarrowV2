@@ -31,10 +31,9 @@ required the form to be complete. An unanswered `requires` lands a rule in `pend
 and `DX_TIER` ranks those **level with `supported`** — candidates rank on evidence, with completeness
 worth `DX_CONFIRMED_BONUS`, one point. Verified against the running engine: a CML-shaped marrow with
 no genetics at all anywhere (WBC 62, 7% basophils, eosinophilia, circulating immature granulocytes,
-increased megakaryocytes) ranks **CML first at 11 points**, bucket `pending`, and writes *"…the
-findings would be best classified as chronic myeloid leukemia, BCR::ABL1-positive. Final
-classification will depend on the results of cytogenetic and molecular studies, which are
-outstanding."* The conditional register is the whole point: the comment cannot assert what the
+increased megakaryocytes) ranks **CML first at 11 points**, bucket `pending`, and writes *"If cytogenetic and molecular studies show the BCR::ABL1 fusion, the
+findings would be consistent with chronic myeloid leukemia, BCR::ABL1-positive. Cytogenetic and
+molecular studies are pending; an addendum will follow."* The conditional register is the whole point: the comment cannot assert what the
 ranking has not proven, and it does not have to in order to be the right comment.
 
 **What is genuinely lost is narrower**: a finding nobody can enter cannot score. The +8 for a

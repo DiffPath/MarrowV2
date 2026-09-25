@@ -208,13 +208,12 @@ const aspTouch = [
 const aspDescriptorGroups = {
     aspAdequacyDesc: ['hemodilute', 'paucicellular', 'virtuallyAcellular', 'paucispicular', 'aspiculate'],
     /* Table 2.10's terms (docs/who/mds-dysplasia-table-2.10.md), added at the
-       author's instruction with nothing dropped - one substitution excepted:
-       the erythroid list's `multinucleation` became `multinuclearity`, the
-       table's own word for this lineage (`multinucleation` is its word for
-       megakaryocytes, where it now also appears). Vacuolization rides the
+       author's instruction with nothing dropped. The erythroid list says
+       `multinucleation` where the table writes "multinuclearity" - the author's
+       call (2026-09), one word for every lineage. Vacuolization rides the
        shared `blastVacuolated` key; Auer rods ride the shared blast key, which
        findingAuerRods() also reads from this group. */
-    aspErythDesc:    ['nuclearBudding', 'internuclearBridging', 'nuclearContourIrregularity', 'multinuclearity',
+    aspErythDesc:    ['nuclearBudding', 'internuclearBridging', 'nuclearContourIrregularity', 'multinucleation',
                       'megaloblastoid', 'karyorrhexis', 'blastVacuolated', 'shiftToImmaturity'],
     aspMyeloidDesc:  ['hypogranularForms', 'monolobatedForms', 'hypolobatedForms', 'pseudoPelgerHuet',
                       'hypersegmentedForms', 'pseudoChediakHigashi', 'smallSize', 'blastAuerRods', 'shiftToImmaturity'],

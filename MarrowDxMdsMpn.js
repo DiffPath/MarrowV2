@@ -211,325 +211,193 @@ function dxCmmlName(f) {
     return group ? `${base}, ${group}` : base;
 }
 
-/* What the case says about the monocytes — the sentence this diagnosis turns on,
-   and the reason the counts are printed rather than characterised. */
-function dxCmmlMonocyteText(f) {
+/* What the case says about the monocytes and the blasts — the numbers this
+   diagnosis and its subtype are read off, printed rather than characterised. */
+function dxCmmlFindingsText(f) {
     const c = f.counts;
     const parts = [];
 
     if (c.monocyteAbs !== null && c.monocytePct !== null) {
-        parts.push(`The peripheral blood shows an absolute monocytosis of ` +
-            `${c.monocyteAbs} × 10⁹/L (${dxPct(c.monocytePct)}% of leucocytes).`);
+        parts.push(`Blood monocytes are ${c.monocyteAbs} × 10⁹/L (${dxPct(c.monocytePct)}% of ` +
+            `leukocytes).`);
     } else if (c.monocyteAbs !== null) {
-        parts.push(`The absolute monocyte count is ${c.monocyteAbs} × 10⁹/L.`);
+        parts.push(`Blood monocytes are ${c.monocyteAbs} × 10⁹/L.`);
     } else if (c.monocytePct !== null) {
-        parts.push(`Monocytes account for ${dxPct(c.monocytePct)}% of leucocytes.`);
+        parts.push(`Blood monocytes are ${dxPct(c.monocytePct)}% of leukocytes.`);
     }
 
     const m = f.marrowMonocytes;
     if (m.pct !== null) {
-        parts.push(`Monocytes account for ${dxPct(m.pct)}% of marrow nucleated cells` +
-            (m.increased === true ? `, above the reference range of ${m.upper}%.` : '.'));
+        parts.push(`Marrow monocytes are ${m.increased === true ? 'increased, at ' : ''}` +
+            `${dxPct(m.pct)}%.`);
+    }
+
+    /* WHAT THE PERCENTAGE IS OF: the criterion is written on blasts and blast
+       equivalents, so a count that included the promonocytes says so and one that
+       did not must not claim it. */
+    const counts = [];
+    if (f.blasts.marrow !== null) counts.push(`${dxPct(f.blasts.marrow)}% in the marrow`);
+    if (f.blasts.blood !== null) counts.push(`${dxPct(f.blasts.blood)}% in the blood`);
+    if (counts.length) {
+        parts.push(`${f.blasts.equivalentsCounted ? 'Blasts and promonocytes' : 'Blasts'} are ` +
+            `${addCommas(counts)}.`);
     }
     return parts.join(' ');
 }
 
-/* Which desirable criteria are met, named. The comment has to be able to say
-   WHICH, because the requirement rule differs by monocyte count and a reader
-   checking it against the box needs the same two lines the box has. */
-function dxCmmlDesirableText(f) {
-    const met = [];
+/* The desirable findings the case actually has, stated as findings. Which of
+   them the box required at this monocyte count is the pathologist's question and
+   is on the card (dxCmmlCheck). */
+function dxCmmlSupportText(f) {
+    const parts = [];
 
     if (f.dysplasia.any === true) {
         const named = [];
         if (f.dysplasia.erythroid.atLeast10) named.push('erythroid');
         if (f.dysplasia.myeloid.atLeast10) named.push('granulocytic');
         if (f.dysplasia.megakaryocytic.atLeast10) named.push('megakaryocytic');
-        met.push(named.length
-            ? `dysplasia involving the ${addCommas(named)} ${named.length > 1 ? 'lineages' : 'lineage'}`
-            : 'dysplasia involving at least one myeloid lineage');
+        parts.push(named.length ? `${dxCap(addCommas(named))} dysplasia is present.`
+            : 'Dysplasia is present.');
     }
 
-    /* THE SAME SOURCE THE CRITERION IS READ FROM, band and all — a comment that
-       named a TET2 mutation as meeting desirable criterion 2 in the
-       oligomonocytic band would be naming something the box does not accept
-       there, and the karyotype clause below drops out with it for the same
-       reason. See dxCmmlClonal(). */
+    /* THE SAME SOURCE THE CRITERION IS READ FROM, band and all — in the
+       oligomonocytic band only the minimal-panel genes count, and the karyotype
+       clause drops out with it. See dxCmmlClonal(). */
     const low = f.counts.monocytosisNeedsClonality === true;
     const genes = low ? f.genetics.cmmlDesirableGenes.genes : f.genetics.somaticGenes;
+    if (genes.length) parts.push(`Molecular studies show ${dxGenePhrase(genes)}.`);
     const abn = f.genetics.abnormalities;
-    if (genes.length) met.push(`an acquired clonal molecular abnormality (${addCommas(genes)})`);
     if (abn.length && !low) {
-        met.push(`an acquired clonal cytogenetic abnormality (${addCommas(abn.map(function (k) {
-            return ancAbnVocabulary[k].label;
-        }))})`);
-    }
-
-    if (!met.length) return '';
-
-    /* WHICH RULE APPLIED, not merely which criteria were met — the box asks for a
-       different number of them on either side of 1.0 × 10⁹/L, and a reader
-       checking the comment against it needs to see the same two lines. */
-    const rule = low
-        ? `both are required at an absolute monocyte count below ` +
-          `${DX_CMML_CLONALITY_BAND.toFixed(1)} × 10⁹/L, where the clonal criterion is met ` +
-          `only by a mutation in one of the genes of the recommended minimal panel`
-        : 'at least one is required at this monocyte count';
-    return `Of the desirable diagnostic criteria, ${addCommas(met)} ` +
-        `${met.length > 1 ? 'are' : 'is'} met; ${rule}.`;
-}
-
-/* How the subtype and the subgroup were arrived at. Printed as the numbers and
-   the thresholds rather than as the label alone: both are read off counts that
-   the reader can check, and the subgroup's rests on a blast percentage this app
-   cannot fully assemble (see the caution). */
-function dxCmmlSubtypeText(f) {
-    const parts = [];
-    const wbc = f.counts.wbc;
-    if (wbc !== null) {
-        parts.push(`The white cell count of ${wbc} × 10⁹/L places this in the ` +
-            `${wbc >= DX_CMML_MP_WBC ? 'myeloproliferative' : 'myelodysplastic'} subtype ` +
-            `(the two are separated at ${DX_CMML_MP_WBC} × 10⁹/L).`);
-    } else {
-        parts.push(`The myelodysplastic and myeloproliferative subtypes are separated at a ` +
-            `white cell count of ${DX_CMML_MP_WBC} × 10⁹/L, which is not available.`);
-    }
-
-    const group = dxCmmlSubgroup(f);
-    const counts = [];
-    if (f.blasts.marrow !== null) counts.push(`${dxPct(f.blasts.marrow)}% of marrow cells`);
-    if (f.blasts.blood !== null) counts.push(`${dxPct(f.blasts.blood)}% of blood leucocytes`);
-    if (group && counts.length) {
-        /* WHAT THE PERCENTAGE IS OF, and it is not a stylistic choice: the
-           criterion is written on blasts and blast equivalents, so a case that
-           counted the promonocytes has to say so and a case that did not must not
-           claim it. The caution says the same thing at length; this is the noun in
-           front of the number. */
-        parts.push(`${f.blasts.equivalentsCounted ? 'Blasts and promonocytes' : 'Blasts'} ` +
-            `account for ${addCommas(counts)}, placing this in ${group} ` +
-            `(CMML-2 is ≥${DX_CMML_BLAST_PB}% in the blood or ≥${DX_CMML_BLAST_BM}% in the marrow).`);
-    } else if (!group) {
-        parts.push(`The subgroup cannot be assigned: CMML-1 requires blasts and promonocytes ` +
-            `<${DX_CMML_BLAST_PB}% in the blood and <${DX_CMML_BLAST_BM}% in the marrow, and both ` +
-            `specimens must be counted to establish it.`);
+        parts.push(`Cytogenetic studies show ${addCommas(abn.map(function (k) {
+            return ancAbnPhrase(k);
+        }))}.`);
     }
     return parts.join(' ');
 }
 
-/* THE ICC DIFFERENCES THAT BITE ON THIS CASE, assembled rather than fixed. The
-   two classifications diverge in four places here — more than anywhere else in
-   the myelodysplastic tables — and printing all four on every case would bury the
-   one that decides this one. Each clause fires only where the case actually falls
-   on the far side of it, so a fully clonal, cytopenic, dysplastic case prints
-   nothing and the two classifications simply agree.
-
+/* THE ICC DIFFERENCES THAT BITE ON THIS CASE, for the card. Each clause fires
+   only where the case falls on the far side of it, so a fully clonal, cytopenic,
+   dysplastic case prints nothing and the two classifications simply agree.
    Returns '' when they do, which is what `diverges` below is asked. */
 function dxCmmlDivergence(f) {
     const notes = [];
     const clonal = dxCmmlIccClonal(f);
 
     if (clonal !== true) {
-        /* AN UNPRINTED ALLELE FRACTION IS NOT A LOW ONE, and this clause read it
-           as one. `anySomatic === true` says a variant was reported and says
-           nothing whatever about its size, so every case whose laboratory omitted
-           the VAF column was told "the variants reported here do not reach that
-           allele fraction" — a negative asserted from a measurement nobody made,
-           and against ICC's own criterion at that.
-
-           The shortfall is now claimed only where a fraction exists and falls
-           under the bar. Where none was recorded the sentence says so instead
-           rather than falling silent: a missing fraction is the reason ICC's
-           criterion cannot be answered on this case, and the reader has to be able
-           to tell which of the two situations is in front of them. */
-        let fraction = '.';
+        /* AN UNPRINTED ALLELE FRACTION IS NOT A LOW ONE: the shortfall is claimed
+           only where a fraction exists and falls under the bar. */
+        let fraction = '';
         if (f.genetics.anySomatic === true) {
-            if (f.genetics.maxVaf === null) {
-                fraction = ', and no variant allele fraction is recorded for the variants ' +
-                    'reported here.';
-            } else if (f.genetics.maxVaf < DX_CMML_ICC_VAF) {
-                fraction = ', and the variants reported here do not reach that allele fraction.';
+            if (f.genetics.maxVaf === null) fraction = ' No VAF is recorded for the variants.';
+            else if (f.genetics.maxVaf < DX_CMML_ICC_VAF) {
+                fraction = ` The variants are below ${DX_CMML_ICC_VAF}% VAF.`;
             }
         }
-        notes.push('ICC 2022 requires evidence of clonality in every case — an abnormal ' +
-            'karyotype and/or at least one myeloid neoplasm–associated mutation at a variant ' +
-            `allele fraction of at least ${DX_CMML_ICC_VAF}% — where WHO-HAEM5 lists an acquired ` +
-            'clonal abnormality among the desirable criteria rather than the essential ones' +
-            fraction);
-
         const route = dxCmmlIccAlternative(f);
-        const alternative = 'In the absence of clonality ICC accepts a monocyte count of at ' +
-            `least ${DX_CMML_CLONALITY_BAND.toFixed(1)} × 10⁹/L and above ${DX_CMML_MONO_PCT}% of ` +
-            'leucocytes together with increased blasts ' +
-            `(≥${DX_CMML_ICC_BLAST_BM}% in the marrow and/or ≥${DX_CMML_ICC_BLAST_PB}% in the ` +
-            'blood), morphologic dysplasia, or an immunophenotype consistent with CMML';
-        if (route === true) {
-            notes.push(`${alternative}; this case meets that alternative.`);
-        } else if (route === false) {
-            notes.push(`${alternative}; this case does not meet it, and would not be classified ` +
-                'as CMML by ICC 2022 on the findings available.');
-        } else {
-            notes.push(`${alternative}; whether this case meets that alternative is not ` +
-                'established by the findings available.');
-        }
+        notes.push(`ICC requires clonality (abnormal karyotype or a myeloid mutation at VAF ` +
+            `≥${DX_CMML_ICC_VAF}%) or, without it, monocytes ≥${DX_CMML_CLONALITY_BAND.toFixed(1)} ` +
+            `× 10⁹/L and >${DX_CMML_MONO_PCT}% with increased blasts, dysplasia or a CMML ` +
+            `immunophenotype.` + fraction +
+            (route === true ? ' This case meets the non-clonal route.'
+                : (route === false ? ' This case meets neither.'
+                    : ' Whether this case meets the non-clonal route is not established.')));
     }
 
-    /* ICC's cytopenia criterion, and its own footnote softening it. Fired only on
-       a case that HAS no cytopenia — a null means nobody has said, which is not a
-       divergence, it is an unfinished workup. */
+    /* ICC's cytopenia criterion, fired only on a case that HAS no cytopenia. */
     if (f.cytopenia.any === false) {
-        notes.push('ICC 2022 also lists a cytopenia, at the thresholds it uses for MDS, among ' +
-            'its diagnostic criteria; WHO-HAEM5 does not require one, and none is recorded here. ' +
-            'ICC notes that a small proportion of cases, usually in early phase disease, show ' +
-            'only borderline or no cytopenia.');
+        notes.push('ICC also requires a cytopenia (borderline or absent in some early cases); ' +
+            'none is recorded.');
     }
 
-    /* The two lesser categories WHO does not name, raised where the marrow is the
-       thing that is not diagnostic. */
     if (f.dysplasia.any === false && dxAtLeast(f.blasts.marrow, DX_CMML_ICC_BLAST_BM) !== true) {
-        notes.push('Where the marrow does not show the findings of CMML, ICC 2022 recognises ' +
-            'clonal monocytosis of undetermined significance (CMUS) — or clonal cytopenia and ' +
-            'monocytosis of undetermined significance (CCMUS) where a cytopenia is present — as ' +
-            'categories short of the diagnosis; WHO-HAEM5 names neither, and in either setting ' +
-            'an alternative cause for the monocytosis must be excluded clinicopathologically.');
+        notes.push('Without CMML marrow findings, ICC would consider CMUS, or CCMUS if cytopenic.');
     }
 
     return notes.join(' ');
 }
 
-/* NOT dxMorphologySentence() IN THE HEAD, which every other comment in this file
-   uses. It states the dysplastic lineages and the blast percentage — and on this
-   rule both are said again downstream, the lineages by the desirable-criteria
-   sentence and the blasts by the subgrouping sentence, which is where each of
-   them earns its place. Using it here printed the blast count twice in one
-   comment, once to one decimal and once not. */
+/* One paragraph: the counts, the supporting findings, the classification. The
+   subtype and subgroup are in the name itself; the thresholds behind them are
+   not repeated. */
 function dxCmmlComment(f, mode, rule) {
-    const head = mode === 'addendum'
-        ? 'The previously reported findings have been reviewed in conjunction with the ' +
-          'now-available studies.'
-        : dxCmmlMonocyteText(f);
-
     const parts = [];
-    const desirable = dxCmmlDesirableText(f);
-    if (desirable) parts.push(desirable);
+    if (mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+    parts.push(dxCmmlFindingsText(f));
+    parts.push(dxCmmlSupportText(f));
     parts.push(dxClassificationSentence(rule, f, dxLower(dxCmmlName(f))));
-    parts.push(dxCmmlSubtypeText(f));
-
-    const waiting = dxPendingStudies(f);
-    if (waiting.length) {
-        /* DESIRABLE OR REQUIRED IS THE MONOCYTE COUNT'S ANSWER, not a fixed one,
-           and the sentence has to move with it — calling clonality "desirable" in
-           the band where footnote a makes it mandatory understates exactly the
-           criterion the reader is being told to wait for. */
-        parts.push(`${addCommas(waiting).replace(/^./, function (c) { return c.toUpperCase(); })} ` +
-            `studies are outstanding; a demonstrated clonal abnormality is ` +
-            (f.counts.monocytosisNeedsClonality === true
-                ? `required for this diagnosis at this monocyte count`
-                : `a desirable criterion for this diagnosis`) +
-            ` and an addendum will follow.`);
-    }
-
-    return (head ? head + '\n\n' : '') + parts.join(' ');
+    return parts.filter(Boolean).join(' ');
 }
 
-/* THE CAUTIONS, and there are more here than on any other rule because more of
-   this entity's criteria live outside what a marrow can answer. Each fires on the
-   case in front of it; the first two fire on every case, because they are the two
-   things a single specimen can never establish. */
+/* The report's recommendations. Each fires on the case in front of it except the
+   first, which no single specimen can ever settle. */
 function dxCmmlCaution(f) {
-    const notes = [];
+    const notes = ['Reactive causes of monocytosis should be excluded and persistence confirmed.'];
 
-    /* Persistence, and the differential the chapter opens with. */
-    notes.push('The monocytosis must be persistent and other causes of monocytosis — ' +
-        'infection, inflammatory and autoimmune conditions, malignancy, and drug and ' +
-        'growth factor effect — should be excluded before this diagnosis is made; a ' +
-        'single count cannot establish persistence.');
-
-    /* PROMONOCYTES, and which of the two things the printed percentage is. The
-       differential now has keys for them, so this says one of two different
-       things: that the count included them, or that it should be confirmed to.
-       Both are worth printing, because the difference decides the AML boundary and
-       the subgroup, and neither is visible in a bare percentage. Said whenever a
-       blast count was read at all. */
-    if (f.blasts.marrow !== null || f.blasts.blood !== null) {
-        notes.push('Blasts and blast equivalents in this classification comprise myeloblasts, ' +
-            'monoblasts and promonocytes, promonocytes being counted as blast equivalents. ' +
-            (f.blasts.equivalentsCounted
-                ? 'Promonocytes were enumerated in this differential and are included in the ' +
-                  'percentages above. The distinction between a promonocyte and an immature ' +
-                  'monocyte is not always reproducible, and it decides both the 20% ceiling ' +
-                  'and the CMML-1/CMML-2 subgroup.'
-                : 'Promonocytes were not separately enumerated in this differential, and the ' +
-                  'percentages above should be confirmed to include them; the distinction ' +
-                  'between promonocytes and immature monocytes decides both the 20% ceiling ' +
-                  'and the CMML-1/CMML-2 subgroup.'));
+    /* ICC WOULD NOT CALL THIS CMML, which the name line cannot show because the
+       two classifications share the name. Said in the report because it is a
+       classification the reader needs, not a reason. */
+    if (dxCmmlIccClonal(f) !== true && dxCmmlIccAlternative(f) === false) {
+        notes.push('The ICC 2022 criteria for CMML, which require clonality at this monocyte ' +
+            'count, are not met.');
     }
 
-    /* BCR::ABL1, and the reason it is not enough to have looked at the karyotype:
-       the p190 fusion mimics CMML and the cytogenetics may be cryptic. */
+    /* BCR::ABL1: the p190 fusion mimics CMML and may be cryptic on karyotype. */
     if (f.drivers.bcrAbl !== false) {
-        notes.push('Chronic myeloid leukemia with the p190 BCR::ABL1 fusion can mimic CMML ' +
-            'hematologically and morphologically. RT-PCR and/or FISH for BCR::ABL1 should be ' +
-            'performed alongside conventional karyotyping, because rare fusion variants may ' +
-            'be cytogenetically cryptic and lack t(9;22)(q34;q11.2) on G-banding.');
+        notes.push('BCR::ABL1 testing by RT-PCR or FISH is recommended to exclude CML.');
     }
 
     /* Essential criterion 4, raised where its own footnote raises it. */
     if (f.counts.eosinophilia === true) {
-        notes.push('Eosinophilia is present. The criteria for myeloid/lymphoid neoplasms with ' +
-            'eosinophilia and tyrosine kinase gene fusions (PDGFRA, PDGFRB, FGFR1, JAK2) should ' +
-            'be specifically excluded before this diagnosis is made.');
+        notes.push('Given the eosinophilia, PDGFRA, PDGFRB, FGFR1 and JAK2 rearrangements should ' +
+            'be excluded.');
     }
 
-    /* Desirable criterion 3, which nothing in this app can answer. Its own
-       limitation is stated alongside it: the test is not interpretable in the
-       autoimmune and inflammatory setting, which is common in this disease. */
-    notes.push('Partitioning of the peripheral blood monocyte subsets has not been assessed. ' +
-        'An increase in classic CD14+/CD16− monocytes above 94% is a desirable diagnostic ' +
-        'criterion and distinguishes CMML from reactive monocytosis, but it is not ' +
-        'interpretable in patients with active autoimmune disease or a systemic inflammatory ' +
-        'syndrome — present in about 20% of patients with CMML — in whom a reduced ' +
-        'slan-positive non-classic subset (<1.7% of monocytes) has been proposed instead.');
-
-    /* The distinction the chapter says is genuinely difficult, raised on the
-       finding that makes it difficult. */
     if (dxBandAtLeast(f.fibrosis.grade, 2) === true) {
-        notes.push('Moderate to severe reticulin fibrosis is present at diagnosis in only about ' +
-            '3% of CMML, and those cases tend to be myeloproliferative with marked monocytosis, ' +
-            'splenomegaly and a JAK2 p.V617F mutation. Distinction from primary myelofibrosis ' +
-            'and other myeloproliferative neoplasms with monocytosis may be difficult; the ' +
-            'megakaryocyte morphology and the JAK2 variant allele fraction are of ' +
-            'discriminatory value.');
+        notes.push('The fibrosis raises primary myelofibrosis or another MPN with monocytosis; ' +
+            'megakaryocyte morphology and the JAK2 variant allele fraction help separate them.');
     }
 
-    /* Prior therapy takes the case to a different category outright. */
+    /* Prior therapy takes the case to a different WHO category outright. */
     if (f.history.priorTherapy === true) {
-        notes.push('A history of cytotoxic chemotherapy and/or radiation therapy is recorded. ' +
-            'Such cases are classified according to the criteria for myeloid neoplasms post ' +
-            'cytotoxic therapy rather than as CMML.');
+        notes.push('With the history of cytotoxic therapy, the case falls under myeloid neoplasm ' +
+            'post cytotoxic therapy (WHO-HAEM5).');
     }
 
-    /* The two histories that point in opposite directions. An antecedent MPN
-       excludes and is gated; an antecedent MDS explicitly permits reclassification,
-       which is worth saying because the reader may expect the opposite. */
+    return notes.join(' ');
+}
+
+/* The card's notes: the criteria the pathologist must weigh that no specimen in
+   this app records, and the count rule behind the desirable findings. */
+function dxCmmlCheck(f) {
+    const notes = [];
+
+    if (f.counts.monocytosisNeedsClonality === true) {
+        notes.push(`Below ${DX_CMML_CLONALITY_BAND.toFixed(1)} × 10⁹/L both dysplasia and a clonal ` +
+            'abnormality (minimal gene panel) are required.');
+    }
+
+    if (f.blasts.marrow !== null || f.blasts.blood !== null) {
+        notes.push(f.blasts.equivalentsCounted
+            ? 'Promonocytes were counted as blast equivalents; the promonocyte/immature monocyte ' +
+              'call is poorly reproducible and decides the 20% ceiling and CMML-1/2.'
+            : 'Confirm the blast percentage includes promonocytes; they decide the 20% ceiling ' +
+              'and CMML-1/2.');
+    }
+
+    if (f.counts.wbc === null) notes.push('MD- versus MP-CMML needs a WBC (split at 13 × 10⁹/L).');
+    if (!dxCmmlSubgroup(f)) {
+        notes.push('CMML-1 versus CMML-2 needs both marrow and blood blast counts.');
+    }
+
+    notes.push('Monocyte subset partitioning (classic monocytes >94%) is not recorded here, and ' +
+        'is uninterpretable with active autoimmune or inflammatory disease.');
+
     if (f.history.antecedentMyeloid === true) {
-        notes.push('A patient who presents with a myelodysplastic neoplasm and subsequently ' +
-            'develops the diagnostic criteria for CMML may be reclassified as having CMML.');
+        notes.push('A prior MDS that now meets CMML criteria may be reclassified as CMML.');
     }
-
-    /* THE PROGNOSIS, once there is a genetic result to read it against. Printed
-       here rather than scored, for the reason every prognostic finding in this
-       engine is: it says what the case means, never how likely the diagnosis is.
-       The four genes named are the ones the CMML-specific models actually weight,
-       which is why this waits for a molecular result instead of printing the
-       median survival on its own. */
     if (f.genetics.anySomatic !== null) {
-        notes.push('CMML carries a median overall survival of 2–3 years and a 15–30% risk of ' +
-            'transformation to acute myeloid leukemia. The CMML-specific prognostic models ' +
-            'weight ASXL1, RUNX1, NRAS and SETBP1 mutations alongside high-risk cytogenetics, ' +
-            'the blast percentage, the degree of cytopenia and the extent of the monocytosis; ' +
-            'correlation with a validated model is recommended.');
+        notes.push('For prognosis, use a CMML-specific model (ASXL1, RUNX1, NRAS, SETBP1).');
     }
-
     return notes.join(' ');
 }
 
@@ -767,7 +635,8 @@ dxRules.push(
             study: 'cytogenetic and molecular'
         },
         comment: function (f, ctx) { return dxCmmlComment(f, ctx.mode, ctx.rule); },
-        caution: dxCmmlCaution
+        caution: dxCmmlCaution,
+        check: dxCmmlCheck
     },
     {
         id: 'mdsMpnSf3b1T',
@@ -878,13 +747,10 @@ dxRules.push(
            requires ≥10%" — but the pasted chapter's essential criteria REQUIRE
            >=15% ring sideroblasts, its box states no VAF floor at all, and it is
            ICC that admits ring-sideroblast-free cases on the mutation. */
-        divergence: 'WHO-HAEM5\'s essential criteria require ≥15% ring sideroblasts beside the ' +
-            'SF3B1 mutation, and its Box 2.21 asks for a concurrent JAK2, MPL, or CALR ' +
-            'mutation; ICC 2022 requires the SF3B1 mutation at a variant allele fraction ' +
-            '>10% and does not require ring sideroblasts. The two also part ways on clonal ' +
-            'evolution: MDS-SF3B1 that acquires a JAK2, MPL, or CALR mutation with ' +
-            'thrombocytosis may be reclassified as this entity by WHO-HAEM5, whereas ICC ' +
-            'regards it as thrombocytotic progression of MDS-SF3B1.'
+        divergence: 'WHO-HAEM5 requires ≥15% ring sideroblasts and asks for a JAK2, MPL or CALR ' +
+            'co-mutation; ICC requires SF3B1 at VAF >10% and no ring sideroblasts. MDS-SF3B1 ' +
+            'that later gains a driver and thrombocytosis may be reclassified here by WHO-HAEM5; ' +
+            'ICC calls it progression of MDS-SF3B1.'
     }
 
 );

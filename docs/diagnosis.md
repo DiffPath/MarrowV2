@@ -5,11 +5,29 @@
 
 ## The Diagnosis tab (`MarrowDx*.js`) and the findings snapshot (`MarrowFindings.js`)
 
-> The tab is **nine files** split by disease family, not one. `MarrowDxKernel.js` is the one to read
+> The tab is **thirteen files** split by disease family, not one. `MarrowDxKernel.js` is the one to read
 > first — it carries the file header, the point ladder and the three-valued contract, and declares
 > `dxRules` empty for the family files to push onto. Everything this document says about `dxRules`,
 > gates, points and buckets is unchanged by that split; only where you open it changed. The table in
 > the root `CLAUDE.md` maps family to file.
+
+> **`MarrowDxBmf.js` is the one family this document's premises do not fully cover** — see
+> [diagnosis-bmf.md](diagnosis-bmf.md). Aplastic anemia and the three single-lineage aplasias are
+> not neoplasms, so neither classification carries them and **there is no criteria box to read the
+> rules against, now or later**. The gates therefore ask only what a marrow can show and everything
+> else is stated in the caution, which is `MarrowDxPcn.js`'s approach for the same reason. Running
+> its vignettes also found the same defect in three of its four rules — *the entity's defining
+> finding scored nothing because it gated* — which is the doctrine above being violated in a new
+> file rather than a new kind of mistake.
+
+> **`MarrowDxLymphoid.js` is the first family that is not a MYELOID question** — see
+> [diagnosis-lymphoid.md](diagnosis-lymphoid.md). Everything this document says about gates, points
+> and buckets holds for it unchanged; what it adds is `axis` (`MarrowDxKernel.js`). A marrow can be
+> a myelodysplastic neoplasm *and* carry a lymphoid infiltrate, so those candidates are not
+> alternatives, and ranking them against each other would read as "rather than" where the answer is
+> "as well as". Two behaviours key on it: `dxResidualCategory` only demotes on a better fit for the
+> same question — it is also flag-driven now (`residual: true`) rather than testing for `mpnU` by
+> id — and the Differential view takes its threshold per axis and renders one table each.
 
 > **The criteria in `dxRules` are a DRAFT, and the three families are draft to DIFFERENT degrees.**
 > They are isolated in one table so they can be checked line by line.
@@ -228,13 +246,107 @@ are **radio groups** (read by `name`, like Laterality and the template types), n
 checkboxes: a mode and a view must always have exactly one selected, and a radio cannot be clicked
 off — the clearable toggle-group pattern would let both pills go blank.
 
-**The tab has two views, a `.chipGroup` toggle apart.** **Comments** (default) is the working
+**The tab has three views, a `.chipGroup` toggle apart, and they are the three questions in
+order: what would I write, what do I do next, why did it rank there.** **Comments** (default) is the
+working
 surface: the candidates that scored **> 0** and are not excluded/unassessed, ONE per page with the
 comment prose it would produce and a "Use this comment" button, paged with `‹ n of m ›` arrows so a
-long differential is never a scroll. **Scoring** is the debug surface: the "What the case says"
+long differential is never a scroll. **Differential** is the plan — see below. **Scoring** is the debug surface: the "What the case says"
 findings summary at its head (the raw material the scoring is derived from, so it heads the audit
 rather than riding above the working view as chrome), then every candidate — its bucket and total,
 the gates it met, and each support point that fired — so the number is auditable, not asserted.
+
+### The Differential view (`MarrowDxSteps.js`)
+
+The top candidates with **what would settle each one**, as a table. Its own file, loaded between the
+engine and the panel.
+
+**Four columns — Differential, Criteria met, Still needed, Further workup — and it is a table rather
+than a stack of cards because of the comparison it is for.** The first cut was cards, and they said
+everything about one candidate before starting the next: "what is still needed across all of these"
+meant reading four blocks and holding them in your head, where in a column it is one downward scan.
+That is the trade the table makes — per-candidate prose given up for per-column comparison, which is
+what a differential is read for. It takes `.dataTable`'s header bar so the app's two tables look
+like one family, and almost nothing else from it: `.dataTable` is `white-space: nowrap`, sized for
+numbers that must not wrap, and every cell here is a list of clinical prose that must. The header is
+`position: sticky` because five candidates run to about twice the panel's height, and four columns
+of unlabelled lists is what a scrolled-away header leaves behind.
+
+**The columns split on whether a criterion has an ANSWER, not on whether it is good news.** *Criteria
+met* carries the gates met, then the soft criteria met, then — muted — the ones the case
+**contradicts**, because a contradicted criterion has been answered, in the wrong direction, and no
+further study will change it; filing it under *Still needed* would send a reader to order something
+that cannot help. *Still needed* is the unanswered ones.
+
+**The exclusions are grouped under one heading rather than repeated as a suffix per item.**
+MDS-SF3B1 has two unanswered `requires` and six unanswered `excludes`, so the cell first read as
+eight bullets of which six ended "— rules it out if present" — the same six words down the column,
+drowning the two lines that say what the diagnosis actually needs. A `RULES IT OUT IF PRESENT`
+sub-heading says it once.
+
+**`Further workup` is the studies and only the studies**, deduped, because the column beside it
+already carries the criteria. In the card layout each action had to drag its criteria along, since
+there was nowhere else to put them; the table is what makes the workup column scannable on its own.
+An action reached only through soft criteria is muted, so a study that can settle the question never
+looks like one that cannot.
+
+**Nothing outstanding is printed as a sentence, not left as a dash.** On a `supported` candidate the
+absence of a next step *is* the finding.
+
+**The threshold is relative to the leader and has to be.** `DX_DIFFERENTIAL_MARGIN = 4` — a
+candidate is in the differential when its rank score is within 4 of the leader's. An *absolute*
+cut-off is what the Comments view already had to remove: a total has no fixed zero, since a
+prevalence prior is negative for a rare entity and a contradicted soft criterion subtracts, so
+`score > 0` would filter aplastic anemia (prior −1) off its own worked example. 4 is the ladder's
+"a defining criterion another entity can also show" — one finding from changing the answer. Capped
+at `DX_DIFFERENTIAL_MAX = 5`.
+
+**The view carries no chrome, at the author's ask, and the argument for the chrome is recorded at
+`dxDifferentialHTML` rather than deleted.** Three lines went: the threshold note above the table, the
+grey legend under it, and `dxHiddenNote()`'s "n ruled out, n not yet assessed". The case for keeping
+them was the auditability one — a cut-off that truncates what a reader is looking at and does not
+say so is the least auditable thing in this tool. What answers it is that none of the three was the
+only copy: the margin and the cap are here and in the file header, the grey means what a muted list
+item means everywhere else in the panel, and every filtered-out candidate is listed individually,
+with its reason, one click away in Scoring. **The Comments view keeps `dxHiddenNote()`** for the
+reason it always had it — that view pages, so what is off screen there is genuinely invisible.
+
+The **runner-up line** stays: it is the one of the four that is about the case rather than the view.
+A differential with a single entry is a verdict, and the gap to whatever is behind it is what says
+how confident a verdict it is.
+
+**The steps are derived from the rules, never authored per entity.** A `nextSteps: []` array on each
+rule would start out agreeing with its own gates, drift on the first edit with nothing comparing the
+two, and be wrong on the case in front of you — listing "obtain a karyotype" on a marrow that has
+one. So a step exists only where the engine reports a criterion UNANSWERED for this case
+(`result.outstanding`), and this file only says which test answers a criterion — a fact about
+laboratory practice, the same for every entity that asks it. Mapping is by label text, the heuristic
+`dxNeedsGenetics` has used since the engine was written; an unmatched criterion still prints, just
+with no action beside it (two do, and both are composites).
+
+**`result.outstanding` is the engine's addition for this**: `[{label, kind}]` over the same criteria
+as `unknown` + `quiet`, tagged `requires` / `excludes` / `expects`. The flat lists cannot express the
+distinction the whole column set is built on — answering a `requires` confirms, an `excludes` can
+only exclude, an `expects` can do neither and only moves the rank. Soft criteria are capped at three
+per cell and the gates are not: a rule can carry a dozen unanswered `expects`, and an uncapped list
+would bury the two criteria that decide the answer under ten that only nudge it.
+
+**Steps are grouped by the study that answers them**, so three genetic criteria are one karyotype.
+A rule's `definedBy` study is pushed first so it survives on the rules where it is not among the
+gates; where it *is* among them — MDS-SF3B1 gates on the SF3B1 mutation this table maps to the NGS
+panel — the dedupe collapses the two, which is what stopped the card asking for the sequencing twice
+three lines apart. The declaration is also read for the **conditional note** beside the name
+("Conditional until molecular studies demonstrate an SF3B1 mutation"), which belongs there rather
+than in the workup column: it is a statement about what may be asserted, not a study to order.
+
+**Two display bugs it surfaced in the older cards**, both fixed at the shared helper
+(`dxCaseEvidence`): the prevalence prior was printing under **Against** — aplastic anemia read
+"Against: uncommon overall, and much the commonest of the marrow failure states", half an argument
+*for* it under a heading saying the opposite — and the workup bonus was printing under **Because**,
+as though the request form were evidence about the marrow. Both lines now read `kind === 'case'`
+only. (The Differential view no longer prints an evidence tally at all — its columns are criteria,
+and the scored tally is the Scoring view's job — but the fix was made at the shared helper and the
+Comments card keeps it.)
 Paging draws from the **stored** ranking (`dxResults` / `dxFindings`), never re-ranking, so
 the arrows cannot reorder the list they move through; only `refreshDx()` re-ranks. The Use button and
 the page index both read that same stored ranking for the same reason.
@@ -302,11 +414,34 @@ awaited — a contradiction in consecutive sentences. An explicit **Pending** st
 inference: the toggle is a deliberate statement ("more is coming"), and silently overriding it would
 be worse than the slight oddity of classifying on a partial result.
 
+**The comment is written the way a hematopathologist writes one** (rewritten 2026-09, on the
+author's instruction: succinct, no useless information, no rationale). A comment is at most: one
+findings sentence (the dysplastic lineages and the blast count, or the counts the entity turns on),
+the classification in both names (`dxNameLine`: *"X (MDS-IB2; WHO-HAEM5) and Y (ICC 2022)"*), a
+case-specific recommendation or two, and the pending line last. The average fell from 77 words to
+32 across the harness vignettes.
+
+**Report text and card text are separate fields.** A rule's `caution(f)` is **report** text: short,
+about this case, never the reason behind it. Its `check(f)` is **card** text, shown on the
+Diagnosis card as a *Check* line and never copied into the report: reminders to look at something on
+the slide ("Auer rods are not recorded. Review the smears…"), what this app does not record, the
+general risk lists, the reasoning a caution used to carry. The `divergence` paragraph moved to the
+card too, as a *WHO vs ICC* line: the report already names both classifications, and why they differ
+is the pathologist's question, not the clinician's. **The one exception** is a divergence the name
+line cannot show because one classification has no name for the case (ICC below its 10% AML floor,
+an AML-MR route one classification does not accept, CMML failing ICC's clonality rule): that is said
+in the comment, as a classification, in one sentence.
+
+Rules for writing either: no mention of this app, its rules or its cards in a caution; no
+prognosis or epidemiology unless it changes management (the lenalidomide/TP53 line stays, the
+SF3B1 "most favorable outcome" line went); the generic "secondary causes of dysplasia" line only on
+MDS-LB and MDS-h without a demonstrated clone.
+
 **Pending genetics is a first-class state, not a gap.** A comment is usually written before
-cytogenetics and NGS result, so `dxComment()` in Final mode says the morphologic classification and
-that final classification depends on the outstanding studies — never the word "temporary". The
-**Final ↔ Addendum** toggle switches register; Addendum writes it as a revision against previously
-reported findings. This is why `ancStudyStatus()` exists: `ngsVariants()` returning `[]` cannot tell
+cytogenetics and NGS result, so `dxComment()` ends on *"Cytogenetic and molecular studies are
+pending; an addendum will follow"* (`dxPendingSentence`) — never the word "temporary". It is
+appended by `dxComment` itself, after the caution, so it is always the last sentence. The
+**Final ↔ Addendum** toggle switches register; an addendum opens with `DX_ADDENDUM_LEAD`. This is why `ancStudyStatus()` exists: `ngsVariants()` returning `[]` cannot tell
 "no variants found" (a real negative that closes a criterion) from "not resulted" (an unknown that
 must not).
 
@@ -526,8 +661,8 @@ definedBy: { finding: f => f.genetics.del5q, phrase: 'deletion of 5q', study: 'c
 ```
 
 — and `dxClassificationSentence()` (kernel) writes the conditional whenever that finding is not
-`true`: *"In correlation with cytogenetic studies demonstrating deletion of 5q, the findings **would
-be** best classified as…"*. The candidate is still offered and still ranks on its morphology; only
+`true`: *"If cytogenetic studies show deletion of 5q, the findings **would be** consistent
+with…"*. The candidate is still offered and still ranks on its morphology; only
 the mood moves. A rule that declares no `definedBy` is not genetically defined — MDS-LB, the
 classical MPN triad, AML defined by differentiation — and keeps the flat register.
 

@@ -79,17 +79,36 @@ function dxEvaluate(rule, f) {
        criterion met, `lacking` one contradicted, `quiet` one nobody has answered. */
     const expected = [], lacking = [], quiet = [];
 
+    /* THE SAME UNANSWERED CRITERIA, CARRYING WHICH KIND OF CLAUSE THEY CAME FROM.
+       `unknown` and `quiet` are flat label lists and three consumers already read
+       them that way (dxNeedsGenetics matches their text, the Scoring view prints
+       them), so this is an ADDITIONAL array rather than a change to either.
+
+       What it adds is the distinction the Differential view is built on and the
+       flat lists cannot express: answering a `requires` can CONFIRM or EXCLUDE,
+       answering an `excludes` can only exclude, and answering an `expects` can do
+       neither — it moves the rank and nothing else. A view that told a reader to
+       go and order a study has to be able to say which of those three the result
+       would buy them. */
+    const outstanding = [];
+
     (rule.requires || []).forEach(function (clause) {
         const value = clause[1](f);
         if (value === true) met.push(clause[0]);
         else if (value === false) failed.push(clause[0]);
-        else unknown.push(clause[0]);
+        else {
+            unknown.push(clause[0]);
+            outstanding.push({ label: clause[0], kind: 'requires' });
+        }
     });
 
     (rule.excludes || []).forEach(function (clause) {
         const value = clause[1](f);
         if (value === true) failed.push(clause[0]);
-        else if (value === null) unknown.push(clause[0]);
+        else if (value === null) {
+            unknown.push(clause[0]);
+            outstanding.push({ label: clause[0], kind: 'excludes' });
+        }
     });
 
     /* SOFT CRITERIA: [label, for, against, test]. Strong evidence that is not
@@ -121,6 +140,7 @@ function dxEvaluate(rule, f) {
             if (clause[2]) evidence.push(dxPoint(clause[0] + ' (not met)', clause[2]));
         } else {
             quiet.push(clause[0]);
+            outstanding.push({ label: clause[0], kind: 'expects' });
         }
     });
 
@@ -193,6 +213,9 @@ function dxEvaluate(rule, f) {
         expected: expected,
         lacking: lacking,
         quiet: quiet,
+        /* [{label, kind}] over the same criteria as `unknown` + `quiet`, in gate
+           order. Read by the Differential view (MarrowDxSteps.js). */
+        outstanding: outstanding,
         evidence: evidence,
         suppressed: suppressed || [],
         who: rule.whoFor ? rule.whoFor(f) : rule.who,
@@ -208,8 +231,19 @@ function dxEvaluate(rule, f) {
            it needs something said out loud — fibrosis with no driver mutation being
            the case it was added for. Separate from `divergence`, which is about the
            two classifications disagreeing, because this one is about the case. A
-           second caution can be appended after ranking (see dxUnresolvedPair). */
-        caution: rule.caution ? rule.caution(f) : ''
+           second caution can be appended after ranking (see dxUnresolvedPair).
+
+           REPORT TEXT, so it is written the way a hematopathologist writes a
+           comment: a short, case-specific recommendation or fact, never the
+           rationale behind it. */
+        caution: rule.caution ? rule.caution(f) : '',
+        /* THE PATHOLOGIST'S HALF, which never reaches the report: reminders to
+           look at something on the slide, limits of what this app records, and
+           the reasoning a caution would otherwise have carried. Shown on the
+           Diagnosis card as its own line (MarrowDxPanel.js). The divergence
+           paragraph lands there too — the report already names both
+           classifications in its diagnosis line. */
+        check: rule.check ? rule.check(f) : ''
     };
 }
 
@@ -292,12 +326,9 @@ function dxUnresolvedPair(results) {
        about what THIS case shows. */
     if (Math.abs(et.support - pre.support) > DX_UNRESOLVED_MARGIN) return;
 
-    const note = 'The distinction between essential thrombocythemia and prefibrotic primary ' +
-        'myelofibrosis is not resolved by the present findings. The two are separated ' +
-        'principally on megakaryocyte morphology, which is the least reproducible ' +
-        'assessment in this classification, and the distinction carries a substantial ' +
-        'difference in prognosis; correlation with the clinical findings, the lactate ' +
-        'dehydrogenase and spleen size, and molecular studies is recommended.';
+    const note = 'Essential thrombocythemia and prefibrotic primary myelofibrosis cannot be ' +
+        'reliably separated on the present findings; correlation with LDH, spleen size and ' +
+        'the clinical course is recommended.';
     [et, pre].forEach(function (r) {
         r.unresolvedWith = r === et ? 'prePmf' : 'et';
         r.caution = r.caution ? r.caution + ' ' + note : note;
@@ -322,26 +353,58 @@ function dxUnresolvedPair(results) {
    engine simply cannot see that from inside a single rule, because rules are
    evaluated independently by design. Reported as an explicit `unknown` so the
    Scoring view says why, rather than as a silent demotion. */
+/* DECLARED ON THE RULE (`residual: true`) RATHER THAN NAMED HERE, which it was:
+   this function used to test `r.rule.id === 'mpnU'`. That was fine while MPN-NOS
+   was the only residual in the table and stopped being fine the moment a second
+   family arrived with one — the lymphoid axis's "atypical lymphoid infiltrate of
+   uncertain significance" is the same shape of category, easy to satisfy
+   completely and wrong to confirm while something more specific fits. A
+   hard-coded id is also the failure this repo keeps finding: it works, it never
+   errors, and the next rule that needs the behaviour silently does not get it. */
 function dxResidualCategory(results) {
-    const residual = results.filter(function (r) { return r.rule.id === 'mpnU'; })[0];
-    if (!residual || residual.bucket === 'excluded' || residual.bucket === 'unassessed') return;
+    results.filter(function (r) {
+        return r.rule.residual && r.bucket !== 'excluded' && r.bucket !== 'unassessed';
+    }).forEach(function (residual) {
+        /* ANY better-scoring live candidate counts, not just another subtype of
+           the same family. The first cut restricted this to family 'mpn' and let
+           MDS/MPN-SF3B1-T — which scored 7 to the residual's 2 — sit below it,
+           because the overlap entity is in a different family. But "cannot be
+           assigned to a specific subtype" is not a claim about the MPN column: if
+           anything at all fits the case better, the subtype question is not
+           settled, and that is as true of an overlap or a myelodysplastic
+           candidate as of essential thrombocythemia.
 
-    /* ANY better-scoring live candidate counts, not just another MPN subtype. The
-       first cut restricted this to family 'mpn' and let MDS/MPN-SF3B1-T — which
-       scored 7 to the residual's 2 — sit below it, because the overlap entity is
-       in a different family. But "cannot be assigned to a specific subtype" is not
-       a claim about the MPN column: if anything at all fits the case better, the
-       subtype question is not settled, and that is as true of an overlap or a
-       myelodysplastic candidate as of essential thrombocythemia. */
-    const contender = results.some(function (r) {
-        return r.rule.id !== 'mpnU' &&
-            r.bucket !== 'excluded' && r.bucket !== 'unassessed' && r.score > residual.score;
+           WITHIN THE SAME AXIS, THOUGH, and that limit arrived with the lymphoid
+           rules. A myelodysplastic candidate scoring 9 says nothing whatever
+           about whether an atypical lymphoid infiltrate has been characterised —
+           the two answer different questions and a marrow may be both — so
+           without the axis test the strongest myeloid candidate in the table
+           would demote the lymphoid residual on every case that had one. */
+        const axis = dxAxis(residual.rule);
+        const contender = results.some(function (r) {
+            return r.rule !== residual.rule && dxAxis(r.rule) === axis &&
+                r.bucket !== 'excluded' && r.bucket !== 'unassessed' && r.score > residual.score;
+        });
+        if (!contender) return;
+
+        /* BOTH LISTS, and the second one is easy to forget because nothing reads
+           it until the Differential view does. `outstanding` is `unknown` +
+           `quiet` with the clause kind attached, so a criterion added here and
+           not there leaves the two disagreeing — the Scoring view would show an
+           outstanding criterion the Differential's "Still needed" column did
+           not. Tagged `requires` because that is what it behaves like: it is
+           unmet, and it is categorical for this category. No study answers it,
+           so the step vocabulary maps it to no action and it prints as a bare
+           criterion, which is exactly right — what settles it is another
+           candidate ceasing to fit, not a test. */
+        const stillOpen = 'another candidate fits the case better; a specific subtype has not ' +
+            'been excluded';
+        residual.unknown = residual.unknown.concat([stillOpen]);
+        residual.outstanding = (residual.outstanding || []).concat([
+            { label: stillOpen, kind: 'requires' }
+        ]);
+        if (residual.bucket === 'supported') residual.bucket = 'incomplete';
     });
-    if (!contender) return;
-
-    residual.unknown = residual.unknown.concat(['another candidate fits the case better; ' +
-        'a specific subtype has not been excluded']);
-    if (residual.bucket === 'supported') residual.bucket = 'incomplete';
 }
 
 function dxRank(f) {
@@ -383,19 +446,39 @@ function dxPendingStudies(f) {
     return waiting;
 }
 
+/* The blast percentage as the report states it, with what it rests on where
+   that is not a differential. */
+function dxBlastBasis(f) {
+    const cd34 = f.blasts.marrowBasis && f.blasts.marrowBasis.indexOf('cd34') === 0;
+    return cd34 ? ' by CD34 immunohistochemistry' : '';
+}
+
+/* "Blasts comprise 60% of marrow cells", or "…are not increased (2%)" below 5%. */
+function dxBlastSentence(f) {
+    if (f.blasts.marrow === null) return '';
+    const pct = `${dxPct(f.blasts.marrow)}%`;
+    return dxBelow(f.blasts.marrow, 5) === true
+        ? `Blasts are not increased (${pct}${dxBlastBasis(f)}).`
+        : `Blasts comprise ${pct} of marrow cells${dxBlastBasis(f)}.`;
+}
+
+/* One sentence: the dysplastic lineages and the blast count. The findings are
+   already described in the microscopic; the comment names only the two things
+   the classification turns on. */
 function dxMorphologySentence(f) {
-    const parts = [];
+    const named = [];
     if (f.dysplasia.count !== null && f.dysplasia.count > 0) {
-        const named = [];
         if (f.dysplasia.erythroid.atLeast10) named.push('erythroid');
         if (f.dysplasia.myeloid.atLeast10) named.push('granulocytic');
         if (f.dysplasia.megakaryocytic.atLeast10) named.push('megakaryocytic');
-        if (named.length) parts.push(`Dysplasia is present in the ${addCommas(named)} ${named.length > 1 ? 'lineages' : 'lineage'}.`);
     }
-    if (f.blasts.marrow !== null) {
-        parts.push(`Blasts account for approximately ${f.blasts.marrow.toFixed(1)}% of marrow cells.`);
+    const dysplasia = named.length === 3 ? 'Trilineage dysplasia'
+        : (named.length ? dxCap(addCommas(named)) + ' dysplasia' : '');
+    if (dysplasia && f.blasts.marrow !== null) {
+        return `${dysplasia} is present, with ${dxPct(f.blasts.marrow)}% blasts${dxBlastBasis(f)}.`;
     }
-    return parts.join(' ');
+    if (dysplasia) return `${dysplasia} is present.`;
+    return dxBlastSentence(f);
 }
 
 /* Names the myelodysplasia-related mutations when present, for the comment. Uses
@@ -403,123 +486,59 @@ function dxMorphologySentence(f) {
    line it accompanies is what draws the WHO/ICC distinction. */
 function dxGeneticsSentence(f) {
     if (f.genetics.mrICC.present !== true) return '';
-    const genes = f.genetics.mrICC.genes;
-    return `A myelodysplasia-related gene mutation is present (${addCommas(genes)}).`;
-}
-
-/* "IN THE ABSENCE OF DISEASE-DEFINING GENETIC ALTERATIONS" IS FALSE THE MOMENT
-   THE ENGINE USED ONE, and a comment must never contradict the sentence beside
-   it. This answers only half the question, and the narrower half: it asks whether
-   THE CASE turned up anything defining, which is what decides between "in the
-   absence of…" and saying nothing. Whether the ENTITY BEING NAMED is itself
-   genetically defined is a different question with a different answer, and it is
-   `definedBy` / dxDefiningConfirmed() in the kernel that carries it.
-
-   The clause now says "a demonstrated disease-defining genetic alteration" where
-   it used to say "disease-defining genetic alterations". Unknown is not absent:
-   with the karyotype outstanding nothing has been demonstrated, which is true and
-   is all that can be claimed, where the bare "in the absence of" asserted a
-   negative result that nobody had produced.
-
-   Deliberately the DEFINING findings and not `abnormalities.length`: an isolated
-   del(20q) defines nothing, and a case carrying only that one really is being
-   classified with no defining alteration demonstrated. */
-function dxDefiningGeneticsFound(f) {
-    return dxAnyOf([f.genetics.amlDefining.present, f.genetics.npm1, f.genetics.del5q,
-        f.genetics.sf3b1, f.genetics.tp53MultiHit, f.genetics.mrICC.present,
-        f.genetics.mrWHO.present, f.genetics.mrCytoWHO.present,
-        f.genetics.mrCytoICC.present]) === true;
+    return `Molecular studies show ${dxGenePhrase(f.genetics.mrICC.genes)}.`;
 }
 
 /* The comment, in whichever of the two registers is selected.
 
-   FINAL, with studies outstanding, is the case the pathologist actually meets
-   most often: the morphology is what it is, and the classification will turn on
-   results that are not back. It says so, in the classifications' own terms,
-   without pretending to more certainty than exists — and without the word
-   "temporary", which reads as though the diagnosis were provisional in a way
-   that undermines it rather than simply being sequenced. */
+   WRITTEN THE WAY A HEMATOPATHOLOGIST WRITES ONE: the findings the classification
+   turns on, the classification, and what is still to come. No rationale, no
+   restatement of the criteria, nothing about how the two classifications reason.
+   The WHO-HAEM5 and ICC 2022 names are both in the classification sentence; the
+   explanation of why they differ is on the Diagnosis card, not in the report.
+
+   An entity defined by a genetic alteration that is not in hand is written in the
+   conditional (dxClassificationSentence), so the comment never asserts what the
+   studies have not shown. "Pending" is said only on a candidate whose own bucket
+   is waiting on them, so a case that never used the Ancillary tab is not told
+   its studies are outstanding. */
 /* A CAUTION OUTLIVES THE COMMENT THAT CARRIES IT, and this used to be a silent
-   hole: a rule with its own `comment` returned it directly, so the caution and
-   the divergence note appended at the bottom of this function were dropped on
-   exactly the rules most likely to need them. Every AML rule has a custom
-   comment, so every AML caution would have been written and never printed —
-   nothing would have errored and no test that only read the rule table would
-   have seen it. Both paths now end at the same append. */
+   hole: a rule with its own `comment` returned it directly, so the caution was
+   dropped on exactly the rules most likely to need it. Both paths now end at the
+   same append. */
 function dxComment(result, f, mode) {
+    /* THE PENDING LINE IS ALWAYS LAST, after any recommendation, so it is added
+       here for every rule rather than inside each comment. A rule with its own
+       comment says it whenever a study is out (an AML or CMML subtype always
+       turns on them); the generic comment only when its own bucket is waiting. */
+    const pending = mode !== 'addendum' && (result.rule.comment || result.bucket === 'pending')
+        ? dxPendingSentence(f) : '';
+
     if (result.rule.comment) {
         /* `rule` is in the context so a custom comment can reach its own
            `definedBy` and build the conditional sentence through the shared
            dxClassificationSentence rather than asserting the entity flat. */
-        return dxAppendNotes([result.rule.comment(f, { mode: mode, rule: result.rule })], result);
+        return dxAppendNotes([result.rule.comment(f, { mode: mode, rule: result.rule })], result, pending);
     }
 
     /* dxNameLine, not dxDiagnosisLine: this one goes INSIDE a sentence, where an
-       entity written out in words loses its capital ("…classified as No morphologic
-       evidence of a myeloid neoplasm" was the case that showed it). dxLower leaves
-       an abbreviation alone, so "MDS with low blasts…" is untouched. The card
-       heading still uses dxDiagnosisLine, where the capital belongs. */
+       entity written out in words loses its capital. The card heading still uses
+       dxDiagnosisLine, where the capital belongs. */
     const line = dxNameLine(result.who, result.icc);
-    const morphology = dxMorphologySentence(f);
-    const genetics = dxGeneticsSentence(f);
-    const waiting = dxPendingStudies(f);
     const parts = [];
-
-    if (mode === 'addendum') {
-        parts.push('The previously reported morphologic findings have been reviewed in conjunction ' +
-            'with the now-available studies.');
-        if (morphology) parts.push(morphology);
-        if (genetics) parts.push(genetics);
-        /* An addendum is written because the studies ARE back — but "back" is not
-           the same as "positive", and a genetically defined entity whose
-           alteration still is not demonstrated stays conditional here too. */
-        parts.push(dxDefiningConfirmed(result.rule, f)
-            ? `Taken together, the findings are best classified as ${line}.`
-            : dxClassificationSentence(result.rule, f, line));
-    } else if (waiting.length && result.bucket === 'pending') {
-        if (morphology) parts.push(morphology);
-        if (genetics) parts.push(genetics);
-        /* THE TWO CASES ARE NOT THE SAME SENTENCE WITH A CLAUSE REMOVED.
-
-           When the entity is genetically defined and its alteration is not in
-           hand, the whole claim moves into the conditional and the absence clause
-           must not appear at all — "in the absence of a defining alteration, this
-           is MDS with 5q deletion" is self-refuting whichever way it is worded.
-
-           When the entity is NOT genetically defined, the absence clause is the
-           honest framing: MDS-LB is precisely the category a case falls into when
-           nothing defining has been demonstrated. */
-        if (!dxDefiningConfirmed(result.rule, f)) {
-            parts.push(dxClassificationSentence(result.rule, f, line));
-        } else {
-            parts.push(dxDefiningGeneticsFound(f)
-                ? `The findings are best classified as ${line}.`
-                : `In the absence of a demonstrated disease-defining genetic alteration, the ` +
-                  `findings are best classified as ${line}.`);
-        }
-        parts.push(`Final classification will depend on the results of ${addCommas(waiting)} studies, ` +
-            `which are outstanding; an addendum will follow.`);
-    } else {
-        if (morphology) parts.push(morphology);
-        if (genetics) parts.push(genetics);
-        /* The `incomplete` bucket reaches here too, and it can carry an unconfirmed
-           defining alteration: a karyotype with some other abnormality named leaves
-           del(5q) unknown while the studies no longer count as outstanding. */
-        parts.push(dxClassificationSentence(result.rule, f, line));
-    }
-
-    return dxAppendNotes(parts, result);
+    if (mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+    parts.push(dxMorphologySentence(f), dxGeneticsSentence(f));
+    parts.push(dxClassificationSentence(result.rule, f, line));
+    return dxAppendNotes(parts, result, pending);
 }
 
-/* The tail every comment ends with, whoever built the body. Divergence first,
-   caution last, because the caution is the sentence to leave the reader with —
-   a warning about THIS case outranks a note about the two classifications'
-   wording. A custom comment's body arrives as a single element, so a caution
-   lands as a new sentence after it rather than inside its last paragraph. */
-function dxAppendNotes(parts, result) {
-    if (result.divergence) parts.push(result.divergence);
+/* The tail every comment ends with, whoever built the body: the caution, which
+   is report text, then the pending line. The divergence paragraph and the
+   `check` notes are the pathologist's and stay on the card. */
+function dxAppendNotes(parts, result, pending) {
     if (result.caution) parts.push(result.caution);
-    return parts.join(' ');
+    if (pending) parts.push(pending);
+    return parts.filter(Boolean).join(' ');
 }
 
 

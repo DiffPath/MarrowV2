@@ -3007,6 +3007,145 @@ label + label {
    reader scanning a tally has to be able to see which way each row pushes. */
 .dxPoints--against { color: #C0392B; }
 
+/* THE DIFFERENTIAL TABLE — one row per candidate, four columns: what it is, what
+   the case has answered, what is still open, and what to order.
+
+   A TABLE RATHER THAN A STACK OF CARDS, and the reason is the comparison it is
+   for. The cards said everything about one candidate before starting the next,
+   so "what is still needed for all of these" meant reading four blocks and
+   holding them in your head; in a column it is one downward scan. That is the
+   whole trade — the table gives up per-candidate prose to buy per-column
+   comparison, which is what a differential is read for.
+
+   It borrows the .dataTable header (the dark bar, 11px caps) so the two tables
+   in this app look like one family, and takes almost nothing else from it:
+   .dataTable is `white-space: nowrap`, sized for numbers that must not wrap,
+   where every cell here is a list of clinical prose that must. */
+/* THE AXIS HEADING, shown only when a case has candidates on both — myeloid and
+   lymphoid are two questions rather than two ends of one ranking (see dxAxis),
+   and two unlabelled tables in a column would read as one list broken in half.
+   Quiet on purpose: it names a group, it is not a section title competing with
+   the table header under it. */
+.dxAxisLabel {
+    margin: 10px 0 4px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #5A6B7D;
+}
+
+.dxAxisLabel:first-child { margin-top: 0; }
+
+.dxTable {
+    table-layout: fixed;
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+/* STICKY, because the table is taller than the panel on any real case — five
+   candidates come to roughly twice the panel's height — and a four-column table
+   whose headings have scrolled away is four columns of unlabelled lists. The
+   scroll container is #diagnosisPanel, an ancestor, which is what makes `top: 0`
+   land on the panel's own top edge. */
+.dxTable th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: #2c3c4e;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: bold;
+    text-align: left;
+    padding: 5px 8px;
+}
+
+.dxTable td {
+    padding: 7px 8px;
+    border-bottom: 1px solid #EDF1F4;
+    vertical-align: top;
+    color: #5A6B7D;
+}
+
+/* The bucket colour, as an inset shadow rather than a border-left — the
+   .dataTable precedent, and for its reason: a 3px border on one cell shifts the
+   row's text where a shadow does not. */
+.dxRow--supported  td:first-child { box-shadow: inset 3px 0 0 #3a9d5d; }
+.dxRow--pending    td:first-child { box-shadow: inset 3px 0 0 #0075FF; }
+.dxRow--contested  td:first-child { box-shadow: inset 3px 0 0 #C77B30; }
+.dxRow--incomplete td:first-child { box-shadow: inset 3px 0 0 #C7D0DA; }
+
+.dxTable ul {
+    margin: 0;
+    padding-left: 15px;
+}
+
+.dxTable li {
+    margin-bottom: 3px;
+}
+
+/* Muted, and it means one thing in every column it appears in: this line cannot
+   confirm or exclude the diagnosis — a soft criterion under Still needed, and
+   under Criteria met one the case contradicts. It carried a legend under the
+   table saying so; the legend is gone (see dxDifferentialHTML) and the grey is
+   left to do the job on its own, which is what a muted list item means
+   everywhere else in this panel. */
+.dxSoft { color: #A9B6C3; }
+
+/* A heading INSIDE a cell, for the exclusion group. Same type as .dxWhyLabel —
+   the panel's established "this is what the next few lines are" mark — so the
+   two do not read as two different kinds of label. */
+.dxCellSubLabel {
+    margin: 5px 0 2px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8FA2B5;
+}
+
+/* "None", as against a cell that failed to render. */
+.dxCellEmpty { color: #C7D0DA; }
+
+/* Nothing outstanding — a sentence rather than a list, because it is an answer
+   and not an item. */
+.dxCellNone { color: #3a9d5d; }
+
+.dxTable .dxName {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.dxRowIcc,
+.dxRowNote {
+    display: block;
+    color: #8FA2B5;
+    margin-bottom: 2px;
+}
+
+.dxRowMeta {
+    display: block;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 11px;
+    color: #8FA2B5;
+}
+
+.dxRowActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Smaller in a table cell than on a comment card: there it is the one action on
+   a block of prose, here it is one of five down a narrow column. */
+.dxTable .dxUse {
+    margin-top: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
 .dxUse {
     margin-top: 6px;
     padding: 3px 9px;
@@ -3450,20 +3589,6 @@ label + label {
     margin-top: 5px;
 }
 
-/* --- Asides -------------------------------------------------------------- */
-
-/* A practice point, or the trap in the criteria above it. Quiet, indented off a
-   rule rather than boxed: a second box beside a criteria box competes with it,
-   and nothing in here is ever a criterion. */
-.refNote {
-    margin: 0 0 12px;
-    padding: 2px 0 2px 11px;
-    border-left: 3px solid #C7D0DA;
-    font-size: 12px;
-    line-height: 1.5;
-    color: #5A6B7D;
-}
-
 /* "This is the control that records it." A caption, deliberately not prose: a
    reader scanning criteria must never mistake an implementation note for part of
    a definition, so it takes a different colour, a different size, and an icon
@@ -3487,27 +3612,9 @@ label + label {
     flex: none;
 }
 
-/* CLAUDE.md requires both names wherever the classifications diverge. A
-   divergence set as an ordinary paragraph is one a reader skims; this makes it a
-   thing on the page you have to decide to skip. Blue rather than amber — it is
-   information, not a warning about this app's confidence. */
-/* The ICC divergence is a refBox now (see refDiverge() in MarrowRefData.js) and
-   takes all its chrome - border, radius, title bar - from the box rules above.
-   It used to be a blue tinted bubble of its own, which made a third block style
-   on a page whose content has two kinds of thing: a box of criteria, and a box
-   of how ICC's differ. Only the body text needs rules here, because divergence
-   content is raw prose or a refUL rather than refCritGroups. */
-.refDiverge .refBoxBody {
-    padding-bottom: 10px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: #2c3c4e;
-}
-
-.refDiverge .refP:last-child,
-.refDiverge .refList:last-child {
-    margin-bottom: 0;
-}
+/* The ICC divergence (refDiverge() in MarrowRefData.js) is a plain refBox with
+   an "ICC 2022" title and a list for a body, so it needs no rules of its own:
+   the WHO box and the ICC box are the same object with different titles. */
 
 /* --- Tables -------------------------------------------------------------- */
 
@@ -3570,13 +3677,6 @@ label + label {
 
 .refTable tr:last-child td {
     border-bottom: none;
-}
-
-.refTableCaption {
-    margin-top: 5px;
-    font-size: 11px;
-    line-height: 1.45;
-    color: #8FA2B5;
 }
 
 /* --- Cross-references ---------------------------------------------------- */
@@ -3730,9 +3830,8 @@ label + label {
 
    Set small and quiet under the table it belongs to: it is an answer to "says
    who?", which is a question asked after reading the number, not before. */
-/* Same small print as .refTableCaption - one style for everything that rides
-   under a block, whether it is a caption or a citation. The left border it
-   used to carry was a third "aside" treatment for no third kind of thing. */
+/* The left border it used to carry was a third "aside" treatment for no third
+   kind of thing. */
 .refCite {
     margin: -6px 0 14px;
     font-size: 11px;
@@ -3798,8 +3897,8 @@ label + label {
    ragged left edge on every card and the column stops being scannable. */
 .rbcFig {
     display: block;
-    width: 68px;
-    height: 68px;
+    width: 88px;
+    height: 88px;
     margin: 0 auto 6px;
 }
 
@@ -3814,17 +3913,6 @@ label + label {
     font-size: 11px;
     line-height: 1.45;
     color: #5A6B7D;
-}
-
-/* "The same cell as the card beside this one." Italic and set apart, because it
-   is a statement about the LIST rather than about the cell — a reader who sees
-   two identical figures needs to be told that is intentional. */
-.rbcAlso {
-    margin-top: 4px;
-    font-size: 10px;
-    font-style: italic;
-    line-height: 1.4;
-    color: #8FA2B5;
 }
 
 /* What the finding suggests. Hung off a hairline so it reads as a different kind
@@ -3852,16 +3940,30 @@ label + label {
     margin: 0;
 }
 
-.rbcPhoto img {
+/* THE FRAME IS THE LINK AND THE CROP. A photo with a `crop` in rbcPhotoViews
+   (MarrowRefData.js) gets the crop's aspect ratio inline and its image scaled and
+   offset inside, so the card shows the example cells rather than a whole
+   low-power field; a click opens the full field. One without a crop falls back
+   to a fixed-height centred `cover`. */
+.rbcFrame {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border-radius: 4px;
+    cursor: zoom-in;
+}
+
+.rbcFrame img {
     display: block;
     width: 100%;
-    border-radius: 4px;
-    /* The source images are 640-3264px wide and every aspect ratio there is.
-       A fixed height with `cover` is what makes a grid of them a grid rather
-       than a ragged column, and the crop is centred, which is where the
-       photographer put the cell. */
     height: 96px;
     object-fit: cover;
+}
+
+.rbcFrame--crop img {
+    position: absolute;
+    max-width: none;
+    height: auto;
 }
 
 .rbcPhoto figcaption {
@@ -3896,10 +3998,20 @@ label + label {
    photograph rather than under it because the failure it guards against is
    someone glancing at a picture and believing it; a caption below can be missed
    in exactly the moment the badge exists for. */
-.rbcPhoto--unconfirmed img {
+.rbcPhoto--unconfirmed .rbcFrame {
     /* A hairline rather than a wash: the picture still has to be legible, and
-       tinting a photomicrograph changes the thing being judged. */
-    box-shadow: 0 0 0 2px #E8A657;
+       tinting a photomicrograph changes the thing being judged. Inset, because
+       the frame clips anything drawn outside it. */
+    box-shadow: inset 0 0 0 2px #E8A657;
+}
+
+.rbcPhoto--unconfirmed .rbcFrame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 2px #E8A657;
+    pointer-events: none;
 }
 
 .rbcUnconfirmed {

@@ -80,7 +80,7 @@ const dysplasticDescriptors = {
        Auer rods the shared `blastAuerRods` - the table itself puts Auer rods
        under dysgranulopoiesis, which is why the blast finding also counts a
        myeloid lineage as dysplastic when named there. */
-    erythroid: ['nuclearBudding', 'internuclearBridging', 'nuclearContourIrregularity', 'multinuclearity',
+    erythroid: ['nuclearBudding', 'internuclearBridging', 'nuclearContourIrregularity',
                 'multinucleation', 'megaloblastoid', 'karyorrhexis', 'blastVacuolated'],
     myeloid: ['hypogranularForms', 'monolobatedForms', 'hypolobatedForms', 'pseudoPelgerHuet',
               'hypersegmentedForms', 'pseudoChediakHigashi', 'smallSize', 'blastAuerRods'],
@@ -672,7 +672,7 @@ function findingCytopenia(group, yes, no, component, threshold) {
    removes a criterion from every case. (This is the mistake the vignette harness
    caught; keep the harness pointed at it.) */
 function findingCytopenias(sex) {
-    const anemia = findingCytopenia('pbHgb', ['anemia'], ['adequate', 'polycythemia'], 'HGB',
+    const anemia = findingCytopenia('pbHgb', ['anemia'], ['adequate', 'erythrocytosis'], 'HGB',
         function (hgb) { return findingAnemiaValue(hgb, sex); });
     const thrombocytopenia = findingCytopenia('pbPlt', ['decreased'], ['adequate', 'increased'], 'PLT',
         function (plt) { return plt < MDS_CYTOPENIA.plt; });
@@ -1393,6 +1393,21 @@ function findingCounts(sex) {
            authority that has published one for this patient — rather than to a
            number invented here. */
         neutrophilia: findingCbcFlag('Absolute Neutrophils', 'high'),
+        /* The absolute neutrophil count itself, which findingCytopenias reads
+           against MDS_CYTOPENIA's 1.8 and the bone marrow failure family reads
+           against a much lower pair of numbers: severe aplastic anemia is
+           defined at < 0.5 and very severe at < 0.2 (MarrowDxBmf.js). Two
+           different questions of one measurement, so the number is published
+           here rather than either threshold. */
+        anc: findingCbcNumber('Absolute Neutrophils'),
+        /* The absolute lymphocyte count, and the laboratory's own flag on it.
+           NO THRESHOLD IS INVENTED HERE: the 5 ×10⁹/L that matters is chronic
+           lymphocytic leukemia's, an ENTITY criterion, and this family
+           classifies no entity — so the count is published and the flag defers
+           to the reporting laboratory, which is `neutrophilia`'s precedent for
+           the same situation one lineage over. */
+        lymphocyteAbs: findingCbcNumber('Absolute Lymphocytes'),
+        lymphocytosis: findingCbcFlag('Absolute Lymphocytes', 'high'),
         /* The red cell size, which MDS-5q's anemia "is often" — a likelihood, so
            it is only ever scored. The chip is the whole answer here: the Blood tab
            autofills it from the MCV against the laboratory's range, and unlike the
@@ -1494,6 +1509,333 @@ function findingCirculatingImmature() {
     }
     const ig = findingCbcNumber('Immature Granulocytes');
     return ig === null ? null : ig > 0;
+}
+
+
+/* ----------------------------------------------------------------------------
+   LINEAGE QUANTITY — is the line THERE, which is not the question dysplasia asks
+
+   Every lineage field above this one asks how a line LOOKS. The bone marrow
+   failure family (MarrowDxBmf.js) asks whether it is present at all: pure red
+   cell aplasia is a marrow with no erythroid precursors and two untouched
+   lineages beside them, and neither `dysplasia` nor `cellularity` can say that
+   — one is about morphology and the other is about the marrow as a whole.
+
+   THE COUNT FIRST AND THE CHIP SECOND, which is the blast row's order and
+   deliberately NOT the cellularity row's. Both orders exist in this file and the
+   difference is what the number actually is. `cellularity.hypoForAge` prefers
+   the chip because the arithmetic there is a published band applied to one typed
+   percentage, where the chip is the pathologist at the scope. Here the number IS
+   the pathologist's own 500-cell differential, and the chip is a summary of it.
+
+   THE FLOORS ARE THE ROWS' OWN PUBLISHED RANGES (aspCells and aspNeutPool in
+   MarrowAsp.js), read rather than copied — findingMarrowMonocytes' idiom, and
+   for its reason: a second copy of a reference range here would be a second
+   answer to one question.
+-------------------------------------------------------------------------- */
+
+/* NEAR-ABSENT, and the one number in this block that no row publishes. Pure red
+   cell aplasia is described as a virtual absence of erythroid precursors and 1%
+   of nucleated cells is the figure usually attached to it — from the general
+   hematology literature, since neither classification carries the entity at all
+   (MarrowDxBmf.js says so at greater length). It scores and never gates. */
+const LINEAGE_ABSENT_PCT = 1;
+
+/* The low end of a counter row's own reference range, or null where the row
+   publishes none. */
+function aspCellFloor(id) {
+    const row = aspCells.filter(function (c) { return c.id === id; })[0];
+    return row && row.range ? row.range[0] : null;
+}
+
+/* "Markedly" on a lineage's severity sub-chip. The severity groups are named
+   `<countKey>Sev` (aspLineageRow in MarrowAsp.js); a group that does not exist
+   reads as no opinion, which is what the core's megakaryocyte row wants. */
+function findingMarkedly(group) {
+    return toggleGroupValue(group + 'Sev') === 'markedly';
+}
+
+/* ABSENT, from a chip alone: only "markedly decreased" can answer it. A bare
+   "decreased" leaves it UNKNOWN rather than false — mildly decreased is not
+   absent, and it is not "not absent" either — while a lineage called adequate
+   or increased is a real negative. */
+function findingLineageAbsentByChip(decreased, marked) {
+    if (decreased === true) return marked ? true : null;
+    return decreased;                                   // false, or null
+}
+
+/* One lineage: its count chip, its severity, and its share of the differential.
+   `pct` is null on an uncounted aspirate, which is silence and not zero. */
+function findingLineageQuantity(group, pct, floor) {
+    const decreased = findingFromToggle(group, ['decreased'], ['adequate', 'increased']);
+    const increased = findingFromToggle(group, ['increased'], ['adequate', 'decreased']);
+    const marked = findingMarkedly(group);
+
+    return {
+        pct: pct,
+        chip: toggleGroupValue(group) || null,
+        decreased: decreased,
+        increased: increased,
+        markedlyDecreased: decreased === true ? marked : decreased,
+        /* Below the row's published floor where there is a count; the chip where
+           there is not. */
+        reduced: (pct !== null && floor !== null) ? pct < floor : decreased,
+        absent: pct !== null ? pct < LINEAGE_ABSENT_PCT
+            : findingLineageAbsentByChip(decreased, marked)
+    };
+}
+
+function findingLineages() {
+    const asp = aspCounter.readStats();
+    const counted = asp.denominator > 0;
+    const pctOf = function (ids) {
+        if (!counted) return null;
+        return ids.reduce(function (n, id) { return n + (asp.percents[id] || 0); }, 0);
+    };
+
+    /* THE GRANULOCYTIC SHARE IS THE NEUTROPHIL POOL AND NOT THE MYELOID LINEAGE,
+       and the difference decides whether agranulocytosis can be seen at all: the
+       counter's `myeloid` lineage tag also carries eosinophils, basophils,
+       monocytes and (conditionally) the blasts, all of which are preserved in
+       the entity whose whole finding is that the neutrophil series is gone. */
+    const gran = findingLineageQuantity('aspMyeloid', pctOf(aspNeutPool.cells),
+        aspNeutPool.range ? aspNeutPool.range[0] : null);
+
+    /* MATURATION ARREST, as close as this app can see it: the myeloid left
+       shift, named on the aspirate or on the core. `shiftToImmaturity` is a left
+       shift and explicitly not dysplasia (see dysplasticDescriptors above), so
+       it is read here rather than there.
+
+       THREE-VALUED, AND IT HAD TO BE. findingAuerRods() is true-or-null because
+       nothing on that row asserts the negative; this row does — the myeloid
+       morphology group has an Unremarkable stop chip, so a marrow whose
+       granulocytes were looked at and called unremarkable is a real `false`.
+       Without that limb the agranulocytosis gate could never come out false
+       (Kleene's OR keeps a null alive), and the entity would have been offered
+       on every isolated neutropenia in the world. */
+    const myeloidNamed = descriptorSelected('aspMyeloidDesc');
+    const myeloidAssessed = myeloidNamed.length > 0 ||
+        findingChecked('aspMyeloidDescUnremarkable') ||
+        descriptorSelected('coreMEDesc').length > 0 ||
+        findingChecked('coreMEDescUnremarkable');
+    const leftShift = myeloidNamed.indexOf('shiftToImmaturity') !== -1 ||
+        descriptorSelected('coreMEDesc').indexOf('coreLeftShiftMyeloid') !== -1;
+    gran.leftShift = leftShift ? true : (myeloidAssessed ? false : null);
+
+    /* Megakaryocytes have no percentage — they are not in the differential — so
+       this one is chips alone, the aspirate's first and the core's where the
+       aspirate said nothing. Same order findingMegakaryocytes uses for the other
+       end of the same question. */
+    const megDecreased = findingFirst(
+        findingFromToggle('aspMega', ['decreased'], ['adequate', 'increased']),
+        findingFromToggle('coreMeg', ['decreased'], ['adequate', 'increased']));
+    const megMarked = findingMarkedly('aspMega') || findingMarkedly('coreMeg');
+
+    const lymphFloor = aspCells.filter(function (c) { return c.id === 'lymph'; })[0];
+    const lymphPct = pctOf(['lymph']);
+
+    return {
+        erythroid: findingLineageQuantity('aspEryth', pctOf(['nrbc']), aspCellFloor('nrbc')),
+        granulocytic: gran,
+        megakaryocytic: {
+            chip: toggleGroupValue('aspMega') || toggleGroupValue('coreMeg') || null,
+            decreased: megDecreased,
+            markedlyDecreased: megDecreased === true ? megMarked : megDecreased,
+            absent: findingLineageAbsentByChip(megDecreased, megMarked)
+        },
+        /* A relative marrow lymphocytosis is what a marrow emptied of
+           hematopoiesis looks like, and a persistent one is the finding that
+           sends a pure red cell aplasia for T-cell studies. Scored, never gated:
+           the aspirate of a hypocellular marrow over-represents whatever is left. */
+        lymphocytes: {
+            pct: lymphPct,
+            increased: (lymphPct === null || !lymphFloor || !lymphFloor.range) ? null
+                : lymphPct > lymphFloor.range[1]
+        },
+        /* The counter's own ratio, which is the erythroid line's absence stated
+           the other way round and is what a reader will quote. null when nothing
+           has been counted, and null when there are no erythroid precursors at
+           all — meSums() refuses to divide by them (MarrowCounter.js). */
+        meRatio: asp.me ? asp.me.value : null
+    };
+}
+
+
+/* ----------------------------------------------------------------------------
+   LYMPHOID INFILTRATES — the marrow's other axis
+
+   Every field above this point serves a myeloid question. The lymphoid rules
+   (MarrowDxLymphoid.js) ask three things nothing here answered: is there a
+   lymphoid infiltrate, what ARCHITECTURE does it have, and what does the
+   cytology suggest.
+
+   THE ARCHITECTURE IS THE FINDING, and it was already being recorded — the
+   core's lymphocyte row has offered focal / focal loose / non-paratrabecular /
+   PARATRABECULAR / multifocal / diffuse since the tab was built. That list is
+   the axis marrow involvement is actually read on, and no rule had ever looked
+   at it.
+
+   NOTHING HERE IS AN IMMUNOPHENOTYPE, and that governs what the rules may say.
+   This app records no flow cytometry at all, and its immunohistochemistry is a
+   dozen stains with fixed option lists — so every field below is morphology,
+   plus whatever the pathologist chose in a stain select. It is enough to say
+   whether a marrow is involved and by what pattern; it is not enough to say by
+   what entity, which is why MarrowDxLymphoid.js classifies nothing.
+
+   THE STOP CHIP IS WHAT MAKES A NEGATIVE POSSIBLE. The core's lymphocyte row
+   has no Unremarkable chip, so "no aggregates" can only be established by
+   naming `coreLymphScattered` — whose own text is "lymphocytes are scattered
+   singly within the interstitium, without lymphoid aggregate formation". An
+   unmentioned lymphocyte row stays null, which is the honest reading: most
+   reports do not comment on lymphocytes at all.
+-------------------------------------------------------------------------- */
+
+/* THE AGGREGATE KEYS, and the two that are deliberately NOT in the list.
+   `coreLymphScattered` is the negative and `coreLymphDiffuse` is a different
+   architecture with a different meaning — a diffuse infiltrate is not a large
+   aggregate, and folding the two together would let the commonest benign
+   finding and one of the least benign ones answer the same question. */
+const LYMPHOID_AGGREGATE_KEYS = ['coreLymphFocal', 'coreLymphLooseAgg',
+    'coreLymphNonparatrabecular', 'coreLymphParatrabecular', 'coreLymphMultifocal'];
+
+/* Cytology that names a SUSPECTED population. These are the pathologist's own
+   morphologic impression off the smear and nothing more — the list is offered
+   on the blood and aspirate lymphocyte rows alike (pbLymphDesc / aspLymphDesc) —
+   so they are read as "this is atypical and worth phenotyping", never as the
+   entity their labels name. */
+const LYMPHOID_ATYPICAL_KEYS = ['predominantlyCllLike', 'subsetCllLike', 'marginalZoneLike',
+    'hairyCellLike', 'predominantlyLargeGranular'];
+
+/* The other end of the same row: a population described as polymorphous or
+   reactive is the morphology of a benign aggregate. `smallMature` is
+   deliberately absent — small mature lymphocytes are what chronic lymphocytic
+   leukemia is made of as well, so the descriptor discriminates nothing. */
+const LYMPHOID_REACTIVE_KEYS = ['polymorphous', 'reactive'];
+
+/* What the suspected population would be called in a sentence, for the comment.
+   Written here rather than taken from the descriptor's own `text`, which is a
+   morphologic description ("small lymphocytes abundant pale cytoplasm and
+   polarized cytoplasmic projections") where the comment needs a name. */
+const LYMPHOID_SUGGESTS = {
+    predominantlyCllLike: 'a chronic lymphocytic leukemia-like population',
+    subsetCllLike: 'a chronic lymphocytic leukemia-like subset',
+    marginalZoneLike: 'a marginal zone-like population',
+    hairyCellLike: 'a hairy cell-like population',
+    predominantlyLargeGranular: 'a large granular lymphocyte population'
+};
+
+/* Three-valued OR, local to this file. The engine's dxAnyOf is in the kernel,
+   which loads after this one — and findings must not depend on the rules. */
+function findingEither(a, b) {
+    if (a === true || b === true) return true;
+    if (a === false && b === false) return false;
+    return null;
+}
+
+/* A stain's chosen option label, core first and the clot where the core said
+   nothing — the order findingBlasts and findingPlasma already use for CD34 and
+   CD138. `stainValue` returns '' for a stain that was never named. */
+function findingStainOption(key) {
+    return findingFirst(stainValue('coreIhc', key, 'result') || null,
+        stainValue('clotIhc', key, 'result') || null);
+}
+
+/* An option list turned into a three-valued answer. Anything the caller did not
+   classify stays null, so adding an option to a stain's vocabulary cannot
+   silently start answering a criterion. */
+function findingStainSays(key, positives, negatives) {
+    const chosen = findingStainOption(key);
+    if (!chosen) return null;
+    if (positives.indexOf(chosen) !== -1) return true;
+    if (negatives.indexOf(chosen) !== -1) return false;
+    return null;
+}
+
+function findingLymphoid() {
+    /* The core and the particle clot are one specimen for this purpose: the clot
+       carries its own copy of the same vocabulary (coreClotLymphDesc), and an
+       aggregate seen in either is an aggregate. */
+    const named = descriptorSelected('coreLymphDesc').concat(descriptorSelected('coreClotLymphDesc'));
+    const has = function (key) { return named.indexOf(key) !== -1; };
+    const assessed = named.length > 0;
+
+    const aggregateKeys = LYMPHOID_AGGREGATE_KEYS.filter(has);
+    const aggregates = aggregateKeys.length ? true : (assessed ? false : null);
+    const diffuse = has('coreLymphDiffuse') ? true : (assessed ? false : null);
+
+    /* PARATRABECULAR IS TRI-STATE AND THE MIDDLE VALUE IS THE COMMON ONE. The
+       vocabulary offers "Focal aggregates" unqualified precisely so a reader can
+       record an aggregate without claiming to have judged its relation to the
+       trabeculae — the descriptor's own comment says so. So an unqualified
+       aggregate answers this UNKNOWN, and only the two explicit options answer
+       it either way. Rounding that to "not paratrabecular" would manufacture the
+       single most load-bearing negative in this family. */
+    const paratrabecular = has('coreLymphParatrabecular') ? true
+        : (has('coreLymphNonparatrabecular') ? false : null);
+
+    /* The smear's cytology, from both films that offer the list. */
+    const cytoNamed = descriptorSelected('aspLymphDesc').concat(descriptorSelected('pbLymphDesc'));
+    const cytoHas = function (key) { return cytoNamed.indexOf(key) !== -1; };
+    /* The stop chip is a real negative and the only one on this row: "No
+       discrete atypical lymphocyte population is identified". */
+    const noAtypical = findingChecked('aspLymphDescUnremarkable') ||
+        findingChecked('pbLymphDescUnremarkable') || cytoHas('lymphNoAtypical');
+    const suggested = LYMPHOID_ATYPICAL_KEYS.filter(cytoHas);
+
+    return {
+        assessed: assessed,
+        aggregates: aggregates,
+        paratrabecular: paratrabecular,
+        multifocal: has('coreLymphMultifocal') ? true : (assessed ? false : null),
+        diffuse: diffuse,
+        /* An infiltrate of either architecture — what every rule in the family
+           gates on before it asks anything else. */
+        infiltrate: findingEither(aggregates, diffuse),
+        pattern: aggregateKeys.concat(has('coreLymphDiffuse') ? ['coreLymphDiffuse'] : []),
+
+        cytology: {
+            atypical: suggested.length ? true : (noAtypical ? false : null),
+            reactive: LYMPHOID_REACTIVE_KEYS.some(cytoHas) ? true : (noAtypical ? false : null),
+            suggested: suggested,
+            phrases: suggested.map(function (k) { return LYMPHOID_SUGGESTS[k]; })
+        },
+
+        /* THE IMMUNOHISTOCHEMISTRY, read for what it can answer and no further.
+           CD20's "Diffuse infiltrate" option is the one that says something
+           architectural the H&E row may not have; the rest are single markers. */
+        cd20Diffuse: findingStainSays('cd20', ['Diffuse infiltrate'],
+            ['Interstitially scattered']),
+        cd20Pct: (function () {
+            const p = findingFirst(stainPercent('coreIhc', 'cd20'), stainPercent('clotIhc', 'cd20'));
+            return p && !p.range ? findingNumber(p.value) : null;
+        })(),
+        /* B cells coexpressing CD5 — the finding that takes a small B-cell
+           infiltrate out of the reactive column, whatever it turns out to be. */
+        cd5Coexpression: findingStainSays('cd5', ['Positive in neoplastic B cells'],
+            ['Negative in neoplastic B cells', 'Negative in B cells',
+                'T cells, no B-cell coexpression']),
+        cyclinD1: findingStainSays('cyclinD1', ['Positive in neoplastic B cells'], ['Negative']),
+        tdt: findingStainSays('tdt', ['Positive in lymphoblasts'], ['Negative']),
+        cd30: findingStainSays('cd30', ['Positive in large atypical cells'], ['Negative']),
+        ki67High: findingStainSays('ki67', ['High proliferation index'],
+            ['Low proliferation index', 'Intermediate proliferation index']),
+
+        /* *** THE READER HAS ALREADY CALLED IT. *** Two of CD5's four options and
+           one of cyclin D1's two are worded "…in neoplastic B cells" — including
+           the NEGATIVE ones. Choosing either says the pathologist has decided a
+           neoplastic B-cell population is present and is now characterising it,
+           which is a stronger statement than anything the architecture can make
+           and is free to read. It is deliberately true-or-null: no option here
+           asserts the absence of a neoplasm. */
+        neoplasticAsserted: (function () {
+            const cd5 = findingStainOption('cd5');
+            const ccnd1 = findingStainOption('cyclinD1');
+            const asserts = cd5 === 'Positive in neoplastic B cells' ||
+                cd5 === 'Negative in neoplastic B cells' ||
+                ccnd1 === 'Positive in neoplastic B cells';
+            return asserts ? true : null;
+        })()
+    };
 }
 
 
@@ -1726,6 +2068,15 @@ function marrowFindings() {
 
         counts: findingCounts(clinical.sex),
         drivers: findingDrivers(),
+        /* How much of each line is there. `megakaryocytes` below is the same
+           lineage's MORPHOLOGY, and the two are kept apart because the entities
+           that read them are: the MPN rules ask what the megakaryocytes look
+           like, the marrow failure rules ask whether there are any. */
+        lineages: findingLineages(),
+        /* The other axis: architecture, cytology and the lymphoid stains. Read
+           only by MarrowDxLymphoid.js, which asks whether the marrow is involved
+           and by what pattern — never by what entity. */
+        lymphoid: findingLymphoid(),
         megakaryocytes: findingMegakaryocytes(),
         marrowMonocytes: findingMarrowMonocytes(),
         circulatingImmature: findingCirculatingImmature(),

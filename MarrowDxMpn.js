@@ -433,9 +433,8 @@ dxRules.push(
             return null;
         },
         diverges: function (f) { return dxCmlAccelerated(f) === true; },
-        divergence: 'WHO-HAEM5 has abolished accelerated phase, retaining 10–19% blasts and ' +
-            '≥20% basophils as high-risk features of chronic phase; ICC 2022 defines accelerated ' +
-            'phase by those same findings. The findings are identical; only the designation differs.'
+        divergence: 'WHO-HAEM5 has dropped accelerated phase: 10–19% blasts or ≥20% basophils are ' +
+            'high-risk features of chronic phase. ICC keeps accelerated phase on the same findings.'
     },
     {
         id: 'pv',
@@ -618,13 +617,9 @@ dxRules.push(
            and the JAK2 mutation, so its combination rule permits a MARROW-FREE
            diagnosis (threshold + mutation + subnormal EPO), where WHO's first two
            are the threshold and the biopsy, a mutation-free route. */
-        divergence: 'ICC 2022 retains an increased red cell mass (>25% above the mean normal ' +
-            'predicted value) as an alternative to the hemoglobin and hematocrit thresholds, ' +
-            'which WHO-HAEM5 has removed. The two also number the major criteria differently: ' +
-            'under ICC, "the first 2 major criteria plus the minor criterion" permits diagnosis ' +
-            'on the threshold, the JAK2 mutation, and a subnormal erythropoietin without a ' +
-            'marrow biopsy, whereas under WHO-HAEM5 that combination reaches the threshold and ' +
-            'the biopsy without the mutation.'
+        divergence: 'ICC keeps red cell mass (>25% above predicted) as an alternative to the ' +
+            'hemoglobin and hematocrit thresholds. Its major criteria are ordered differently, so ' +
+            'ICC\'s "first two plus the minor" route (threshold, JAK2, low EPO) needs no biopsy.'
     },
     {
         id: 'et',
@@ -818,11 +813,9 @@ dxRules.push(
            that the iron is gone. */
         caution: function (f) {
             if (dxAllOf([f.counts.microcytic, f.drivers.jak2V617F]) !== true) return '';
-            return 'Microcytic red blood cells are present in the setting of a JAK2 p.V617F ' +
-                'mutation. Iron deficiency may mask the erythrocytosis of polycythemia vera; ' +
-                'correlation with iron studies, and reassessment of the hemoglobin and hematocrit ' +
-                'after iron repletion, is recommended before essential thrombocythemia is ' +
-                'diagnosed.';
+            return 'Microcytosis with a JAK2 V617F mutation raises the possibility of polycythemia ' +
+                'vera masked by iron deficiency; iron studies and reassessment after repletion are ' +
+                'recommended.';
         }
     },
     {
@@ -880,10 +873,9 @@ dxRules.push(
            what the fibrosis gate already says, without a sentence. */
         caution: function (f) {
             if (f.leukoerythroblastosis !== true) return '';
-            return 'Leukoerythroblastosis is present. It is not a minor criterion for the ' +
-                'prefibrotic stage in either classification, and a leukoerythroblastic blood ' +
-                'picture reflects disrupted marrow architecture — correlation with the reticulin ' +
-                'grade, and with the possibility of an infiltrative process, is recommended.';
+            return 'The leukoerythroblastic blood picture suggests disrupted marrow architecture; ' +
+                'correlation with the reticulin grade and exclusion of an infiltrative process are ' +
+                'recommended.';
         }
     },
     {
@@ -922,11 +914,9 @@ dxRules.push(
         ],
         caution: function (f) {
             if (f.drivers.tripleNegative !== true) return '';
-            return 'No myeloproliferative driver mutation has been identified. Marrow fibrosis ' +
-                'is not specific to primary myelofibrosis; in the absence of a driver mutation ' +
-                'the secondary causes — metastatic carcinoma, lymphoproliferative disorders ' +
-                'including hairy cell leukemia, autoimmune myelofibrosis, and infection — ' +
-                'should be excluded before this diagnosis is made.';
+            return 'No driver mutation is identified; secondary causes of fibrosis (metastatic ' +
+                'carcinoma, hairy cell leukemia and other lymphomas, autoimmune myelofibrosis, ' +
+                'infection) should be excluded.';
         }
     },
     {
@@ -959,13 +949,19 @@ dxRules.push(
             ['palpable splenomegaly', 1, function (f) { return f.clinical.splenomegaly; }]
         ],
         diverges: function (f) { return dxCnlIccOnly(f) === true; },
-        divergence: 'This white cell count meets ICC 2022’s threshold but not WHO-HAEM5’s. ' +
-            'ICC lowers the requirement from ≥25 to ≥13 × 10⁹/L when an activating CSF3R ' +
-            'mutation is present; WHO-HAEM5 requires ≥25 × 10⁹/L of every case.'
+        divergence: 'This WBC meets ICC’s threshold but not WHO-HAEM5’s: ICC accepts ≥13 × 10⁹/L ' +
+            'with an activating CSF3R mutation, WHO-HAEM5 requires ≥25 × 10⁹/L in every case.'
     },
     {
         id: 'mpnU',
         family: 'mpn',
+        /* The residual of its family: "features of a myeloproliferative neoplasm
+           that PREVENT assignment to a specific subtype", so it cannot be
+           confirmed while something more specific fits the case better. The
+           behaviour is dxResidualCategory's and used to key on this rule's id;
+           the flag is what generalised it when the lymphoid axis brought a
+           second residual (MarrowDxEngine.js). */
+        residual: true,
         /* THE NAMING IS THE REVERSE OF WHAT IT LOOKS LIKE, and it is easy to get
            backwards: WHO-HAEM5 renamed the category to "not otherwise specified",
            while ICC 2022 kept "unclassifiable". It was WHO that moved away from the
@@ -985,8 +981,7 @@ dxRules.push(
                 function (f) { return f.drivers.anyDriver; }]
         ],
         diverges: function () { return true; },
-        divergence: 'The two classifications name this category differently: WHO-HAEM5 uses ' +
-            '"not otherwise specified", ICC 2022 retains "unclassifiable".'
+        divergence: 'Names only: WHO-HAEM5 says "not otherwise specified", ICC "unclassifiable".'
     }
 
 );

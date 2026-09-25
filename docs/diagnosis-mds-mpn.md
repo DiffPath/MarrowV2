@@ -94,7 +94,7 @@ in one of twelve named genes (`CMML_DESIRABLE_GENES`). An abnormal karyotype alo
 meet it there, and neither does *TET2* or *DNMT3A* — the two commonest genes in the disease,
 and the two commonest in age-related clonal haematopoiesis, which is what the footnote is
 guarding the band against. `dxCmmlClonal()` therefore reads the band and answers two
-different questions, and `dxCmmlDesirableText()` names the criteria from the same source so
+different questions, and `dxCmmlSupportText()` names the findings from the same source so
 the comment cannot credit a *TET2* mutation the box would not accept. **The practical
 consequence is sharp**: an oligomonocytic case whose only variant is *TET2* is `excluded`,
 where before Table 2.13 was read it was `supported`.

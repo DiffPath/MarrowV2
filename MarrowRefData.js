@@ -28,6 +28,16 @@
    topic - the maintainer needs it, the reader never did. The title says what the
    page is.
 
+   ONE SHAPE FOR EVERY ENTITY PAGE (2026-09):
+       refBox "WHO-HAEM5"  - criteria, then everything else as `notes`
+       refTable            - only where the classification is a table
+       refDiverge          - "ICC 2022", a list of differences
+   No prose outside the boxes, no headings, no asides. refP and refH are for
+   the bench pages ("At the scope") only, where the prose IS the answer.
+   Notes are written to a hematopathologist: no definitions of terms of the
+   trade, no explaining why a criterion exists, no mention of this app's
+   rules or cards.
+
    ---------------------------------------------------------------------------
    THE READER IS A PATHOLOGIST. Never define a term of the trade ("hypocellular
    means below the range for age" was written here and cut on the author's
@@ -84,16 +94,15 @@ function refOL(items) {
     return `<ol class="refList">${items.map(function (i) { return `<li>${i}</li>`; }).join('')}</ol>`;
 }
 
-/* A table. `headers` may be null where the columns are self-evident. */
-function refTable(headers, rows, caption) {
-    const head = headers
-        ? `<thead><tr>${headers.map(function (h) { return `<th>${h}</th>`; }).join('')}</tr></thead>`
-        : '';
+/* A table. Always headed: a header row costs one line and saves the reader
+   working out what the columns are. No caption - a qualification goes in the
+   nearest box's `notes`. */
+function refTable(headers, rows) {
+    const head = `<thead><tr>${headers.map(function (h) { return `<th>${h}</th>`; }).join('')}</tr></thead>`;
     const body = `<tbody>${rows.map(function (r) {
         return `<tr>${r.map(function (c) { return `<td>${c}</td>`; }).join('')}</tr>`;
     }).join('')}</tbody>`;
-    return `<div class="refTableWrap"><table class="refTable">${head}${body}</table>` +
-        (caption ? `<div class="refTableCaption">${caption}</div>` : '') + `</div>`;
+    return `<div class="refTableWrap"><table class="refTable">${head}${body}</table></div>`;
 }
 
 /* THE CRITERIA BOX - the unit of this section, and on most pages the whole page.
@@ -110,11 +119,18 @@ function refTable(headers, rows, caption) {
    slot: polycythaemia vera's footnote b is an entire diagnostic route (the
    biopsy may be skipped at a high enough haematocrit), and primary
    myelofibrosis's major criterion 3 ends in a negative whose loss costs
-   triple-negative PMF - 5-10% of cases - its place in the differential. */
+   triple-negative PMF - 5-10% of cases - its place in the differential.
+
+   `title` is the classification ("WHO-HAEM5") on every entity page, so the WHO
+   and ICC boxes read as a pair; a page holding several boxes (the AML
+   differentiation subtypes, the two post-MPN MF boxes) titles each by its
+   entity instead. A group `label` may be omitted where the box has one group
+   and the title already says what it is. */
 function refBox(spec) {
     const groups = (spec.groups || []).map(function (g) {
         const items = g.ordered ? refOL(g.items) : refUL(g.items);
-        return `<div class="refCritGroup"><div class="refCritLabel">${g.label}</div>${items}</div>`;
+        const label = g.label ? `<div class="refCritLabel">${g.label}</div>` : '';
+        return `<div class="refCritGroup">${label}${items}</div>`;
     }).join('');
     const rule = spec.rule ? `<div class="refCritRule">${spec.rule}</div>` : '';
     const notes = (spec.notes || []).length
@@ -132,10 +148,16 @@ function refBox(spec) {
    Drawn as a refBox with an "ICC 2022" title bar, NOT as a bubble of its own:
    it used to be a blue tinted callout, which made three block styles on one
    page where the content has two kinds of thing (a box of criteria, and a box
-   of how ICC's differ). One visual language; the title says which is which. */
-function refDiverge(html) {
+   of how ICC's differ). One visual language; the title says which is which.
+
+   ALWAYS A LIST. `items` is an array of short statements, one difference each;
+   the subject is ICC and goes unsaid ("Requires >= 10% blasts", not "ICC
+   requires..."). `table` is appended below the list for the two pages where
+   ICC's difference is itself a table (CML phases, the AML blast lines, the MDS
+   category map). */
+function refDiverge(items, table) {
     return `<div class="refBox refDiverge"><div class="refBoxTitle">ICC 2022</div>` +
-        `<div class="refBoxBody">${html}</div></div>`;
+        `<div class="refBoxBody">${refUL(items)}${table || ''}</div></div>`;
 }
 
 /* THE LITERATURE CITATION FOR A NUMBER, and not the same thing as the `source`
@@ -189,15 +211,51 @@ function refJump(topicId, text) {
    table of angles instead - irregular, and the same every time.
    ========================================================================= */
 
-/* Wright-stain colours, flat. A gradient would look more like a photograph and
-   this is not trying to be one. */
-const RBC_FILL   = '#E9AE9E';   // haemoglobin
-const RBC_EDGE   = '#C4796A';   // membrane
-const RBC_PALE   = '#F9E7E1';   // central pallor
-const RBC_DENSE  = '#D68872';   // a cell with no pallor stains deeper
+/* Wright-stain colours. SHADED, not flat: a red cell is read by its central
+   pallor, and a pallor that fades into the haemoglobin (the biconcave disc) is
+   what the eye is trained on. A flat pale disc on a flat pink one read as a
+   diagram of a target cell. The shading is a radial gradient per cell type,
+   defined once in rbcDefs() and scaled to each shape by objectBoundingBox, so an
+   ellipse gets an elliptical pallor without being told. */
+const RBC_FILL   = '#E4A392';   // haemoglobin
+const RBC_EDGE   = '#B8705F';   // membrane
+const RBC_PALE   = '#F8E4DD';   // central pallor
+const RBC_DENSE  = '#D07E68';   // a cell with no pallor stains deeper
+const RBC_DEEP   = '#B9624D';   // the rim of a dense cell
 const RBC_INCL   = '#4A2E6B';   // Howell-Jolly body
-const RBC_STIPPLE= '#6E5A9E';   // basophilic stippling
-const RBC_RING   = '#C7D0DA';   // the dashed normal-size reference
+const RBC_STIPPLE= '#5E4E94';   // basophilic stippling
+const RBC_RING   = '#AAB6C3';   // the dashed normal-size reference
+
+/* The shared gradients. Every figure carries the same <defs>, so the ids repeat
+   across the page; identical definitions make that harmless, and it keeps each
+   figure self-contained (a card copied elsewhere still renders). */
+function rbcDefs() {
+    const stops = function (list) {
+        return list.map(function (s) {
+            return `<stop offset="${s[0]}%" stop-color="${s[1]}"/>`;
+        }).join('');
+    };
+    return '<defs>' +
+        /* Biconcave disc: pale centre fading to haemoglobin, a touch darker at the rim. */
+        `<radialGradient id="rbcG-disc" cx="50%" cy="50%" r="50%">${stops([
+            [0, RBC_PALE], [22, RBC_PALE], [55, RBC_FILL], [92, RBC_FILL], [100, RBC_EDGE]])}</radialGradient>` +
+        /* Little or no pallor: a sphere lit slightly off-centre. */
+        `<radialGradient id="rbcG-dense" cx="44%" cy="42%" r="60%">${stops([
+            [0, '#E39580'], [60, RBC_DENSE], [100, RBC_DEEP]])}</radialGradient>` +
+        /* A teardrop's pallor sits in the round body, not the bounding box centre. */
+        `<radialGradient id="rbcG-tear" cx="50%" cy="66%" r="46%">${stops([
+            [0, RBC_PALE], [24, RBC_PALE], [62, RBC_FILL], [100, RBC_EDGE]])}</radialGradient>` +
+        /* Target: rim, pale ring, central button. */
+        `<radialGradient id="rbcG-target" cx="50%" cy="50%" r="50%">${stops([
+            [0, RBC_FILL], [22, RBC_FILL], [34, RBC_PALE], [56, RBC_PALE], [70, RBC_FILL],
+            [94, RBC_FILL], [100, RBC_EDGE]])}</radialGradient>` +
+        /* A disc with haemoglobin throughout (stippling, bite and blister bodies). */
+        `<radialGradient id="rbcG-full" cx="50%" cy="50%" r="50%">${stops([
+            [0, '#EDB7A8'], [70, RBC_FILL], [100, RBC_EDGE]])}</radialGradient>` +
+        `<radialGradient id="rbcG-incl" cx="40%" cy="38%" r="60%">${stops([
+            [0, '#6E4F92'], [100, RBC_INCL]])}</radialGradient>` +
+        '</defs>';
+}
 
 /* Polar around the 100x100 box's centre, 0 degrees at twelve o'clock. */
 function rbcPt(angle, r) {
@@ -205,206 +263,235 @@ function rbcPt(angle, r) {
     return [50 + r * Math.cos(a), 50 + r * Math.sin(a)];
 }
 
-/* A spiculated outline. `spikes` is [angle, radius] pairs - even spacing and one
-   radius gives an echinocyte, an irregular table gives an acanthocyte - and the
-   valley between two spikes sits at their angular midpoint.
+const rbcXY = function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); };
 
-   `stroke-linejoin: round` on the polygon is what makes a spicule BLUNT, and it
-   is the whole reason these are polygons rather than curves: the same point list
-   drawn with a thick round join is a club and with a thin miter join is a thorn,
-   which is exactly the distinction between the two cells. */
-function rbcSpikes(spikes, innerR) {
-    const pts = [];
-    spikes.forEach(function (s, i) {
-        pts.push(rbcPt(s[0], s[1]));
-        const next = spikes[(i + 1) % spikes.length];
-        const a2 = next[0] < s[0] ? next[0] + 360 : next[0];
-        pts.push(rbcPt((s[0] + a2) / 2, innerR));
-    });
-    return pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+/* A crenated outline: `n` rounded scallops around radius `r`, each `h` high.
+   Built from quadratic curves between valleys, so the projections are short and
+   rounded — the echinocyte's regular crenation — rather than thorns. */
+function rbcCrenated(n, r, h) {
+    let d = '';
+    for (let i = 0; i < n; i++) {
+        const a0 = i * 360 / n, a1 = (i + 1) * 360 / n, am = (a0 + a1) / 2;
+        const start = rbcPt(a0, r), tip = rbcPt(am, r + h * 2), end = rbcPt(a1, r);
+        d += (i === 0 ? `M ${rbcXY(start)} ` : '') + `Q ${rbcXY(tip)} ${rbcXY(end)} `;
+    }
+    return d + 'Z';
 }
 
 /* The dashed circle of a normal red cell, drawn with a cell whose definition IS
    its size. Without it "macroovalocyte" and "microspherocyte" are just an oval
-   and a circle - the figure cannot say "large" or "small" on its own, because it
-   has nothing to be large or small against.
-
-   DRAWN LAST, ON TOP. Behind the cell it is invisible wherever the cell is
-   bigger, which is the whole case it exists for: the macroovalocyte covered all
-   but a hairline of it and the figure said nothing. On top it reads as what it
-   is - a measurement laid over the cell - and it is stroke-only, so it hides
+   and a circle. DRAWN LAST, ON TOP: behind the cell it vanishes wherever the
+   cell is bigger, which is the case it exists for. Stroke-only, so it hides
    nothing. */
 function rbcScaleRing() {
     return `<circle cx="50" cy="50" r="31" fill="none" stroke="${RBC_RING}" ` +
-        `stroke-width="1.5" stroke-dasharray="3 3"/>`;
+        `stroke-width="1.2" stroke-dasharray="3 3"/>`;
 }
 
 function rbcFig(inner) {
-    return `<svg class="rbcFig" viewBox="0 0 100 100" aria-hidden="true" focusable="false">${inner}</svg>`;
+    return `<svg class="rbcFig" viewBox="0 0 100 100" aria-hidden="true" focusable="false">` +
+        `${rbcDefs()}${inner}</svg>`;
 }
 
-/* A plain disc with central pallor - the baseline every other figure is a
-   departure from, and the body of the two inclusion figures. */
-function rbcDisc(r, pallor) {
-    return `<circle cx="50" cy="50" r="${r}" fill="${RBC_FILL}" stroke="${RBC_EDGE}" stroke-width="2"/>` +
-        (pallor ? `<circle cx="50" cy="50" r="${pallor}" fill="${RBC_PALE}"/>` : '');
+const RBC_STROKE = `stroke="${RBC_EDGE}" stroke-width="1.2" stroke-linejoin="round"`;
+
+/* A plain disc - the baseline every other figure departs from. */
+function rbcDisc(r, gradient) {
+    return `<circle cx="50" cy="50" r="${r}" fill="url(#${gradient || 'rbcG-disc'})" ${RBC_STROKE}/>`;
 }
 
 /* The eighteen figures. Keyed by the descriptor key wherever one exists, so a
    dropdown entry and its picture cannot drift apart; `normal` is the reference
    card and belongs to no descriptor. */
 const rbcFigures = {
-    normal: function () { return rbcFig(rbcDisc(31, 13)); },
+    normal: function () { return rbcFig(rbcDisc(31)); },
 
-    /* Regular, shallow, many, evenly spaced - and MITRE joins, so the spicules
-       come to points. Sixteen of them, generated rather than listed. */
+    /* Many short, rounded, evenly spaced crenations; the pallor is kept. */
     echinocytes: function () {
-        const even = [];
-        for (let i = 0; i < 16; i++) even.push([i * 22.5, 34]);
-        return rbcFig(
-            `<polygon points="${rbcSpikes(even, 27)}" fill="${RBC_FILL}" stroke="${RBC_EDGE}" ` +
-            `stroke-width="1.5" stroke-linejoin="miter"/>` +
-            `<circle cx="50" cy="50" r="11" fill="${RBC_PALE}"/>`);
+        return rbcFig(`<path d="${rbcCrenated(18, 30, 2.2)}" fill="url(#rbcG-disc)" ${RBC_STROKE}/>`);
     },
 
-    /* Few, long, irregular in both length and spacing, and BLUNT - the thick
-       round join is doing that. No central pallor: an acanthocyte is dense. */
+    /* A small dense cell with a few spicules of UNEQUAL length at UNEQUAL spacing,
+       each ending in a small knob — the "spur". Drawn as a body plus separate
+       projections, which is what the cell looks like, rather than a star polygon,
+       which is what the old figure looked like. No pallor. */
     acanthocytes: function () {
-        const spikes = [[8, 41], [55, 34], [96, 42], [140, 33], [192, 40], [246, 36], [300, 43]];
-        return rbcFig(
-            `<polygon points="${rbcSpikes(spikes, 23)}" fill="${RBC_DENSE}" stroke="${RBC_DENSE}" ` +
-            `stroke-width="7" stroke-linejoin="round"/>`);
+        /* [angle, length beyond the body] — irregular in both, fixed so the
+           figure is the same every render. Each spur is a wide-based projection
+           with a flat, slightly broadened tip, and the outline runs round the
+           body between them. */
+        const spurs = [[12, 11], [70, 7], [128, 12], [178, 6], [232, 10], [290, 8], [334, 12]];
+        const body = 25;
+        const pts = [];
+        spurs.forEach(function (s, i) {
+            const next = spurs[(i + 1) % spurs.length][0] + (i === spurs.length - 1 ? 360 : 0);
+            pts.push(rbcPt(s[0] - 9, body), rbcPt(s[0] - 3.5, body + s[1]),
+                rbcPt(s[0] + 3.5, body + s[1]), rbcPt(s[0] + 9, body));
+            for (let a = s[0] + 18; a < next - 9; a += 9) pts.push(rbcPt(a, body));
+        });
+        return rbcFig(`<polygon points="${pts.map(rbcXY).join(' ')}" fill="url(#rbcG-dense)" ` +
+            `stroke="${RBC_DEEP}" stroke-width="1.6" stroke-linejoin="round"/>`);
     },
 
-    /* A helmet: the major arc of a disc closed by the straight edge where the
-       rest of the cell was sheared away. */
+    /* A helmet cell - the dome of a cell with a straight cut edge and a horn at
+       each end - beside a small triangular fragment, the two commonest forms. */
     schistocytes: function () {
+        /* Dome of a circle (centre 46,40, r 25) cut by a chord at y = 52, the
+           cut edge bowed inward, and a sharp horn at each end of it. */
+        const helmet = 'M 24.5,52 A 25,25 0 1 1 67.5,52 L 72,63 Q 46,47 20,63 Z';
+        const fragment = 'M 66,72 L 90,78 L 73,92 Z';
         return rbcFig(
-            `<path d="M 22,64 A 31,31 0 1 1 78,64 Z" fill="${RBC_DENSE}" stroke="${RBC_EDGE}" ` +
-            `stroke-width="2" stroke-linejoin="round"/>`);
+            `<path d="${helmet}" fill="url(#rbcG-dense)" ${RBC_STROKE}/>` +
+            `<path d="${fragment}" fill="url(#rbcG-dense)" ${RBC_STROKE}/>`);
     },
 
     spherocytes: function () {
-        return rbcFig(`<circle cx="50" cy="50" r="24" fill="${RBC_DENSE}" stroke="${RBC_EDGE}" stroke-width="2"/>` + rbcScaleRing());
+        return rbcFig(rbcDisc(24, 'rbcG-dense') + rbcScaleRing());
     },
 
     microspherocytes: function () {
-        return rbcFig(`<circle cx="50" cy="50" r="16" fill="${RBC_DENSE}" stroke="${RBC_EDGE}" stroke-width="2"/>` + rbcScaleRing());
+        return rbcFig(rbcDisc(15, 'rbcG-dense') + rbcScaleRing());
     },
 
     elliptocytes: function () {
-        return rbcFig(
-            `<ellipse cx="50" cy="50" rx="40" ry="15" fill="${RBC_FILL}" stroke="${RBC_EDGE}" stroke-width="2"/>` +
-            `<ellipse cx="50" cy="50" rx="16" ry="5" fill="${RBC_PALE}"/>`);
+        return rbcFig(`<ellipse cx="50" cy="50" rx="41" ry="15" fill="url(#rbcG-disc)" ${RBC_STROKE}/>`);
     },
 
     ovalocytes: function () {
-        return rbcFig(
-            `<ellipse cx="50" cy="50" rx="34" ry="23" fill="${RBC_FILL}" stroke="${RBC_EDGE}" stroke-width="2"/>` +
-            `<ellipse cx="50" cy="50" rx="13" ry="8" fill="${RBC_PALE}"/>`);
+        return rbcFig(`<ellipse cx="50" cy="50" rx="34" ry="24" fill="url(#rbcG-disc)" ${RBC_STROKE}/>`);
     },
 
-    /* Larger than the reference ring in both axes, and no pallor - which is the
-       pair of features that separates it from an ovalocyte. */
+    /* Larger than the reference ring in both axes, and little pallor - the pair
+       of features that separates it from an ovalocyte. */
     macroovalocytes: function () {
-        return rbcFig(`<ellipse cx="50" cy="50" rx="43" ry="27" fill="${RBC_DENSE}" stroke="${RBC_EDGE}" stroke-width="2"/>` + rbcScaleRing());
+        return rbcFig(`<ellipse cx="50" cy="50" rx="44" ry="28" fill="url(#rbcG-dense)" ${RBC_STROKE}/>` +
+            rbcScaleRing());
     },
 
-    /* Two curves meeting at points: the outer bulge and the shallower inner one. */
+    /* A crescent tapering to points at both ends. */
     sickleCells: function () {
         return rbcFig(
-            `<path d="M 30,16 Q 92,50 30,84 Q 56,50 30,16 Z" fill="${RBC_DENSE}" stroke="${RBC_EDGE}" ` +
-            `stroke-width="2" stroke-linejoin="round"/>`);
+            `<path d="M 14,74 C 18,22 70,8 90,30 C 60,38 30,50 14,74 Z" fill="url(#rbcG-dense)" ` +
+            `${RBC_STROKE}/>`);
     },
 
+    /* A round body drawn out to one tapered tail. */
     teardropCells: function () {
         return rbcFig(
-            `<path d="M 50,12 C 62,40 78,48 78,60 A 28,28 0 1 1 22,60 C 22,48 38,40 50,12 Z" ` +
-            `fill="${RBC_FILL}" stroke="${RBC_EDGE}" stroke-width="2" stroke-linejoin="round"/>` +
-            `<circle cx="50" cy="60" r="11" fill="${RBC_PALE}"/>`);
+            `<path d="M 50,8 C 55,26 76,40 76,62 A 26,26 0 1 1 24,62 C 24,40 45,26 50,8 Z" ` +
+            `fill="url(#rbcG-tear)" ${RBC_STROKE}/>`);
     },
 
-    /* Three rings: rim, pallor, and the central button of haemoglobin that gives
-       the cell its name. */
+    /* Rim, pale ring, central button - one gradient, so the rings blend as they
+       do on a smear rather than sitting as three flat discs. */
     targetCells: function () {
-        return rbcFig(
-            `<circle cx="50" cy="50" r="31" fill="${RBC_FILL}" stroke="${RBC_EDGE}" stroke-width="2"/>` +
-            `<circle cx="50" cy="50" r="21" fill="${RBC_PALE}"/>` +
-            `<circle cx="50" cy="50" r="10" fill="${RBC_FILL}"/>`);
+        return rbcFig(rbcDisc(31, 'rbcG-target'));
     },
 
-    /* The cell's major arc, closed by a concave arc - the semicircular defect
-       where a macrophage removed a Heinz body.
+    /* The cell's major arc closed by a concave arc - the smooth "bite" left
+       where the spleen removed a Heinz body.
 
-       THE ENDPOINTS ARE THE TWO CIRCLES' INTERSECTIONS AND THEY ARE COMPUTED,
-       NOT GUESSED. Cell centre (50,50) r=31, bite centre (81,50) r=16, so
-       d = 31, a = (d² + r₁² − r₂²) / 2d = 26.87, h = √(r₁² − a²) = 15.46, and the
-       intersections are (76.9, 50 ∓ 15.46). Eyeballed endpoints with guessed
-       large-arc/sweep flags is what the first attempt did, and it drew a wedge
-       nothing like a cell - four flag combinations pick four different arcs and
-       three of them are wrong. */
+       THE ENDPOINTS ARE THE TWO CIRCLES' INTERSECTIONS AND THEY ARE COMPUTED:
+       cell (50,50) r=31, bite (81,50) r=16, so d = 31, a = (d² + r₁² − r₂²) / 2d =
+       26.87, h = √(r₁² − a²) = 15.46, intersections (76.9, 50 ∓ 15.46). Guessed
+       endpoints and arc flags drew a wedge; four flag combinations pick four arcs
+       and three are wrong. */
     biteCells: function () {
         return rbcFig(
             `<path d="M 76.9,34.5 A 31,31 0 1 0 76.9,65.5 A 16,16 0 0 1 76.9,34.5 Z" ` +
-            `fill="${RBC_FILL}" stroke="${RBC_EDGE}" stroke-width="2" stroke-linejoin="round"/>` +
-            `<circle cx="42" cy="50" r="11" fill="${RBC_PALE}"/>`);
+            `fill="url(#rbcG-disc)" ${RBC_STROKE}/>`);
     },
 
-    /* Membrane intact, haemoglobin retracted away from one edge - so the OUTLINE
-       is a whole cell and the FILL is not, which is the entire finding.
-
-       A clip path rather than another two-arc path: the haemoglobin is just a
-       disc pushed to one side and trimmed at the membrane, and saying that
-       directly is both correct by construction and impossible to get subtly
-       wrong. The clear crescent needs no stroke of its own - the membrane circle
-       drawn under it already supplies the edge. */
+    /* Membrane intact, haemoglobin retracted from one edge - so the OUTLINE is a
+       whole cell and the FILL is not. A clip path, which is correct by
+       construction. */
     blisterCells: function () {
         return rbcFig(
-            `<defs><clipPath id="rbcBlisterClip"><circle cx="50" cy="50" r="30"/></clipPath></defs>` +
-            `<circle cx="50" cy="50" r="31" fill="${RBC_PALE}" stroke="${RBC_EDGE}" stroke-width="2"/>` +
-            `<circle cx="41" cy="50" r="28" fill="${RBC_FILL}" clip-path="url(#rbcBlisterClip)"/>`);
+            `<clipPath id="rbcBlisterClip"><circle cx="50" cy="50" r="30"/></clipPath>` +
+            `<circle cx="50" cy="50" r="31" fill="#FBEEEA" ${RBC_STROKE}/>` +
+            `<circle cx="41" cy="50" r="28" fill="url(#rbcG-full)" clip-path="url(#rbcBlisterClip)"/>` +
+            `<circle cx="50" cy="50" r="31" fill="none" ${RBC_STROKE}/>`);
     },
 
     howellJolly: function () {
-        return rbcFig(rbcDisc(31, 13) +
-            `<circle cx="66" cy="36" r="6.5" fill="${RBC_INCL}"/>`);
+        return rbcFig(rbcDisc(31) +
+            `<circle cx="65" cy="37" r="5.5" fill="url(#rbcG-incl)"/>`);
     },
 
+    /* Fine, evenly scattered dots through a cell with no pallor to speak of. A
+       fixed table, not random, so the figure is the same every render. */
     basophilicStippling: function () {
-        const dots = [[38, 34], [50, 30], [62, 36], [33, 46], [45, 44], [57, 47], [67, 45],
-                      [36, 58], [48, 56], [59, 60], [68, 55], [42, 67], [54, 66], [63, 68]];
-        return rbcFig(rbcDisc(31, 0) +
-            dots.map(function (d) {
-                return `<circle cx="${d[0]}" cy="${d[1]}" r="2" fill="${RBC_STIPPLE}"/>`;
+        const dots = [[38, 32], [50, 28], [62, 33], [31, 43], [44, 41], [56, 44], [68, 42],
+                      [34, 55], [47, 53], [60, 57], [70, 53], [40, 66], [53, 65], [64, 67],
+                      [28, 50], [72, 64], [50, 76], [45, 30]];
+        return rbcFig(rbcDisc(31, 'rbcG-full') +
+            dots.map(function (d, i) {
+                return `<circle cx="${d[0]}" cy="${d[1]}" r="${i % 3 === 0 ? 1.8 : 1.3}" fill="${RBC_STIPPLE}"/>`;
             }).join(''));
     }
 };
 
 /* The two synonym pairs draw the same cell, because they ARE the same cell. The
    dropdown offers both wordings, so both need a card to look up - and each card
-   says which other entry it duplicates rather than leaving a reader to wonder
-   why two pictures are identical. */
+   says which other entry it duplicates. */
 rbcFigures.burrCells = rbcFigures.echinocytes;
 rbcFigures.teardropForms = rbcFigures.teardropCells;
 
+/* HOW EACH PHOTOGRAPH IS SHOWN, and whether it is shown at all.
+
+   A WHOLE FIELD IN A THUMBNAIL SHOWS NOTHING. The Commons images are low-power
+   fields 850-2560px wide, and squeezed into a card the cell in question was a few
+   pixels across. Each card now shows a CROP around the example cells - `crop` is
+   [x, y, w, h] in the source image's own pixels, `size` its full [w, h] - and a
+   click opens the whole field. The crops were chosen by looking at each image;
+   if a file is replaced, its crop must be chosen again.
+
+   `hide` takes a photograph out of the atlas with the reason. Kept here rather
+   than by editing MarrowRefImages.js, which is a generated file. */
+const rbcPhotoViews = {
+    acanthocytes:        { size: [902, 671],   crop: [520, 130, 280, 210] },
+    schistocytes:        { size: [1063, 798],  crop: [400, 300, 280, 210] },
+    spherocytes:         { size: [2560, 2048], crop: [474, 384, 333, 250] },
+    elliptocytes:        { size: [2560, 2048], crop: [1203, 1126, 410, 307] },
+    sickleCells:         { size: [853, 640],   crop: [270, 180, 240, 180] },
+    teardropCells:       { size: [1242, 932],  crop: [360, 430, 320, 240] },
+    targetCells:         { size: [2560, 2048], crop: [1560, 250, 320, 240] },
+    howellJolly:         { size: [1386, 1036], crop: [740, 640, 220, 165] },
+    basophilicStippling: { size: [2560, 2048], crop: [1101, 986, 538, 403] },
+    /* A text-heavy infographic poster ("BITE CELL … SEEN IN G6PD DEFICENCY"),
+       not a smear; its two inset photographs are too small to crop from. */
+    biteCells:           { hide: true }
+};
+rbcPhotoViews.teardropForms = rbcPhotoViews.teardropCells;
+
 /* The photograph half of a card, where there is one.
 
-   DRAWING AND PHOTOGRAPH SIDE BY SIDE, never one instead of the other. They
-   answer different questions: the schematic shows the defining feature at full
-   expression with nothing else in the field, and the photograph shows what that
-   actually looks like among overlapping cells at real stain variation. A reader
-   learning a shape wants the first; a reader checking a slide wants the second.
+   DRAWING AND PHOTOGRAPH TOGETHER, never one instead of the other. The schematic
+   shows the defining feature at full expression with nothing else in the field;
+   the photograph shows what it actually looks like among overlapping cells at
+   real stain variation.
 
-   THE UNCONFIRMED BADGE IS NOT DECORATION. Commons is contributor-curated -
-   its schistocyte category holds dog, rabbit and rat smears, and a search for
+   THE UNCONFIRMED BADGE IS NOT DECORATION. Commons is contributor-curated - its
+   schistocyte category holds dog, rabbit and rat smears, and a search for
    Howell-Jolly bodies returned a quokka - so a filename is a claim and not a
    diagnosis. Until somebody who can tell has set `verified: true` in
-   MarrowRefImages.js, the badge says so on the image itself, where it cannot be
-   scrolled past. */
+   MarrowRefImages.js, the badge says so on the image itself. */
 function rbcPhoto(key) {
     if (typeof rbcPhotos === 'undefined') return '';
     const p = rbcPhotos[key];
-    if (!p) return '';
+    const view = rbcPhotoViews[key] || {};
+    if (!p || view.hide) return '';
+
+    /* The crop as CSS: the frame takes the crop's aspect ratio, and the image is
+       scaled so the crop fills it and offset so the crop sits in it. Percentages,
+       so it holds at any card width. */
+    let frameStyle = '', imgStyle = '';
+    if (view.crop && view.size) {
+        const c = view.crop, s = view.size;
+        frameStyle = ` style="aspect-ratio: ${c[2]} / ${c[3]}"`;
+        imgStyle = ` style="width: ${(s[0] / c[2] * 100).toFixed(2)}%; ` +
+            `left: ${(-c[0] / c[2] * 100).toFixed(2)}%; top: ${(-c[1] / c[3] * 100).toFixed(2)}%"`;
+    }
 
     const credit = p.source === 'own'
         ? ''
@@ -412,21 +499,24 @@ function rbcPhoto(key) {
           `<a href="${p.licenceUrl || p.source}" target="_blank" rel="noopener">${p.licence}</a></div>`;
 
     return `<figure class="rbcPhoto${p.verified ? '' : ' rbcPhoto--unconfirmed'}">
-        <img src="${p.file}" alt="${p.caption}" loading="lazy">
-        ${p.verified ? '' : '<span class="rbcUnconfirmed">unconfirmed</span>'}
+        <a class="rbcFrame${view.crop ? ' rbcFrame--crop' : ''}" href="${p.file}" target="_blank"
+           title="Open the full field"${frameStyle}>
+            <img src="${p.file}" alt="${p.caption}" loading="lazy"${imgStyle}>
+            ${p.verified ? '' : '<span class="rbcUnconfirmed">unconfirmed</span>'}
+        </a>
         <figcaption>${p.caption}</figcaption>
         ${credit}
     </figure>`;
 }
 
-/* One card. `also` is the synonym note; `seen` is what the finding suggests. */
+/* One card: what the cell looks like (`desc`), and what it suggests (`seen`). A
+   synonym card says so in its `desc`. */
 function rbcCard(spec) {
     const fig = rbcFigures[spec.key];
     return `<div class="rbcCard">
         <div class="rbcArt">${fig ? fig() : ''}${rbcPhoto(spec.key)}</div>
         <div class="rbcName">${spec.name}</div>
         <div class="rbcDesc">${spec.desc}</div>
-        ${spec.also ? `<div class="rbcAlso">${spec.also}</div>` : ''}
         ${spec.seen ? `<div class="rbcSeen">${spec.seen}</div>` : ''}
     </div>`;
 }
@@ -434,16 +524,6 @@ function rbcCard(spec) {
 function rbcGrid(cards) {
     return `<div class="rbcGrid">${cards.map(rbcCard).join('')}</div>`;
 }
-
-/* A quiet aside that is NOT a criterion and does not belong to any one criterion
-   - so it cannot go in a box's `notes`, which is where a qualification normally
-   lives. Reserved for the few remarks that are about the page rather than about
-   the case: that WHO and ICC spell a name differently, that two chapters publish
-   two versions of a list. If it qualifies a criterion, it belongs in the box. */
-function refNote(html) {
-    return `<div class="refNote">${html}</div>`;
-}
-
 
 /* ----------------------------------------------------------------------------
    Sections - the index's grouping. Labels only; a section blurb is one more line
@@ -453,12 +533,18 @@ const referenceSections = [
     { id: 'bench',   label: 'At the scope' },
     { id: 'mds',     label: 'Myelodysplastic neoplasms' },
     { id: 'mpn',     label: 'Myeloproliferative neoplasms' },
-    { id: 'overlap', label: 'MDS/MPN and the boundaries' },
+    { id: 'overlap', label: 'MDS/MPN and related' },
     { id: 'aml',     label: 'Acute myeloid leukaemia' }
 ];
 
 
 const referenceTopics = [];
+
+/* The same two sentences close the ICC block of every AML entity whose WHO box
+   excludes prior cytotoxic therapy. One copy, so the eleven pages cannot drift
+   into eleven wordings. */
+const REF_ICC_THERAPY = 'Prior cytotoxic therapy is a "therapy-related" qualifier, not a separate entity. WHO ' +
+    'classifies these cases as ' + refJump('mn-pct', 'MN-pCT') + '.';
 
 
 /* ============================================================================
@@ -476,13 +562,11 @@ const referenceTopics = [];
 referenceTopics.push({
     id: 'cellularity',
     section: 'bench',
-    title: 'Marrow cellularity',
+    title: 'Cellularity',
     keywords: ['cellularity', 'hypocellular', 'hypercellular', 'age', '100 minus age', 'aplastic', 'fat'],
     related: ['mds-h', 'megakaryocytes'],
     body: function () {
-        return refP('Assessed on the trephine core biopsy; subcortical marrow is normally hypocellular.') +
-
-            refTable(['Age', 'Normal range', 'Reported mean'], [
+        return refTable(['Age', 'Normal range', 'Reported mean'], [
                 ['Under 20', '45-85%', '72.8%'],
                 ['20 to under 40', '40-70%', '56.5%'],
                 ['40 to under 60', '35-65%', '51-54%'],
@@ -493,17 +577,17 @@ referenceTopics.push({
                 'Hartsock RJ, Smith EB, Petty CS. Normal variations with aging of the amount of hematopoietic tissue ' +
                 'in bone marrow from the anterior iliac crest. <i>Am J Clin Pathol</i>. 1965;43:326-331.') +
 
-            refH('Expected cellularity, three ways') +
+            refH('Expected cellularity in this app') +
             refUL([
-                '100 minus age - the traditional rule. Overstates the decline in the elderly: measured ' +
-                    'cellularity falls about 3% per decade, not 10%.',
-                'Strict evidence based - the bands above as hard cut-offs, no mild/marked grade.',
-                'Hybrid - the average of the two.'
+                '100 minus age: the traditional rule. It overstates the decline with age; measured cellularity ' +
+                    'falls about 3% per decade, not 10%.',
+                'Evidence based: the age bands above as hard cut-offs, with no mild or marked grading.',
+                'Hybrid: the average of the two.'
             ]) +
 
-            refH('Significantly decreased') +
-            refP('Hypoplastic MDS puts a number on it: below 30% of normal cellularity under 70 years, below ' +
-                '20% at 70 and over. Hypocellularity is usually diffuse but may be patchy.');
+            refH('Hypoplastic MDS') +
+            refP('Below 30% of normal cellularity under age 70, below 20% at 70 or older. Usually diffuse, ' +
+                'sometimes patchy.');
     }
 });
 
@@ -520,7 +604,7 @@ referenceTopics.push({
 referenceTopics.push({
     id: 'fibrosis',
     section: 'bench',
-    title: 'Grading marrow fibrosis',
+    title: 'Fibrosis grading',
     keywords: ['fibrosis', 'reticulin', 'collagen', 'MF-0', 'MF-1', 'MF-2', 'MF-3', 'myelofibrosis', 'trichrome', 'osteosclerosis'],
     related: ['pmf', 'pre-pmf'],
     body: function () {
@@ -529,7 +613,7 @@ referenceTopics.push({
            reticulin definition is what a grade is assigned on and is split out;
            collagen and osteosclerosis are the confirmatory columns and follow
            under their own heading. No cell is abridged. */
-        return refTable(['Grade', 'Grade definition (reticulin)'], [
+        return refTable(['Grade', 'Reticulin'], [
                 ['MF-0', 'Scattered linear reticulin with no intersections (crossovers), corresponding to ' +
                     'normal bone marrow'],
                 ['MF-1', 'Loose network of reticulin with many intersections, especially in perivascular areas'],
@@ -540,9 +624,8 @@ referenceTopics.push({
             ]) +
 
             refBox({
-                title: 'Applying the grade',
+                title: 'WHO-HAEM5',
                 groups: [{
-                    label: 'The three footnotes',
                     items: [
                         'Reticulin and collagen fibre density should be assessed only in haematopoietic areas. ' +
                             'If the pattern of reticulin fibrosis, collagen deposition and/or osteosclerosis is ' +
@@ -557,7 +640,7 @@ referenceTopics.push({
             }) +
 
             refH('Collagen and osteosclerosis') +
-            refTable(['Grade', 'Collagen pattern', 'Osteosclerosis'], [
+            refTable(['Grade', 'Collagen', 'Osteosclerosis'], [
                 ['MF-0',
                     'Perivascular collagen only (normal)',
                     'Regular bone trabeculae (distinct paratrabecular borders)'],
@@ -574,13 +657,13 @@ referenceTopics.push({
                     'Extensive interconnecting meshwork of new bone with overall effacement of marrow spaces']
             ]) +
 
-            refH('What reads the grade') +
+            refH('Grades named in the criteria') +
             refTable(['Criterion', 'Grade'], [
-                ['Prefibrotic PMF, major 1', 'Not above grade 1'],
-                ['Overt fibrotic PMF, major 1', 'Grade 2 or 3'],
-                ['Essential thrombocythaemia, major 2', 'At most a minor (grade 1) increase'],
-                ['Post-PV MF, post-ET MF', 'Grade 2-3'],
-                ['MDS with increased blasts and fibrosis', 'MF-2 or MF-3']
+                ['Prefibrotic PMF, major 1', 'MF-0 or MF-1'],
+                ['Overt PMF, major 1', 'MF-2 or MF-3'],
+                ['ET, major 2', 'MF-0; very rarely MF-1'],
+                ['Post-PV and post-ET MF', 'MF-2 or MF-3'],
+                ['MDS-F', 'MF-2 or MF-3']
             ]) +
 
             refCite('Kvasnicka HM, Beham-Schmid C, Bob R, et al. Problems and pitfalls in grading of bone marrow ' +
@@ -607,82 +690,83 @@ referenceTopics.push({
     keywords: ['megakaryocyte', 'megakaryocytes', 'clustering', 'staghorn', 'micromegakaryocyte', 'paratrabecular', 'number'],
     related: ['dysplasia', 'et', 'pre-pmf'],
     body: function () {
-        return refP('Number is judged semiquantitatively - decreased, normal, or increased. No WHO criterion ' +
-                'asks for a count, and the published quantitative figures are not comparable between laboratories: a ' +
-                'count per field depends on the field diameter, the section thickness and the marrow\'s cellularity.') +
-            refP('The one direct series gives a mean of 1.5 megakaryocytes per 450× field (range 0.4-2.7) in ' +
-                'normal marrows of mean cellularity 72%. A figure quoted per <i>low-power</i> field is a different ' +
-                'measurement again, and the two are routinely confused.') +
+        return refP('Number is judged semiquantitatively: decreased, normal or increased. No WHO criterion ' +
+                'requires a count, and published counts do not transfer between laboratories because they depend ' +
+                'on field diameter, section thickness and cellularity.') +
+            refP('The one direct series reports a mean of 1.5 megakaryocytes per 450× field (range 0.4-2.7) in ' +
+                'normal marrows of mean cellularity 72%.') +
             refCite('Singal R, Belliveau RR. Quantitation of megakaryocytes in normal bone marrow. <i>Anal Quant ' +
                 'Cytol Histol</i>. 1988;10(1):33-36.<br>' +
                 'Zini G, Viscovo M. Cytomorphology of normal, reactive, dysmorphic, and dysplastic megakaryocytes in ' +
                 'bone marrow aspirates. <i>Int J Lab Hematol</i>. 2021;43:23-28.') +
 
             refH('Distribution') +
-            refP('Normally intertrabecular, single or in loose pairs. Tight clustering is an MPN pattern; ' +
-                'paratrabecular relocation is an MDS one.') +
+            refP('Normally intertrabecular, single or in loose pairs. Tight clusters suggest MPN; a paratrabecular ' +
+                'location suggests MDS.') +
 
-            refTable(['Pattern', 'Morphology', 'Where it counts'], [
+            refTable(['Pattern', 'Morphology', 'Criterion'], [
                 ['Dysplastic',
-                    'Micromegakaryocytes; non-lobated nuclei at all sizes; multiple widely separated nuclei.',
-                    'MDS - the megakaryocyte limb of the 10% threshold.'],
-                ['ET-like',
-                    'Enlarged, mature, hyperlobulated (staghorn) nuclei; no granulocytic or erythroid left shift.',
-                    'Essential thrombocythaemia, major 2.'],
-                ['PMF-like',
-                    'Proliferation with atypia - dense clustering, hypolobated bulbous nuclei, abnormal N:C ratio.',
-                    'Prefibrotic and overt PMF, major 1.'],
-                ['PV-like',
-                    'Increased, aberrantly distributed, pleomorphic - varying in size, often staghorn hyperchromatic ' +
-                        'forms, in loose clusters near the endosteum.',
-                    'Polycythaemia vera, major 2 (<i>mature</i> and pleomorphic, which is what separates it from PMF).']
+                    'Micromegakaryocytes; non-lobated nuclei at all sizes; multiple widely separated nuclei',
+                    'MDS, 10% threshold'],
+                ['ET',
+                    'Enlarged, mature, hyperlobulated (staghorn) nuclei; no granulocytic or erythroid left shift',
+                    'ET, major 2'],
+                ['PMF',
+                    'Proliferation with atypia: dense clusters, hypolobated bulbous nuclei, abnormal N:C ratio',
+                    'Pre-PMF and PMF, major 1'],
+                ['PV',
+                    'Increased, mature and pleomorphic (varying size); often staghorn and hyperchromatic, in loose ' +
+                        'clusters near the endosteum',
+                    'PV, major 2']
             ]);
     }
 });
 
 // docs/who/mds-introduction.md for the differential and both denominators;
-// blast equivalents from docs/who/mdsmpn-introduction-and-cmml.md.
+// blast equivalents from docs/who/mdsmpn-introduction-and-cmml.md. The WHO
+// table below is WHO's alone; ICC's blood limb is drawn differently.
 referenceTopics.push({
     id: 'blasts',
     section: 'bench',
-    title: 'Counting blasts',
+    title: 'Blast count',
     keywords: ['blast', 'blasts', 'differential', '500 cell', '200 cell', 'promonocyte', 'CD34', 'Auer rod', 'denominator'],
     related: ['dysplasia', 'mds-ib', 'aml-overview'],
     body: function () {
         return refBox({
-            title: 'The count',
+            title: 'WHO-HAEM5',
             groups: [{
-                label: 'WHO-HAEM5',
                 items: [
                     'Bone marrow: a 500-cell differential of all nucleated cells, on a smear or trephine imprint.',
                     'Peripheral blood: a 200-leukocyte differential.'
                 ]
             }],
             notes: [
-                'The denominators differ. Marrow blasts are a percentage of all nucleated cells, always ' +
-                    'including nucleated erythroid cells. Blood blasts are a percentage of leukocytes, ' +
-                    'excluding nucleated erythroid cells.',
-                'Blast equivalents. In CMML both the 20% ceiling and the CMML-1/CMML-2 split are read on ' +
-                    'blasts <i>and blast equivalents</i> - myeloblasts, monoblasts and promonocytes together. In ' +
-                    'APL the abnormal promyelocytes are likewise counted as blasts.',
-                'Where the smear will not give a count (fibrosis, a dry tap), CD34 immunohistochemistry on the ' +
-                    'core is the accepted substitute. It estimates blast proportion of cellularity rather than giving ' +
-                    'a 500-cell differential, and CD34-negative blasts exist.'
+                'Marrow blasts are a percentage of all nucleated cells, including erythroid precursors. Blood ' +
+                    'blasts are a percentage of leukocytes.',
+                'In CMML, monoblasts and promonocytes count with myeloblasts, both for the 20% cut-off and for ' +
+                    'CMML-1/CMML-2. In APL, abnormal promyelocytes count as blasts.',
+                'Where the smear gives no count (fibrosis, dry tap), CD34 immunohistochemistry on the core is ' +
+                    'the accepted substitute. It estimates the blast proportion of cellularity and misses ' +
+                    'CD34-negative blasts.',
+                'Lowering the MDS/AML line to 10% was considered and declined. MDS-IB2 may be treated as ' +
+                    'AML-equivalent for therapy and trial eligibility.'
             ]
         }) +
 
         refTable(['Blasts', 'Category'], [
-            ['&lt; 5% marrow and &lt; 2% blood', 'Low blasts - MDS-LB, MDS-5q, MDS-SF3B1, MDS-h'],
+            ['&lt; 5% marrow and &lt; 2% blood', 'MDS-LB, MDS-5q, MDS-SF3B1, MDS-h'],
             ['5-9% marrow and/or 2-4% blood', 'MDS-IB1'],
-            ['10-19% marrow and/or 5-19% blood', 'MDS-IB2 (WHO); MDS/AML (ICC)'],
-            ['Auer rods in that range', 'MDS-IB2, at any count within it'],
-            ['&ge; 20%', 'AML by blast count, in both classifications']
+            ['10-19% marrow and/or 5-19% blood', 'MDS-IB2'],
+            ['Auer rods, 5-19% marrow or 2-19% blood', 'MDS-IB2'],
+            ['&ge; 20%', 'AML']
         ]) +
 
-        refDiverge('WHO-HAEM5 retains 20% to delineate MDS from AML, and removes the blast requirement entirely for ' +
-            'most genetically defined AMLs. Lowering the line to 10% was considered and declined - it "would merely ' +
-            'replace one cut-off point with another" and "carries a risk of overtreatment" - but MDS-IB2 may be ' +
-            'regarded as AML-equivalent for therapy and trial eligibility.');
+        refDiverge([
+            'MDS with excess blasts: 5-9% marrow or 2-9% blood.',
+            'MDS/AML: 10-19% marrow or blood.',
+            'Most genetically defined AML needs only &ge; 10% blasts. See ' +
+                refJump('aml-overview', 'AML overview') + '.'
+        ]);
     }
 });
 
@@ -700,25 +784,26 @@ referenceTopics.push({
     related: ['blasts', 'mds-overview', 'ccus'],
     body: function () {
         return refBox({
-            title: 'The threshold',
+            title: 'WHO-HAEM5',
             groups: [{
-                label: 'WHO-HAEM5',
                 items: [
-                    '10% - for all lineages, across all MDS types, and for MDS/MPN.',
-                    'Both the biopsy (or clot) and the aspirate should be evaluated.'
+                    '10% of cells in a lineage, for every lineage, in all MDS types and in MDS/MPN.',
+                    'Evaluate both the biopsy (or clot) and the aspirate.'
                 ]
             }],
             notes: [
-                'The lineages affected by the cytopenias are not necessarily those that show dysplasia.',
-                'Megaloblastic changes alone are insufficient to establish dyserythropoiesis.',
-                'Single- versus multilineage dysplasia is now optional - the count is usually dynamic and ' +
-                    'reflects clonal evolution within one type rather than marking a separate one.'
+                'The dysplastic lineage need not be the cytopenic one.',
+                'Megaloblastic change alone does not establish dyserythropoiesis.',
+                'Single- versus multilineage dysplasia is no longer needed for classification.',
+                'Do not diagnose MDS without a known clinical and drug history, or reclassify during growth ' +
+                    'factor therapy, including erythropoietin. Drugs, infection, nutritional deficiency and immune ' +
+                    'disorders can cause both cytopenia and dysplasia.'
             ]
         }) +
 
         refTable(['Lineage', 'Nuclear', 'Cytoplasmic'], [
             ['Dyserythropoiesis',
-                'Budding, internuclear bridging, multinuclearity, megaloblastic changes, karyorrhexis',
+                'Budding, internuclear bridging, multinucleation, megaloblastic changes, karyorrhexis',
                 'Ring sideroblasts, vacuolization, PAS positivity'],
             ['Dysgranulopoiesis',
                 'Hyposegmentation (pseudo-Pelger-Huët), hypersegmentation',
@@ -726,12 +811,7 @@ referenceTopics.push({
             ['Dysmegakaryopoiesis',
                 'Hypolobation in megakaryocytes of all sizes, multinucleation (multiple widely separated nuclei)',
                 'Micromegakaryocytes']
-        ]) +
-
-        refH('Excluded first') +
-        refP('No patient should be diagnosed with MDS if the clinical and drug history is unknown, and no case ' +
-            'reclassified while on growth factor therapy including erythropoietin. Drugs, infections, metabolic ' +
-            'deficiency and immune disorders cause both cytopenias and dysplasia.');
+        ]);
     }
 });
 
@@ -744,26 +824,28 @@ referenceTopics.push({
     related: ['dysplasia', 'ccus', 'icus'],
     body: function () {
         return refBox({
-            title: 'Unified across CCUS, MDS and MDS/MPN',
+            title: 'WHO-HAEM5',
             groups: [{
-                label: 'A lineage is cytopenic at',
+                label: 'Cytopenic below',
                 items: [
                     'Haemoglobin &lt; 13 g/dL in men, &lt; 12 g/dL in women',
                     'Absolute neutrophil count &lt; 1.8 &times; 10<sup>9</sup>/L',
                     'Platelets &lt; 150 &times; 10<sup>9</sup>/L'
                 ]
             }],
-            rule: 'Cytopenia in at least one lineage is required for a diagnosis of MDS.',
             notes: [
-                'MDS may still be diagnosed with milder anaemia if definitive morphological and cytogenetic findings ' +
-                    'are present.',
+                'The same thresholds apply to CCUS, MDS and MDS/MPN.',
+                'MDS requires at least one cytopenia, though milder anaemia is acceptable with definitive ' +
+                    'morphological and cytogenetic findings.',
                 'Persistent neutrophilia, monocytosis, erythrocytosis or thrombocytosis alongside cytopenia and ' +
-                    'dysplasia generally means MDS/MPN or MPN instead. The exception is MDS-5q, where ' +
-                    'thrombocytosis (&ge; 450 &times; 10<sup>9</sup>/L) is allowed.'
+                    'dysplasia usually means MDS/MPN or MPN. MDS-5q is the exception and allows thrombocytosis ' +
+                    '(&ge; 450 &times; 10<sup>9</sup>/L).'
             ]
         }) +
 
-        refDiverge('ICC requires a cytopenia for CMML at these same thresholds; WHO does not ask for one at all.');
+        refDiverge([
+            'Same thresholds. ICC also requires a cytopenia for CMML, which WHO does not.'
+        ]);
     }
 });
 
@@ -774,15 +856,15 @@ referenceTopics.push({
 //
 // GROUPED BY WHAT YOU ARE LOOKING AT, NOT ALPHABETICALLY. The dropdown is
 // alphabetical because a dropdown you are searching by name should be; a page
-// you are searching by SHAPE should not. Grouping this way also puts the four
-// confusable pairs side by side, which is the most useful thing the page does:
-// two of them are the same cell under two names, and the other two differ only
-// by degree.
+// you are searching by SHAPE should not. Grouping this way also puts the
+// confusable pairs side by side: two are the same cell under two names, and
+// spherocyte/microspherocyte and elliptocyte/ovalocyte differ only by degree.
 //
 // SEVEN CARDS HAVE NO PHOTOGRAPH (echinocytes, burr cells, macroovalocytes,
-// ovalocytes, microspherocytes, blister cells): either Commons had no properly
-// licensed image, or the candidate had a heavy green cast that would have
-// taught the wrong colour. Schematic-only until a real image exists.
+// ovalocytes, microspherocytes, blister cells, bite cells): Commons had no
+// properly licensed image, the candidate had a heavy green cast, or (bite cells)
+// the file is an infographic rather than a smear - see rbcPhotoViews.
+// Schematic-only until a real image exists.
 referenceTopics.push({
     id: 'rbc-morphology',
     section: 'bench',
@@ -792,123 +874,104 @@ referenceTopics.push({
         'spherocyte', 'microspherocyte', 'elliptocyte', 'ovalocyte', 'macroovalocyte',
         'sickle', 'drepanocyte', 'teardrop', 'dacrocyte', 'target', 'codocyte',
         'bite', 'blister', 'Heinz', 'Howell-Jolly', 'basophilic stippling'],
-    unverified: 'The drawings are schematics, not photomicrographs. The photographs are from Wikimedia Commons and ' +
-        'are marked unconfirmed - nobody has yet checked that each shows the cell its filename claims, and ' +
-        'Commons is contributor-curated rather than pathologist-reviewed. The descriptions and associations are ' +
-        'general haematology rather than a pasted source.',
-    related: ['dysplasia', 'blasts'],
+    unverified: 'Drawings are schematic. Photographs are from Wikimedia Commons and have not been confirmed by a ' +
+        'pathologist. Descriptions and associations are general haematology, not a pasted source.',
+    related: ['pmf', 'fibrosis', 'dysplasia'],
     body: function () {
-        return refP('Every entry in the Blood tab\'s anisopoikilocytosis list, with the normal disc for ' +
-                'comparison. Grouped by what you are looking at rather than alphabetically.') +
-            refNote('Each card carries a schematic and, where one is available, a photomicrograph. ' +
-                'Photographs marked unconfirmed have not been checked against the cell they claim to show.') +
-
-            refH('Normal, and the two that are only a matter of degree') +
-            rbcGrid([
-                { key: 'normal', name: 'Normal disc',
-                  desc: 'Round, with central pallor about a third of the diameter.' },
-                { key: 'macroovalocytes', name: 'Macroovalocytes',
-                  desc: 'Large and oval, with little or no central pallor. Compare against the dashed normal outline.',
-                  seen: 'Megaloblastic anaemia - B12 and folate deficiency.' },
-                { key: 'microspherocytes', name: 'Microspherocytes',
-                  desc: 'Very small, round, dense. The extreme of the spherocyte end.',
-                  also: 'A small spherocyte, not a separate cell.',
-                  seen: 'Fragmentation, burns, severe haemolysis.' }
+        return rbcGrid([
+                { key: 'normal', name: 'Normal',
+                  desc: 'Round, with central pallor about a third of the diameter.' }
             ]) +
 
-            refH('Spiculated - the distinction is regularity') +
-            refP('This is the pair most often called wrongly, and the difference is in the spacing and ' +
-                'uniformity, not the number.') +
+            refH('Spiculated') +
             rbcGrid([
                 { key: 'echinocytes', name: 'Echinocytes',
-                  desc: '10-30 short spicules, evenly spaced and all much the same length. Central pallor kept.',
-                  seen: 'Uraemia, pyruvate kinase deficiency - and very commonly an artefact of storage or slide preparation.' },
+                  desc: '10-30 short spicules, evenly spaced and of uniform length. Central pallor preserved.',
+                  seen: 'Uraemia, pyruvate kinase deficiency; often a storage or slide artefact.' },
                 { key: 'burrCells', name: 'Burr cells',
-                  desc: 'The same cell. Regular, blunt, evenly spaced spicules.',
-                  also: 'A synonym for echinocyte; the dropdown offers both wordings.' },
+                  desc: 'Synonym for echinocytes.' },
                 { key: 'acanthocytes', name: 'Acanthocytes',
-                  desc: '2-10 spicules, irregular in length and irregularly spaced, blunt-tipped. Dense, no central pallor.',
+                  desc: '2-10 blunt spicules, irregular in length and spacing. Dense, without central pallor.',
                   seen: 'Liver disease (spur cell anaemia), abetalipoproteinaemia, post-splenectomy.' }
             ]) +
 
             refH('Fragmented') +
             rbcGrid([
                 { key: 'schistocytes', name: 'Schistocytes',
-                  desc: 'Fragments with straight, sharply cut edges - helmets, triangles, keratocytes. Smaller than a whole cell.',
+                  desc: 'Fragments with straight, sharp edges: helmet cells, triangles, keratocytes.',
                   seen: 'Microangiopathic haemolysis (TTP, HUS, DIC), mechanical valve, severe burns.' }
             ]) +
 
-            refH('Round and dense') +
+            refH('Spherocytic') +
             rbcGrid([
                 { key: 'spherocytes', name: 'Spherocytes',
-                  desc: 'Small, round, uniformly dense - no central pallor, which is the whole finding.',
-                  seen: 'Hereditary spherocytosis; autoimmune haemolytic anaemia.' }
+                  desc: 'Small, round and dense, with no central pallor.',
+                  seen: 'Hereditary spherocytosis; autoimmune haemolytic anaemia.' },
+                { key: 'microspherocytes', name: 'Microspherocytes',
+                  desc: 'Very small spherocytes.',
+                  seen: 'Burns, fragmentation, severe haemolysis.' }
             ]) +
 
             refH('Elongated') +
             rbcGrid([
                 { key: 'elliptocytes', name: 'Elliptocytes',
-                  desc: 'Cigar- or rod-shaped; the long axis is more than twice the short.',
+                  desc: 'Cigar- or rod-shaped; long axis more than twice the short axis.',
                   seen: 'Hereditary elliptocytosis; iron deficiency; MDS.' },
                 { key: 'ovalocytes', name: 'Ovalocytes',
-                  desc: 'Egg-shaped - the same departure, less of it.',
-                  also: 'A spectrum with elliptocytes rather than a separate cell.',
+                  desc: 'Egg-shaped; less elongated than an elliptocyte.',
                   seen: 'Megaloblastic anaemia, MDS, thalassaemia.' },
+                { key: 'macroovalocytes', name: 'Macroovalocytes',
+                  desc: 'Large and oval, with little or no central pallor.',
+                  seen: 'Megaloblastic anaemia (B12 or folate deficiency).' },
                 { key: 'sickleCells', name: 'Sickle cells',
-                  desc: 'Crescent or boat-shaped with pointed ends, dense, no pallor.',
-                  seen: 'Sickle cell disease. A single one is meaningful.' }
+                  desc: 'Crescent-shaped with pointed ends; dense, no pallor.',
+                  seen: 'Sickle cell disease.' }
             ]) +
 
             refH('Teardrop') +
             rbcGrid([
                 { key: 'teardropCells', name: 'Teardrop cells',
-                  desc: 'Pear-shaped, drawn out to a single blunt tail.',
-                  seen: 'Marrow fibrosis and other marrow infiltration; thalassaemia; megaloblastic anaemia.' },
+                  desc: 'Drawn out to a single blunt tail.',
+                  seen: 'Marrow fibrosis or infiltration; thalassaemia; megaloblastic anaemia.' },
                 { key: 'teardropForms', name: 'Teardrop forms',
-                  desc: 'The same cell.',
-                  also: 'A wording variant offered by the dropdown; both print the same finding.' }
+                  desc: 'Synonym for teardrop cells.' }
             ]) +
-            refNote('A teardrop is a dacrocyte, and in a marrow being read for myelofibrosis it is one of ' +
-                'the blood findings that argue for it. See ' + refJump('pmf', 'overt fibrotic PMF') + ' and ' +
-                refJump('fibrosis', 'fibrosis grading') + '.') +
 
             refH('Oxidative injury') +
-            refP('Two stages of the same insult: haemoglobin denatures into a Heinz body, which the spleen then ' +
-                'removes.') +
             rbcGrid([
                 { key: 'blisterCells', name: 'Blister cells',
-                  desc: 'Membrane intact, haemoglobin retracted away from one edge, leaving a clear space beneath it.',
-                  seen: 'G6PD deficiency, oxidant drugs - before the bite is taken.' },
+                  desc: 'Haemoglobin retracted from one edge, leaving a clear space under intact membrane.',
+                  seen: 'G6PD deficiency, oxidant drugs.' },
                 { key: 'biteCells', name: 'Bite cells',
-                  desc: 'A smooth semicircular defect at the edge, as if bitten out.',
-                  seen: 'The same causes, after splenic removal of the Heinz body.' }
+                  desc: 'Smooth semicircular defect at the edge, left by splenic removal of a Heinz body.',
+                  seen: 'G6PD deficiency, oxidant drugs.' }
             ]) +
 
             refH('Target') +
             rbcGrid([
                 { key: 'targetCells', name: 'Target cells',
-                  desc: 'A central button of haemoglobin inside the ring of pallor - a bullseye. Excess membrane for the cell\'s haemoglobin.',
+                  desc: 'Central spot of haemoglobin within the zone of pallor.',
                   seen: 'Liver disease, thalassaemia, haemoglobin C, post-splenectomy, iron deficiency.' }
             ]) +
 
             refH('Inclusions') +
             rbcGrid([
                 { key: 'howellJolly', name: 'Howell-Jolly bodies',
-                  desc: 'A single round, dense, dark nuclear remnant, usually eccentric.',
+                  desc: 'Single round, dense nuclear remnant, usually eccentric.',
                   seen: 'Absent or non-functioning spleen; megaloblastic anaemia; MDS.' },
                 { key: 'basophilicStippling', name: 'Basophilic stippling',
-                  desc: 'Many fine blue-purple dots spread evenly through the cell - ribosomal, not nuclear.',
+                  desc: 'Fine blue-purple dots evenly distributed through the cell (ribosomal).',
                   seen: 'Lead poisoning, thalassaemia, MDS, pyrimidine 5′-nucleotidase deficiency.' }
             ]) +
 
-            refCite('Photographs from Wikimedia Commons under CC0, CC BY and CC BY-SA licences; each is credited ' +
-                'beneath the image.');
+            refCite('Photographs: Wikimedia Commons (CC0, CC BY, CC BY-SA), credited under each image.');
     }
 });
 
-// Thresholds from docs/who/mds-sf3b1.md and docs/who/mds-h-and-mds-ib.md. The
-// morphological definition is the IWGM-MDS consensus (Mufti 2008), which is the
-// definition WHO adopted in 2008 and has carried since.
+// Thresholds from docs/who/mds-sf3b1.md, docs/who/mds-introduction.md and
+// docs/who/mds-h-and-mds-ib.md. The morphological definition is the IWGM-MDS
+// consensus (Mufti 2008), which is the definition WHO adopted in 2008 and has
+// carried since.
 referenceTopics.push({
     id: 'ring-sideroblasts',
     section: 'bench',
@@ -916,20 +979,18 @@ referenceTopics.push({
     keywords: ['ring sideroblast', 'sideroblast', 'iron', 'Prussian blue', 'SF3B1', 'mitochondrial', 'IWGM'],
     related: ['mds-sf3b1', 'dysplasia'],
     body: function () {
-        return refP('An erythroid precursor with at least five siderotic granules in a perinuclear position, ' +
-                'covering at least one third of the nuclear circumference. Counted as a percentage of erythroid ' +
-                'precursors, on the aspirate smear - an iron stain on a section gives storage iron, not a ring ' +
-                'sideroblast percentage.') +
+        return refP('An erythroid precursor with at least five perinuclear siderotic granules covering at least ' +
+                'one third of the nuclear circumference. Counted as a percentage of erythroid precursors on the ' +
+                'aspirate smear; an iron stain on a section shows storage iron only.') +
             refCite('Mufti GJ, Bennett JM, Goasguen J, et al. Diagnosis and classification of myelodysplastic ' +
                 'syndrome: International Working Group on Morphology of myelodysplastic syndrome (IWGM-MDS) consensus ' +
                 'proposals for the definition and enumeration of myeloblasts and ring sideroblasts. ' +
                 '<i>Haematologica</i>. 2008;93(11):1712-1717.') +
 
-            refTable(['Threshold', 'Meaning'], [
-                ['&ge; 5%', 'Reportable. Over 90% of MDS cases at this level fall inside MDS-SF3B1.'],
-                ['&ge; 15%', 'Substitutes for <i>SF3B1</i> analysis where unavailable, and is the level at ' +
-                    'which "MDS with low blasts and ring sideroblasts" is retained as an alternative name for ' +
-                    'wildtype-<i>SF3B1</i> cases.']
+            refTable(['Threshold', 'Significance'], [
+                ['&ge; 5%', 'Reportable. MDS-SF3B1 accounts for over 90% of MDS at this level.'],
+                ['&ge; 15%', 'Substitutes for <i>SF3B1</i> testing where unavailable. "MDS with low blasts and ' +
+                    'ring sideroblasts" remains acceptable for <i>SF3B1</i>-wildtype cases at this level.']
             ]);
     }
 });
@@ -943,51 +1004,50 @@ referenceTopics.push({
 referenceTopics.push({
     id: 'mds-overview',
     section: 'mds',
-    title: 'The MDS family',
+    title: 'MDS overview',
     keywords: ['MDS', 'myelodysplastic', 'overview', 'classification', 'neoplasm'],
     related: ['dysplasia', 'cytopenias', 'blasts', 'ccus'],
     body: function () {
         return refBox({
-            title: 'The seven types, in two groups',
+            title: 'WHO-HAEM5',
             groups: [
                 {
-                    label: 'Defining genetic abnormality',
-                    items: ['MDS-5q', 'MDS-SF3B1', 'MDS-biTP53 - which supersedes both of the above']
+                    label: 'Genetically defined',
+                    items: ['MDS-5q', 'MDS-SF3B1', 'MDS-biTP53 (takes precedence over both)']
                 },
                 {
                     label: 'Morphologically defined',
                     items: ['MDS-LB', 'MDS-h', 'MDS-IB1', 'MDS-IB2', 'MDS-F']
+                },
+                {
+                    label: 'All types',
+                    items: [
+                        'Cytopenia in at least one lineage',
+                        'Dysplasia at the 10% threshold, unless a defining genetic abnormality is present',
+                        'Blasts &lt; 20%',
+                        'Blood and marrow smears, plus at least one of karyotype/FISH, mutation analysis or flow ' +
+                            'cytometry; karyotype remains paramount'
+                    ]
                 }
             ],
             notes: [
-                'An <i>SF3B1</i> mutation, or a <i>TP53</i> mutation that is not multi-hit, does not per se override a ' +
-                    'diagnosis of MDS-5q. Biallelic <i>TP53</i> inactivation does.',
-                '"MDS, unclassifiable" has been removed. The new scheme plus CCUS makes NOS and unclassifiable ' +
-                    'unnecessary.'
+                'An <i>SF3B1</i> mutation, or a <i>TP53</i> mutation that is not multi-hit, does not override ' +
+                    'MDS-5q. Biallelic <i>TP53</i> inactivation does.',
+                'MDS, unclassifiable has been removed; with CCUS in the scheme it is no longer needed.'
             ]
         }) +
 
-        refH('Common to every type') +
-        refUL([
-            'Cytopenia in at least one lineage, and dysplasia at the 10% threshold, unless a defining genetic ' +
-                'abnormality carries the case.',
-            'Blasts always &lt; 20%.',
-            'Evaluation must include marrow and blood smears plus at least one of: karyotype/FISH, mutation ' +
-                'analysis, or flow cytometry. Karyotyping remains paramount.'
-        ]) +
-
-        refDiverge(refP('ICC\'s seven categories do not map one-to-one:') + refTable(null, [
-            ['MDS with mutated <i>SF3B1</i>', '<i>SF3B1</i> at &ge; 10% VAF'],
-            ['MDS with del(5q)', 'as WHO'],
-            ['MDS, NOS without dysplasia', 'no WHO equivalent - carried by &minus;7/del(7q) or a complex karyotype'],
-            ['MDS, NOS with single lineage dysplasia', 'WHO folds both into MDS-LB'],
-            ['MDS, NOS with multilineage dysplasia', ''],
+        refDiverge([
+            'No equivalent of MDS-h (hypocellularity is a qualifier on MDS, NOS) or of MDS-F.'
+        ], refTable(['Category', 'Definition'], [
+            ['MDS with mutated <i>SF3B1</i>', '<i>SF3B1</i> VAF &ge; 10%'],
+            ['MDS with del(5q)', 'As WHO'],
+            ['MDS, NOS without dysplasia', '&minus;7/del(7q) or complex karyotype; no WHO equivalent'],
+            ['MDS, NOS with single or multilineage dysplasia', 'Two categories; both are WHO MDS-LB'],
             ['MDS with excess blasts', '5-9% marrow, 2-9% blood'],
             ['MDS/AML', '10-19% marrow or blood'],
-            ['MDS with mutated <i>TP53</i>', 'multi-hit; the exclusion every other category states']
-        ]) + refP('There is no ICC equivalent of MDS-h (hypocellularity is a qualifier on MDS, NOS) or of ' +
-            'MDS-F. ICC also has no low-blast requirement written into MDS/AML - the blast count <i>is</i> ' +
-            'the category.'));
+            ['MDS with mutated <i>TP53</i>', 'Multi-hit; excluded from every other category']
+        ]));
     }
 });
 
@@ -1000,6 +1060,7 @@ referenceTopics.push({
     related: ['mds-overview', 'dysplasia', 'ccus'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -1020,19 +1081,17 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'A clonal marker is desirable, not essential. Where the dysplasia does not meet the 10% ' +
-                    'threshold the case is ' + refJump('ccus', 'CCUS') + ' or ' + refJump('icus', 'ICUS') + ' instead.'
+                'With dysplasia below 10%, consider ' + refJump('ccus', 'CCUS') + ' or ' + refJump('icus', 'ICUS') + '.'
             ]
         }) +
 
-        refDiverge(refUL([
-            'ICC retains the dysplasia count as named categories: MDS, NOS with single lineage dysplasia and ' +
-                'MDS, NOS with multilineage dysplasia, where WHO makes the distinction optional.',
-            'ICC also has a category with no dysplasia at all - <i>MDS, NOS without dysplasia</i>: a cytopenia ' +
-                'and &lt; 5% marrow blasts with &minus;7/del(7q) or a complex karyotype, carried by the ' +
-                'cytogenetics alone. WHO has no equivalent, so a non-dysplastic marrow with monosomy 7 is MDS by ICC ' +
-                'and ' + refJump('ccus', 'CCUS') + ' by WHO.'
-        ]));
+        refDiverge([
+            'Keeps the dysplasia count as two categories: MDS, NOS with single lineage dysplasia and MDS, NOS ' +
+                'with multilineage dysplasia.',
+            'Adds MDS, NOS without dysplasia: cytopenia, &lt; 5% marrow blasts, and &minus;7/del(7q) or a ' +
+                'complex karyotype. A non-dysplastic marrow with monosomy 7 is therefore MDS by ICC and ' +
+                refJump('ccus', 'CCUS') + ' by WHO.'
+        ]);
     }
 });
 
@@ -1045,6 +1104,7 @@ referenceTopics.push({
     related: ['cellularity', 'mds-lb'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -1063,16 +1123,17 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'Hypocellular here means below 30% of normal cellularity under 70 years, below 20% at 70 and ' +
-                    'over. Usually diffuse, may be patchy.',
-                'Dyserythropoiesis alone does not satisfy the dysplasia criterion, unlike in MDS-LB.',
-                'The differential is aplastic anaemia and PNH; at very low cellularity the distinction from aplastic ' +
-                    'anaemia may not be possible on cytomorphology.'
+                'Hypocellular: below 30% of normal cellularity under age 70, below 20% at 70 or older. Usually ' +
+                    'diffuse, sometimes patchy.',
+                'Dyserythropoiesis alone does not meet the dysplasia criterion.',
+                'The main differentials are aplastic anaemia and PNH. At very low cellularity, aplastic anaemia may ' +
+                    'not be separable on morphology.'
             ]
         }) +
 
-        refDiverge('ICC does not recognise hypoplastic MDS as an entity - hypocellularity is a qualifier on ' +
-            'MDS, NOS.');
+        refDiverge([
+            'Not an entity. Hypocellularity is a qualifier on MDS, NOS.'
+        ]);
     }
 });
 
@@ -1085,6 +1146,7 @@ referenceTopics.push({
     related: ['blasts', 'fibrosis', 'aml-overview'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -1102,29 +1164,25 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'The and/or promotes on either limb. A marrow at 7% with 6% blood blasts is MDS-IB2, not ' +
-                    'MDS-IB1.'
+                'Either count can raise the subtype: 7% marrow blasts with 6% blood blasts is MDS-IB2.',
+                'MDS-IB2 may be treated as AML-equivalent for therapy and trial eligibility.'
             ]
         }) +
 
-        refTable(['Subtype', 'Defined by'], [
+        refTable(['Subtype', 'Blasts'], [
             ['MDS-IB1', '5-9% marrow and/or 2-4% blood'],
-            ['MDS-IB2', '10-19% marrow and/or 5-19% blood, or Auer rods at any count in this range'],
-            ['MDS-F', 'The blast criteria with MF-2 or MF-3 fibrosis - about 15% of MDS-IB cases']
+            ['MDS-IB2', '10-19% marrow and/or 5-19% blood, or Auer rods'],
+            ['MDS-F', 'MDS-IB range with MF-2 or MF-3 fibrosis (about 15% of MDS-IB)']
         ]) +
 
-        refDiverge(refUL([
-            'The blood limb is drawn differently. ICC\'s <i>MDS with excess blasts</i> is 5-9% marrow, ' +
-                '2-9% blood, where WHO\'s MDS-IB1 stops at 4% blood. A marrow at 6% with 6% blood blasts is ' +
-                'MDS-IB2 by WHO and MDS-EB by ICC - a two-category disagreement produced by the blood count alone.',
-            'ICC calls the 10-19% band MDS/AML: 10-19% in the marrow or the blood. Subtyped as ' +
-                'mutated <i>TP53</i>, myelodysplasia-related gene mutations, myelodysplasia-related cytogenetic ' +
-                'abnormalities, or NOS.',
-            'At 10-19% blasts, <i>NPM1</i>, in-frame bZIP <i>CEBPA</i> and <i>TP53</i> leave the MDS/AML ' +
-                'category altogether - the first two become AML outright, and <i>TP53</i> becomes the named ' +
-                '<i>MDS/AML with mutated TP53</i>.',
-            'WHO keeps MDS-IB2 and notes it may be regarded as AML-equivalent for therapy.'
-        ]));
+        refDiverge([
+            'MDS with excess blasts is 5-9% marrow or 2-9% blood; WHO MDS-IB1 stops at 4% blood. 6% marrow ' +
+                'with 6% blood blasts is MDS-IB2 by WHO and MDS-EB by ICC.',
+            'MDS/AML covers 10-19% in marrow or blood, subtyped as mutated <i>TP53</i>, myelodysplasia-related ' +
+                'gene mutations, myelodysplasia-related cytogenetic abnormalities, or NOS.',
+            'At 10-19%, <i>NPM1</i> or in-frame bZIP <i>CEBPA</i> makes the case AML, and <i>TP53</i> makes it ' +
+                'MDS/AML with mutated <i>TP53</i>.'
+        ]);
     }
 });
 
@@ -1137,6 +1195,7 @@ referenceTopics.push({
     related: ['mds-overview', 'mds-bitp53'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [{
                 label: 'Essential',
                 items: [
@@ -1149,13 +1208,15 @@ referenceTopics.push({
                 ]
             }],
             notes: [
-                'The only MDS in which thrombocytosis (&ge; 450 &times; 10<sup>9</sup>/L) is allowed.'
+                'The only MDS type that allows thrombocytosis (&ge; 450 &times; 10<sup>9</sup>/L).'
             ]
         }) +
 
-        refDiverge('ICC names it MDS with del(5q) and draws the cytogenetics identically - del(5q) with up to ' +
-            'one additional abnormality other than &minus;7/del(7q). Its only stated mutational exclusion is ' +
-            'multi-hit <i>TP53</i>.');
+        refDiverge([
+            'Named MDS with del(5q). Same cytogenetics: del(5q) with up to one other abnormality, not ' +
+                '&minus;7/del(7q).',
+            'Multi-hit <i>TP53</i> is its only stated mutational exclusion.'
+        ]);
     }
 });
 
@@ -1168,6 +1229,7 @@ referenceTopics.push({
     related: ['ring-sideroblasts', 'mds-mpn-sf3b1t'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [{
                 label: 'Essential',
                 items: [
@@ -1181,21 +1243,18 @@ referenceTopics.push({
                 ]
             }],
             notes: [
-                '"MDS with low blasts and ring sideroblasts" is retained as an acceptable alternative name for cases ' +
-                    'with wildtype <i>SF3B1</i> and/or &ge; 15% ring sideroblasts.',
-                'A low-blast <i>SF3B1</i>-mutated marrow with thrombocytosis is ' +
-                    refJump('mds-mpn-sf3b1t', 'MDS/MPN-SF3B1-T') + ', a different family.'
+                '"MDS with low blasts and ring sideroblasts" remains an acceptable name for cases with wildtype ' +
+                    '<i>SF3B1</i> and/or &ge; 15% ring sideroblasts.',
+                'With thrombocytosis, see ' + refJump('mds-mpn-sf3b1t', 'MDS/MPN-SF3B1-T') + '.'
             ]
         }) +
 
-        refDiverge(refUL([
-            'ICC puts a VAF threshold on the mutation: <i>SF3B1</i> at &ge; 10% VAF. WHO states none, ' +
-                'so a small <i>SF3B1</i> clone can define the entity by WHO and not by ICC.',
-            'ICC excludes a co-occurring <i>RUNX1</i> mutation as well as multi-hit <i>TP53</i>.',
-            'ICC states the cytogenetic exclusions positively: any karyotype except isolated del(5q), ' +
-                '&minus;7/del(7q), abn3q26.2, or complex.',
-            'ICC does not offer the &ge; 15% ring-sideroblast substitute - the mutation is required.'
-        ]));
+        refDiverge([
+            'Requires <i>SF3B1</i> at VAF &ge; 10%, and ring sideroblasts cannot substitute. WHO sets no VAF ' +
+                'threshold.',
+            'Also excludes co-mutated <i>RUNX1</i> and multi-hit <i>TP53</i>.',
+            'Excludes isolated del(5q), &minus;7/del(7q), abn3q26.2 and complex karyotype.'
+        ]);
     }
 });
 
@@ -1208,6 +1267,7 @@ referenceTopics.push({
     related: ['mds-5q', 'mds-sf3b1', 'aml-overview'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -1226,18 +1286,18 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'No low-blast restriction - anything under 20% qualifies, which is what lets this supersede ' +
-                    'MDS-5q, MDS-SF3B1 and the MDS-IB subtypes rather than compete with them.',
-                'Monoallelic <i>TP53</i> alteration behaves like wildtype and is not this entity.',
-                'Where multi-hit analysis is unavailable: a <i>TP53</i> VAF &ge; 40% and/or complex cytogenetics may ' +
-                    'carry a similar prognosis. That is a surrogate, not a criterion.'
+                'Any blast count below 20% qualifies, so this takes precedence over MDS-5q, MDS-SF3B1 and MDS-IB.',
+                'Monoallelic <i>TP53</i> alteration behaves like wildtype and does not qualify.',
+                'Where multi-hit status cannot be assessed, a <i>TP53</i> VAF &ge; 40% and/or a complex karyotype ' +
+                    'may carry a similar prognosis. This is a surrogate, not a criterion.'
             ]
         }) +
 
-        refDiverge('ICC names it MDS with mutated <i>TP53</i> (multi-hit), and splits the blast range three ' +
-            'ways where WHO has one category up to 20%: &lt; 10% is MDS with mutated <i>TP53</i>, ' +
-            '10-19% is MDS/AML with mutated <i>TP53</i>, and &ge; 20% is AML with mutated ' +
-            '<i>TP53</i>. Multi-hit <i>TP53</i> is also the one exclusion every other ICC MDS category states.');
+        refDiverge([
+            'Named MDS with mutated <i>TP53</i> (multi-hit) and split by blasts: &lt; 10% MDS, 10-19% MDS/AML, ' +
+                '&ge; 20% AML with mutated <i>TP53</i>.',
+            'Multi-hit <i>TP53</i> is an exclusion in every other ICC MDS category.'
+        ]);
     }
 });
 
@@ -1250,11 +1310,12 @@ referenceTopics.push({
 referenceTopics.push({
     id: 'cml',
     section: 'mpn',
-    title: 'Chronic myeloid leukaemia, BCR::ABL1-positive',
+    title: 'Chronic myeloid leukaemia',
     keywords: ['CML', 'BCR::ABL1', 'Philadelphia', 'basophilia', 'myelocyte peak', 'blast phase'],
     related: ['pv', 'et', 'pmf', 'aml-bcrabl'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [{
                 label: 'Essential',
                 items: [
@@ -1263,32 +1324,25 @@ referenceTopics.push({
                 ]
             }],
             notes: [
-                'The chapter qualifies its own first criterion: "atypical presentations include marked thrombocytosis ' +
-                    'without leukocytosis that mimics essential thrombocythaemia". The fusion defines the ' +
-                    'disease.',
-                'Granulocytic dysplasia should be absent, in blood and marrow. Dysplasia points to an atypical ' +
-                    'myeloid neoplasm instead.'
+                'Atypical presentations include marked thrombocytosis without leukocytosis, mimicking ET. The ' +
+                    'fusion defines the disease.',
+                'Granulocytic dysplasia should be absent in blood and marrow; if present, consider an atypical ' +
+                    'myeloid neoplasm.',
+                'Neutrophils at all stages of maturation, with peaks of myelocytes and segmented neutrophils. ' +
+                    'Basophilia and eosinophilia are common. Megakaryocytes are increased in over half of cases, ' +
+                    'typically small and hypolobated.',
+                '&ge; 20% blood basophils is a high-risk feature of chronic phase, not a diagnostic threshold.'
             ]
         }) +
 
-        refH('Supporting morphology') +
-        refUL([
-            'Neutrophils in various stages of maturation, with peaks in the proportions of myelocytes and ' +
-                'segmented neutrophils.',
-            'Absolute basophilia and eosinophilia are common.',
-            'Megakaryocytes increased in over half of cases, typically small with hypolobated nuclei.',
-            '&ge; 20% basophils is a feature of chronic phase with high-risk features - a phase marker, not a ' +
-                'diagnostic threshold.'
-        ]) +
-
-        refDiverge(refP('ICC retains accelerated phase, which WHO-HAEM5 reads as chronic phase with ' +
-            'high-risk features - same findings, different designation:') + refTable(['Accelerated phase', 'Blast phase'], [
+        refDiverge([
+            'Keeps accelerated phase, which WHO-HAEM5 treats as chronic phase with high-risk features.'
+        ], refTable(['Accelerated phase', 'Blast phase'], [
             ['Blood or marrow blasts 10-19%', 'Blood or marrow blasts &ge; 20%'],
-            ['Peripheral blood basophils &ge; 20%', 'Myeloid sarcoma (extramedullary blast proliferation)'],
-            ['An additional clonal cytogenetic abnormality in Ph+ cells - major route: second Ph, +8, i(17q), +19, ' +
-                'complex karyotype, or abnormalities of 3q26.2',
-             'Morphologically apparent lymphoblasts &gt; 5% warrant consideration of lymphoblastic crisis ' +
-                '(immunophenotyping required)']
+            ['Blood basophils &ge; 20%', 'Myeloid sarcoma'],
+            ['Additional clonal abnormality in Ph+ cells (major route): second Ph, +8, i(17q), +19, ' +
+                'complex karyotype, 3q26.2 abnormalities',
+             'Lymphoblasts &gt; 5% raise lymphoid blast phase (immunophenotyping required)']
         ]));
     }
 });
@@ -1303,9 +1357,10 @@ referenceTopics.push({
     related: ['et', 'pre-pmf', 'post-mpn-mf'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [
                 {
-                    label: 'Major criteria',
+                    label: 'Major',
                     ordered: true,
                     items: [
                         'Elevated haemoglobin (&gt; 16.5 g/dL in men, &gt; 16.0 g/dL in women) or elevated haematocrit ' +
@@ -1317,38 +1372,33 @@ referenceTopics.push({
                     ]
                 },
                 {
-                    label: 'Minor criterion',
+                    label: 'Minor',
                     items: ['Subnormal serum erythropoietin level']
                 }
             ],
             rule: 'Requires either all three major criteria, or the first two major criteria plus the minor ' +
                 'criterion.',
             notes: [
-                '<sup>a</sup> Haematocrit for diagnosis in the presence of a <i>JAK2</i> mutation. Without one, a ' +
-                    'higher target (e.g. 52%) could be considered in men before further investigation is required.',
-                '<sup>b</sup> Major criterion 2 may not be required with sustained absolute erythrocytosis - ' +
-                    'haemoglobin &gt; 18.5 g/dL in men or &gt; 16.5 g/dL in women, or haematocrit &gt; 55.5% in men ' +
-                    'or &gt; 49.5% in women - if major criterion 3 and the minor criterion are present. This is a ' +
-                    'second route, not a caveat.',
-                'Erythrocytosis may be masked by iron deficiency. WHO declines the term "masked PV" and ' +
-                    'assigns such cases MPN-NOS with close follow-up.'
+                '<sup>a</sup> Haematocrit threshold in the presence of a <i>JAK2</i> mutation. Without one, a ' +
+                    'higher threshold (e.g. 52% in men) could be considered before further investigation.',
+                '<sup>b</sup> Major criterion 2 may not be required with sustained absolute erythrocytosis ' +
+                    '(haemoglobin &gt; 18.5 g/dL in men or &gt; 16.5 g/dL in women, or haematocrit &gt; 55.5% in ' +
+                    'men or &gt; 49.5% in women) if major criterion 3 and the minor criterion are present.',
+                'Iron deficiency can mask erythrocytosis. WHO does not use the term "masked PV"; such cases are ' +
+                    'MPN-NOS with close follow-up.'
             ]
         }) +
 
-        refDiverge(refUL([
-            'ICC\'s criterion 1 retains increased red blood cell mass (&gt; 25% above mean normal predicted ' +
-                'value) as a third route beside the haemoglobin and haematocrit thresholds, which are numerically ' +
-                'identical to WHO\'s.',
-            'The majors are numbered differently, and the shared combination rule therefore reaches a different ' +
-                'pair. ICC puts the <i>JAK2</i> mutation second and the biopsy third, so "the first 2 major ' +
-                'criteria plus the minor criterion" is a marrow-free route - threshold + mutation + subnormal ' +
-                'EPO. WHO\'s first two are threshold + biopsy, a mutation-free route; skipping the biopsy under WHO ' +
-                'needs footnote b\'s higher thresholds (which ICC also carries, as its own footnote).',
-            'ICC\'s biopsy criterion asks for pleomorphic, mature megakaryocytes "without atypia" where WHO ' +
-                'writes "(differences in size)".',
-            'In <i>JAK2</i>-negative cases ICC recommends searching for noncanonical or atypical <i>JAK2</i> ' +
-                'mutations in exons 12 to 15.'
-        ]));
+        refDiverge([
+            'Criterion 1 also accepts red cell mass &gt; 25% above mean normal predicted value. The haemoglobin ' +
+                'and haematocrit thresholds are the same.',
+            'The major criteria are ordered differently: <i>JAK2</i> second, biopsy third. "First two major plus ' +
+                'the minor" is therefore threshold + mutation + low EPO, with no marrow needed. Under WHO, skipping ' +
+                'the biopsy needs footnote b\'s higher thresholds, which ICC also has.',
+            'The biopsy criterion asks for megakaryocytes "without atypia" where WHO writes "(differences in ' +
+                'size)".',
+            'In <i>JAK2</i>-negative cases, look for noncanonical <i>JAK2</i> mutations in exons 12-15.'
+        ]);
     }
 });
 
@@ -1362,9 +1412,10 @@ referenceTopics.push({
     related: ['pre-pmf', 'pv', 'post-mpn-mf'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [
                 {
-                    label: 'Major criteria',
+                    label: 'Major',
                     ordered: true,
                     items: [
                         'Platelet count &ge; 450 &times; 10<sup>9</sup>/L',
@@ -1378,25 +1429,25 @@ referenceTopics.push({
                     ]
                 },
                 {
-                    label: 'Minor criterion (either)',
+                    label: 'Minor',
                     items: ['Presence of a clonal marker', 'Exclusion of reactive thrombocytosis']
                 }
             ],
             rule: 'Requires either all four major criteria, or the first three plus a minor criterion.',
             notes: [
-                'The minor criterion is what allows a triple-negative ET.',
-                'Against prefibrotic PMF the distinction is major criterion 2, not the platelet count. ET is ' +
-                    'megakaryocytic proliferation alone with mature hyperlobulated forms; pre-PMF adds increased ' +
-                    'age-adjusted cellularity, granulocytic proliferation and megakaryocytic <i>atypia</i>.'
+                'The minor criteria allow triple-negative ET.',
+                'Against prefibrotic PMF, major criterion 2 decides, not the platelet count. Pre-PMF adds increased ' +
+                    'cellularity for age, granulocytic proliferation and megakaryocytic atypia.'
             ]
         }) +
 
-        refDiverge('The criteria match; what ICC adds is a footnote putting a number on the clusters: dense ' +
-            'clustering is 3 or more megakaryocytes lying adjacent with no other marrow cells between, small ' +
-            'clusters of &le; 6 may infrequently be seen in ET, and an increase in huge clusters ' +
-            '(&gt; 6 cells) accompanied by granulocytic proliferation is a morphological hallmark of pre-PMF. ' +
-            'ICC also specifies assay sensitivity for the drivers: <i>JAK2</i> V617F below 1% VAF, <i>CALR</i> and ' +
-            '<i>MPL</i> at 1-3%.');
+        refDiverge([
+            'Same criteria.',
+            'A footnote defines dense clustering as &ge; 3 adjacent megakaryocytes with no other cells between. ' +
+                'Small clusters (&le; 6) may occasionally be seen in ET; more large clusters (&gt; 6) with ' +
+                'granulocytic proliferation are a hallmark of pre-PMF.',
+            'Specifies driver assay sensitivity: <i>JAK2</i> V617F below 1% VAF, <i>CALR</i> and <i>MPL</i> 1-3%.'
+        ]);
     }
 });
 
@@ -1413,9 +1464,10 @@ referenceTopics.push({
     related: ['pmf', 'et', 'fibrosis'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [
                 {
-                    label: 'Major criteria',
+                    label: 'Major',
                     ordered: true,
                     items: [
                         'Megakaryocytic proliferation and atypia, without reticulin fibrosis grade &gt; 1, ' +
@@ -1428,7 +1480,7 @@ referenceTopics.push({
                     ]
                 },
                 {
-                    label: 'Minor criteria',
+                    label: 'Minor',
                     items: [
                         'Anaemia not attributed to a comorbid condition',
                         'Leukocytosis &ge; 11 &times; 10<sup>9</sup>/L',
@@ -1440,24 +1492,24 @@ referenceTopics.push({
             rule: 'Requires all three major criteria and at least one minor criterion, confirmed in two ' +
                 'consecutive determinations.',
             notes: [
-                'Major criterion 3 is a three-way disjunction ending in a negative, not a driver-mutation ' +
-                    'requirement. A triple-negative marrow with no clonal marker still satisfies it if reactive ' +
-                    'fibrosis has been excluded - triple-negative PMF is 5-10% of cases.',
-                '<sup>b</sup> Absent the three major mutations, look for others associated with myeloid neoplasms ' +
-                    '(<i>ASXL1</i>, <i>EZH2</i>, <i>TET2</i>, <i>IDH1</i>, <i>IDH2</i>, <i>SRSF2</i>, <i>SF3B1</i>).',
+                'Major criterion 3 is met by a driver mutation, another clonal marker, or the absence of reactive ' +
+                    'fibrosis. A triple-negative case with no clonal marker still qualifies once reactive fibrosis is ' +
+                    'excluded (triple-negative PMF is 5-10% of cases).',
+                '<sup>b</sup> Without a driver mutation, look for other myeloid neoplasm mutations (<i>ASXL1</i>, ' +
+                    '<i>EZH2</i>, <i>TET2</i>, <i>IDH1</i>, <i>IDH2</i>, <i>SRSF2</i>, <i>SF3B1</i>).',
                 '<sup>c</sup> Reactive grade 1 fibrosis: infection, autoimmune or other chronic inflammatory ' +
-                    'disorder, hairy cell leukaemia or another lymphoid neoplasm, metastatic malignancy, or toxic ' +
+                    'disorder, hairy cell leukaemia or other lymphoid neoplasm, metastatic malignancy, toxic ' +
                     '(chronic) myelopathy.'
             ]
         }) +
 
-        refDiverge('ICC keeps the same three-way disjunction, verbatim - "<i>JAK2</i>, <i>CALR</i>, or ' +
-            '<i>MPL</i> mutation or presence of another clonal marker or absence of reactive bone marrow reticulin ' +
-            'fibrosis" - numbered major criterion 2 where WHO has it third (ICC puts the exclusions third). ' +
-            'A triple-negative case with reactive fibrosis excluded therefore stands in both classifications. The ' +
-            'fibrosis limit is written "grade &lt; 2" rather than "not above grade 1" - the same line. One minor ' +
-            'criterion is narrower: ICC asks for palpable splenomegaly, where WHO accepts splenomegaly ' +
-            'detected clinically and/or by imaging.');
+        refDiverge([
+            'Same three-way clonality criterion ("<i>JAK2</i>, <i>CALR</i>, or <i>MPL</i> mutation or presence ' +
+                'of another clonal marker or absence of reactive bone marrow reticulin fibrosis"), numbered major 2. ' +
+                'Triple-negative cases qualify in both classifications.',
+            'Fibrosis is written "grade &lt; 2", equivalent to WHO\'s limit.',
+            'Splenomegaly must be palpable; WHO also accepts detection by imaging.'
+        ]);
     }
 });
 
@@ -1472,9 +1524,10 @@ referenceTopics.push({
     related: ['pre-pmf', 'fibrosis', 'post-mpn-mf'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [
                 {
-                    label: 'Major criteria',
+                    label: 'Major',
                     ordered: true,
                     items: [
                         'Megakaryocytic proliferation and atypia, accompanied by reticulin and/or collagen fibrosis ' +
@@ -1486,7 +1539,7 @@ referenceTopics.push({
                     ]
                 },
                 {
-                    label: 'Minor criteria',
+                    label: 'Minor',
                     items: [
                         'Anaemia not attributed to a comorbid condition',
                         'Leukocytosis &ge; 11 &times; 10<sup>9</sup>/L',
@@ -1499,27 +1552,28 @@ referenceTopics.push({
             rule: 'Requires all three major criteria and at least one minor criterion, met in two consecutive ' +
                 'determinations.',
             notes: [
-                'Leukoerythroblastosis is the one minor criterion the prefibrotic box does not have.',
-                '<sup>b</sup> MPNs can be associated with monocytosis and may mimic CMML. A history of MPN ' +
-                    'excludes CMML; MPN marrow features and/or a <i>JAK2</i>, <i>CALR</i> or <i>MPL</i> mutation ' +
-                    'support MPN with monocytosis instead.',
-                '<sup>c</sup> As for prefibrotic PMF - other myeloid-neoplasm mutations may establish clonality.',
+                'Leukoerythroblastosis is the one minor criterion not in the prefibrotic box.',
+                '<sup>b</sup> MPN can show monocytosis and mimic CMML. A history of MPN excludes CMML; MPN marrow ' +
+                    'features and/or a <i>JAK2</i>, <i>CALR</i> or <i>MPL</i> mutation favour MPN with monocytosis.',
+                '<sup>c</sup> As for prefibrotic PMF: other myeloid neoplasm mutations may establish clonality.',
                 '<sup>d</sup> Reactive fibrosis: infection, autoimmune or other chronic inflammatory condition, hairy ' +
-                    'cell leukaemia or another lymphoid neoplasm, metastatic malignancy, or toxic (chronic) myelopathy.'
+                    'cell leukaemia or other lymphoid neoplasm, metastatic malignancy, toxic (chronic) myelopathy.'
             ]
         }) +
 
-        refDiverge('ICC\'s box matches, including the disjunction\'s third limb ("or absence of reactive ' +
-            'myelofibrosis") and leukoerythroblastosis as the fifth minor; the numbering differs (ICC puts the ' +
-            'exclusions third, the mutation/clonal-marker/no-reactive-fibrosis criterion second), and ICC\'s ' +
-            'splenomegaly minor asks for a palpable spleen where WHO accepts detection clinically and/or ' +
-            'by imaging. Its monocytosis footnote is WHO\'s note b in the same words: a history of MPN excludes ' +
-            'CMML, and a higher driver-mutation VAF supports PMF with monocytosis over CMML.');
+        refDiverge([
+            'Same criteria, including the third limb of the clonality criterion ("or absence of reactive ' +
+                'myelofibrosis") and leukoerythroblastosis; the clonality criterion is numbered second.',
+            'Splenomegaly must be palpable; WHO also accepts detection by imaging.',
+            'The monocytosis footnote matches WHO\'s: a history of MPN excludes CMML, and a higher driver VAF ' +
+                'favours PMF with monocytosis.'
+        ]);
     }
 });
 
 // docs/who/mpn-pv.md and docs/who/mpn-et.md - both boxes verbatim
-// (adapted from Barosi et al., Leukemia 2008).
+// (adapted from Barosi et al., Leukemia 2008). Both chapters state the same
+// combination rule; it is printed on both boxes.
 referenceTopics.push({
     id: 'post-mpn-mf',
     section: 'mpn',
@@ -1528,7 +1582,7 @@ referenceTopics.push({
     related: ['pv', 'et', 'pmf'],
     body: function () {
         return refBox({
-            title: 'Post-polycythaemia vera myelofibrosis',
+            title: 'Post-PV myelofibrosis',
             groups: [
                 {
                     label: 'Required',
@@ -1538,7 +1592,7 @@ referenceTopics.push({
                     ]
                 },
                 {
-                    label: 'Additional (two required)',
+                    label: 'Additional',
                     items: [
                         'Anaemia (below the reference range for age, sex and altitude) or sustained loss of the ' +
                             'requirement for phlebotomy (without cytoreductive therapy) or for cytoreductive treatment ' +
@@ -1549,11 +1603,12 @@ referenceTopics.push({
                         'Any two of: &gt; 10% weight loss in 6 months, night sweats, unexplained fever (&gt; 37.5 &deg;C)'
                     ]
                 }
-            ]
+            ],
+            rule: 'Requires both required criteria and at least two additional criteria.'
         }) +
 
         refBox({
-            title: 'Post-essential thrombocythaemia myelofibrosis',
+            title: 'Post-ET myelofibrosis',
             groups: [
                 {
                     label: 'Required',
@@ -1575,10 +1630,7 @@ referenceTopics.push({
                     ]
                 }
             ],
-            rule: 'Requires both required criteria and at least two additional criteria.',
-            notes: [
-                'Post-ET MF has a fifth additional criterion (LDH) and a stricter anaemia clause.'
-            ]
+            rule: 'Requires both required criteria and at least two additional criteria.'
         });
     }
 });
@@ -1596,9 +1648,8 @@ referenceTopics.push({
     related: ['cml', 'cmml', 'mpn-u'],
     body: function () {
         return refBox({
-            title: 'CNL - WHO-HAEM5 (Box 2.03)',
+            title: 'WHO-HAEM5',
             groups: [{
-                label: 'Criteria',
                 items: [
                     'Peripheral blood: WBC count &ge; 25 &times; 10<sup>9</sup>/L; segmented plus banded ' +
                         'neutrophils &ge; 80% of the WBCs; neutrophil precursors (promyelocytes, myelocytes, and ' +
@@ -1618,29 +1669,23 @@ referenceTopics.push({
                 ]
             }],
             notes: [
-                'The plasma-cell clause is load-bearing: a neutrophilic leukaemoid reaction from G-CSF-' +
-                    'producing neoplastic plasma cells is the great mimic, and toxic granulation and Döhle ' +
-                    'bodies favour the mimic over CNL.'
+                'Exclude a plasma cell neoplasm: G-CSF from neoplastic plasma cells can cause a neutrophilic ' +
+                    'leukaemoid reaction. Toxic granulation and Döhle bodies favour the reactive process.',
+                '<i>CSF3R</i> is mutated in &gt; 60% of CNL (vs &lt; 20% of MDS/MPN with neutrophilia), but its ' +
+                    'absence does not exclude CNL. <i>ASXL1</i>, <i>TET2</i> and/or <i>DNMT3A</i> co-mutation is ' +
+                    'nearly universal; <i>ASXL1</i> is adverse.',
+                'Monocytosis, eosinophilia, basophilia or dysgranulopoiesis should prompt review for ' +
+                    refJump('cmml', 'CMML') + ' or MDS/MPN with neutrophilia (atypical CML).'
             ]
         }) +
 
-        refDiverge(refUL([
-            'The white cell threshold. ICC lowers it to &ge; 13 &times; 10<sup>9</sup>/L when an ' +
-                'activating <i>CSF3R</i> mutation is present (&ge; 25 without one); WHO holds &ge; 25 of every ' +
-                'case.',
-            'ICC defines phases in a footnote - 10-19% blasts in blood or marrow is accelerated phase, ' +
-                '&ge; 20% blast phase - which WHO\'s box does not.',
-            'WHO\'s marrow criterion carries an explicit myeloblasts &lt; 5% clause that ICC\'s does not, ' +
-                'and WHO names the <i>PCM1</i>::<i>JAK2</i> fusion specifically where ICC excludes the whole ' +
-                'M/LN-eo family.'
-        ])) +
-
-        refP('<i>CSF3R</i> is the diagnostic genetic signature (mutated in &gt; 60% of CNL versus &lt; 20% of ' +
-            'MDS/MPN with neutrophilia), but its absence does not exclude CNL. Nearly all cases also carry ' +
-            '<i>ASXL1</i>, <i>TET2</i> and/or <i>DNMT3A</i> mutations, and <i>ASXL1</i> carries a worse ' +
-            'prognosis. Monocytosis, eosinophilia or basophilia are notably absent - their presence, or ' +
-            'dysgranulopoiesis, should prompt a critical review toward ' + refJump('cmml', 'CMML') + ' or ' +
-            'MDS/MPN with neutrophilia (atypical CML).');
+        refDiverge([
+            'WBC threshold is &ge; 13 &times; 10<sup>9</sup>/L with an activating <i>CSF3R</i> mutation ' +
+                '(&ge; 25 without one). WHO requires &ge; 25 in all cases.',
+            'Defines accelerated phase (10-19% blasts in blood or marrow) and blast phase (&ge; 20%).',
+            'No marrow myeloblast &lt; 5% clause. Excludes the whole M/LN-eo family rather than naming ' +
+                '<i>PCM1</i>::<i>JAK2</i>.'
+        ]);
     }
 });
 
@@ -1658,10 +1703,10 @@ referenceTopics.push({
     related: ['pv', 'et', 'pre-pmf'],
     body: function () {
         return refBox({
-            title: 'MPN-NOS - WHO-HAEM5 (Box 2.14)',
+            title: 'WHO-HAEM5',
             groups: [
                 {
-                    label: 'Requires all three',
+                    label: 'All of',
                     ordered: true,
                     items: [
                         'Presence of any one of: clinical and haematological features of an MPN (e.g. ' +
@@ -1677,7 +1722,7 @@ referenceTopics.push({
                     ]
                 },
                 {
-                    label: 'Requires the absence of both',
+                    label: 'None of',
                     items: [
                         'Insufficient clinical data or inadequate bone marrow specimen for accurate evaluation ' +
                             'and classification',
@@ -1687,38 +1732,36 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                '<sup>a</sup> The report should describe the morphology, summarise why a specific subtype cannot ' +
-                    'be assigned, name the MPN types that <i>can</i> be excluded, and recommend further workup - ' +
-                    'expanded molecular testing or a repeat blood/marrow within a reasonable interval.',
+                '<sup>a</sup> The report should describe the morphology, say why a specific subtype cannot be ' +
+                    'assigned, name the MPN types that can be excluded, and recommend further workup (expanded ' +
+                    'molecular testing, or repeat blood and marrow within a reasonable interval).',
                 '<sup>b</sup> Effects of previous treatment, severe comorbidity, and changes of natural disease ' +
                     'progression must be excluded.',
-                '<sup>c</sup> Absent the three major mutations, other myeloid-neoplasm mutations (e.g. ' +
-                    '<i>ASXL1</i>, <i>EZH2</i>, <i>TET2</i>, <i>IDH1</i>, <i>IDH2</i>, <i>SRSF2</i>, ' +
-                    '<i>SF3B1</i>) and translocations such as those involving <i>ABL1</i> may confirm clonality.'
+                '<sup>c</sup> Without a driver mutation, other myeloid neoplasm mutations (e.g. <i>ASXL1</i>, ' +
+                    '<i>EZH2</i>, <i>TET2</i>, <i>IDH1</i>, <i>IDH2</i>, <i>SRSF2</i>, <i>SF3B1</i>) or ' +
+                    'translocations such as those involving <i>ABL1</i> may confirm clonality.',
+                'Used for very early disease below subtype thresholds (follow closely), unexplained splanchnic or ' +
+                    'portal vein thrombosis, and burnt-out marrows with no earlier histology. Should be &le; 5% of ' +
+                    'MPN diagnoses, and not a substitute for an incomplete workup.',
+                'Blasts 10-19% define accelerated phase, &ge; 20% blast phase. Prominent cytopenia or dysplasia ' +
+                    'should prompt exclusion of MDS/MPN.',
+                '"MPN, unclassifiable" remains acceptable terminology.'
             ]
         }) +
 
-        refDiverge('ICC\'s Table 9 carries the same three positive criteria - including the identical ' +
-            '"or presence of another clonal marker" limb - without WHO\'s two explicit negative requirements ' +
-            '(adequate data and specimen; no recent cytotoxic or growth factor therapy), and states the ' +
-            'reactive-fibrosis exclusions as a footnote on criterion 1. ICC names BCR::ABL1-positive CML in its ' +
-            'exclusion list where WHO folds CML under "any other MPN" and adds the M/LN-eo family.') +
-
-        refP('The category is for cases whose features prevent a clear subtype diagnosis: very early disease ' +
-            'where thresholds are not yet met (follow closely - the subtype tends to declare itself), ' +
-            'presentations with otherwise unexplained splanchnic or portal vein thrombosis, and burnt-out ' +
-            'late-stage marrows with no earlier histology. It is limited to &le; 5% of MPN diagnoses, and should ' +
-            'not stand in for an incomplete workup. Blasts of 10-19% mark accelerated phase and &ge; 20% blast ' +
-            'phase; prominent cytopenia or dysplasia should prompt definitive exclusion of MDS/MPN.') +
-
-        refNote('WHO-HAEM5 titles the entity MPN, NOS (unclassifiable) and keeps "myeloproliferative ' +
-            'neoplasm, unclassifiable" as acceptable terminology; ICC uses MPN, unclassifiable outright.');
+        refDiverge([
+            'Named MPN, unclassifiable.',
+            'Same three positive criteria, including "or presence of another clonal marker", but without WHO\'s ' +
+                'two exclusions (inadequate data or specimen; recent cytotoxic or growth factor therapy).',
+            'Reactive fibrosis exclusions are a footnote to criterion 1, and <i>BCR::ABL1</i>-positive CML is ' +
+                'named in the exclusions.'
+        ]);
     }
 });
 
 
 /* ============================================================================
-   MDS/MPN AND THE BOUNDARIES
+   MDS/MPN AND RELATED
    ========================================================================= */
 
 // WHO-HAEM5 Box 2.19 from docs/who/cmml-box-2.19.md, transcribed with all six
@@ -1732,6 +1775,11 @@ referenceTopics.push({
 // genetics, the chapter text do that work) - and criterion 4 is "not meeting
 // diagnostic criteria of M/LN-eo with tyrosine kinase gene fusions (e.g. ...)",
 // not a closed rearrangement list. Seven sources pasted, seven corrections.
+//
+// THE ICC BLOCK SAID "Clonality is required of every case", which Table 13
+// contradicts in its next line: without clonality, monocytes >= 1.0 plus
+// increased blasts, dysplasia or a CMML immunophenotype will do. Rewritten
+// against the table (docs/who/icc-2022-arber-blood.md, Table 13), 2026-09.
 referenceTopics.push({
     id: 'cmml',
     section: 'overlap',
@@ -1740,7 +1788,7 @@ referenceTopics.push({
     related: ['blasts', 'pmf', 'dysplasia'],
     body: function () {
         return refBox({
-            title: 'CMML - WHO-HAEM5 (Box 2.19)',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -1772,38 +1820,36 @@ referenceTopics.push({
                 '&times; 10<sup>9</sup>/L: desirable criteria 1 and 2 must be met.',
             notes: [
                 '<sup>a</sup> Blasts and blast equivalents include myeloblasts, monoblasts, and promonocytes.',
-                '<sup>b</sup> MPNs can be associated with monocytosis at presentation or during the course of ' +
-                    'disease and can mimic CMML. A documented history of MPN excludes CMML; MPN marrow ' +
-                    'features and/or a high burden of MPN-associated mutations (<i>JAK2</i>, <i>CALR</i>, ' +
-                    '<i>MPL</i>) tend to support MPN with monocytosis rather than CMML.',
+                '<sup>b</sup> MPN can show monocytosis at presentation or later and can mimic CMML. A documented ' +
+                    'history of MPN excludes CMML; MPN marrow features and/or a high burden of <i>JAK2</i>, ' +
+                    '<i>CALR</i> or <i>MPL</i> mutation favour MPN with monocytosis.',
                 '<sup>c</sup> To be specifically excluded in cases with eosinophilia.',
                 '<sup>d</sup> Morphological dysplasia in &ge; 10% of cells of the lineage in the bone marrow.',
                 '<sup>e</sup> See Table 2.13.',
                 '<sup>f</sup> Increased classic monocytes (&gt; 94%), in the absence of known active autoimmune ' +
                     'disease and/or systemic inflammatory syndromes.',
-                'The count-dependent requirement rule is how oligomonocytic CMML came in from MDS. The 0.5-1.0 ' +
-                    'band is the strict one - dysplasia <i>and</i> clonality, with monocyte partitioning ' +
-                    'substituting for neither.'
+                'Below 1 &times; 10<sup>9</sup>/L (oligomonocytic CMML), both dysplasia and clonality are needed; ' +
+                    'monocyte partitioning cannot substitute for either.',
+                'CMML-0 has been removed.'
             ]
         }) +
 
-        refTable(['Subtyping', 'Cut-off'], [
-            ['MD- / MP-CMML', 'White cell count &lt; 13 versus &ge; 13 &times; 10<sup>9</sup>/L'],
-            ['CMML-1 / CMML-2', 'Blasts and promonocytes: &lt; 5% blood and &lt; 10% marrow, versus ' +
-                '&ge; 5% blood or &ge; 10% marrow (each &lt; 20%). CMML-0 has been removed.']
+        refTable(['Subtype', 'Cut-off'], [
+            ['MD-CMML / MP-CMML', 'WBC &lt; 13 vs &ge; 13 &times; 10<sup>9</sup>/L'],
+            ['CMML-1 / CMML-2', 'Blasts and promonocytes &lt; 5% blood and &lt; 10% marrow, vs &ge; 5% ' +
+                'blood or &ge; 10% marrow']
         ]) +
 
-        refDiverge(refUL([
-            'Clonality is required of every case - abnormal cytogenetics and/or a myeloid-neoplasm-associated ' +
-                'mutation at VAF &ge; 10% - where WHO makes it desirable.',
-            'A cytopenia is required, at MDS thresholds, which WHO does not ask for - with one stated ' +
-                'exception: a small proportion of early-phase cases may show only borderline or no cytopenia, and ' +
-                'those need marrow morphology, flow cytometry and molecular data to carry the diagnosis.',
-            'The non-clonal route needs monocytes &ge; 1.0 &times; 10<sup>9</sup>/L and &gt; 10%, plus ' +
-                'increased blasts (&ge; 5% marrow and/or &ge; 2% blood), or dysplasia, or a CMML-consistent ' +
-                'immunophenotype. Those blast thresholds are not the CMML-1/CMML-2 split.',
-            'Two lesser categories WHO does not name: CMUS, and CCMUS where a cytopenia is present.'
-        ]));
+        refDiverge([
+            'With clonality (abnormal karyotype and/or a myeloid mutation at VAF &ge; 10%), monocytes ' +
+                '&ge; 0.5 &times; 10<sup>9</sup>/L and &ge; 10% suffice. Without it, monocytes must be ' +
+                '&ge; 1.0 &times; 10<sup>9</sup>/L and &gt; 10%, plus increased blasts (&ge; 5% marrow and/or ' +
+                '&ge; 2% blood), dysplasia, or a CMML immunophenotype.',
+            'Requires a cytopenia at MDS thresholds, which WHO does not. A few early cases show borderline or ' +
+                'no cytopenia.',
+            'Requires marrow findings consistent with CMML. Without them, consider clonal monocytosis of ' +
+                'undetermined significance (CMUS), or CCMUS if cytopenic.'
+        ]);
     }
 });
 
@@ -1825,12 +1871,8 @@ referenceTopics.push({
     keywords: ['MDS/MPN-SF3B1-T', 'SF3B1', 'thrombocytosis', 'RARS-T', 'ring sideroblast'],
     related: ['mds-sf3b1', 'ring-sideroblasts'],
     body: function () {
-        return refP('A low-blast, <i>SF3B1</i>-mutated, ring-sideroblastic marrow with a raised platelet count. ' +
-                'MDS-SF3B1\'s first essential criterion reads "cytopenia involving one or more lineages, without ' +
-                'thrombocytosis"; this is where the excluded case goes.') +
-
-            refBox({
-                title: 'MDS/MPN-SF3B1-T - WHO-HAEM5 (Box 2.21)',
+        return refBox({
+                title: 'WHO-HAEM5',
                 groups: [
                     {
                         label: 'Peripheral blood',
@@ -1872,34 +1914,25 @@ referenceTopics.push({
                     }
                 ],
                 notes: [
-                    'The chapter states its criteria twice, and the two differ. Its prose summary makes the ' +
-                        'essential set "anaemia with dysplastic erythropoiesis and &ge; 15% ring sideroblasts; ' +
-                        'persistent thrombocytosis &ge; 450 &times; 10<sup>9</sup>/L; <i>SF3B1</i> mutation or ' +
-                        'biologically similar spliceosome and signalling mutations; exclusions" - with the ' +
-                        'concurrent <i>JAK2</i> p.V617F listed as desirable, where the box above lists the ' +
-                        'co-mutation among the molecular criteria. Both are the chapter\'s words.',
-                    'MDS-SF3B1 that acquires a <i>JAK2</i>, <i>MPL</i>, or <i>CALR</i> mutation with resultant ' +
-                        'thrombocytosis may be classified as this entity - the box\'s own "specific ' +
-                        'situation".'
+                    'The chapter\'s prose summary differs from its box: it lists concurrent <i>JAK2</i> p.V617F ' +
+                        'as desirable rather than criterial, and gives thrombocytosis as &ge; 450 &times; ' +
+                        '10<sup>9</sup>/L.',
+                    'MDS-SF3B1 that acquires a <i>JAK2</i>, <i>MPL</i> or <i>CALR</i> mutation with thrombocytosis ' +
+                        'may be reclassified as this entity.',
+                    'Formerly RARS-T, a name no longer recommended.'
                 ]
             }) +
 
-            refDiverge(refUL([
-                'ICC requires the <i>SF3B1</i> mutation at VAF &gt; 10% and does not require ring ' +
-                    'sideroblasts with it; WHO\'s essential criteria ask for &ge; 15% ring sideroblasts and ' +
-                    'state no VAF floor.',
-                'ICC bounds the blasts numerically - &lt; 1% blood and &lt; 5% marrow - where WHO writes "no or ' +
-                    'very rare blast cells", and asks for no co-mutation (<i>JAK2</i> supports, never gates).',
-                'Clonal evolution is ruled in opposite directions: WHO may reclassify MDS-SF3B1 that ' +
-                    'acquires a driver with thrombocytosis as this entity; ICC regards it as thrombocytotic ' +
-                    'progression of MDS-SF3B1, and requires both cytoses at initial diagnosis.',
-                'For the <i>SF3B1</i>-wildtype case with &ge; 15% ring sideroblasts, ICC keeps a separate ' +
-                    'MDS/MPN-RS-T, NOS; WHO renders "MDS/MPN with ring sideroblasts and thrombocytosis" ' +
-                    '(its acceptable alternative name) and calls it management-equivalent.'
-            ])) +
-
-            refP('Previously refractory anaemia with ring sideroblasts and thrombocytosis (RARS-T), a name ' +
-                'WHO-HAEM5 now lists as not recommended.');
+            refDiverge([
+                'Requires <i>SF3B1</i> at VAF &gt; 10% and does not require ring sideroblasts. WHO\'s essential ' +
+                    'criteria ask for &ge; 15% ring sideroblasts and set no VAF threshold.',
+                'Blasts &lt; 1% blood and &lt; 5% marrow, where WHO writes "no or very rare blast cells". No ' +
+                    'co-mutation required; <i>JAK2</i> is supportive.',
+                'MDS-SF3B1 that later develops thrombocytosis is thrombocytotic progression of MDS-SF3B1, not this ' +
+                    'entity; anaemia and thrombocytosis must both be present at diagnosis.',
+                '<i>SF3B1</i>-wildtype cases with &ge; 15% ring sideroblasts are MDS/MPN-RS-T, NOS. WHO calls them ' +
+                    'MDS/MPN with ring sideroblasts and thrombocytosis and treats them as equivalent for management.'
+            ]);
     }
 });
 
@@ -1913,6 +1946,7 @@ referenceTopics.push({
     related: ['ccus', 'icus', 'cytopenias'],
     body: function () {
         return refBox({
+            title: 'WHO-HAEM5',
             groups: [{
                 label: 'Essential',
                 items: [
@@ -1924,22 +1958,20 @@ referenceTopics.push({
                 ]
             }],
             notes: [
-                'Mutations outside the regions specified in Table 2.02 may qualify if predicted deleterious ' +
-                    'and not rare non-pathogenic variants.',
-                'Explainable abnormal red cell indices, or an idiopathically raised RDW or MCV, do not preclude the ' +
-                    'diagnosis.',
-                'There are no histopathological features of CHIP - their absence is integral to the definition.',
-                'VEXAS syndrome is the exception to "no clinical features": somatic <i>UBA1</i> mutation with a ' +
-                    'systemic autoinflammatory syndrome, and cytoplasmic vacuoles in myeloid and erythroid ' +
-                    'precursors. A marrow meeting MDS criteria is diagnosed as MDS.'
+                'Mutations outside the Table 2.02 regions may qualify if predicted deleterious and not rare ' +
+                    'non-pathogenic variants.',
+                'Explainable abnormal red cell indices, or an idiopathically raised RDW or MCV, do not exclude CHIP.',
+                'CHIP has no histopathological features.',
+                'VEXAS syndrome (somatic <i>UBA1</i> mutation, systemic autoinflammatory disease, vacuoles in ' +
+                    'myeloid and erythroid precursors) is the exception to the absence of clinical features. A ' +
+                    'marrow meeting MDS criteria is MDS.'
             ]
         }) +
 
-        refDiverge('ICC uses the same VAF &ge; 2% threshold but a broader trigger: "a somatic mutation in a ' +
-            'myeloid neoplasm driver gene (at VAF &ge; 2%) or a non-MDS-defining clonal cytogenetic ' +
-            'aberration in a patient lacking a myeloid neoplasm or unexplained cytopenia". WHO requires a ' +
-            'mutation in a Table 2.02 gene, so a clonal karyotypic abnormality alone is CHIP by ICC and unnamed by ' +
-            'WHO.');
+        refDiverge([
+            'Same VAF &ge; 2% threshold, but a non-MDS-defining clonal cytogenetic abnormality also qualifies. ' +
+                'A karyotypic clone alone is CHIP by ICC and unnamed by WHO.'
+        ]);
     }
 });
 
@@ -1953,6 +1985,9 @@ referenceTopics.push({
 // page said it was not. And the ICC divergence claimed ICC "puts a duration on
 // the cytopenia, which WHO does not"; WHO says "usually of 4 months or longer in
 // duration" in Clinical features. Six for six.
+//
+// The progression-risk gene list is the CCUS chapter's, not the CHIP chapter's:
+// CCUS adds PPM1D, JAK2 and RUNX1 and drops ASXL1 (see dxChRiskText).
 referenceTopics.push({
     id: 'ccus',
     section: 'overlap',
@@ -1961,7 +1996,7 @@ referenceTopics.push({
     related: ['chip', 'icus', 'cytopenias', 'mds-lb'],
     body: function () {
         return refBox({
-            title: 'CCUS',
+            title: 'WHO-HAEM5',
             groups: [{
                 label: 'Essential',
                 items: [
@@ -1973,39 +2008,28 @@ referenceTopics.push({
                 ]
             }],
             notes: [
-                'Either limb of the first criterion will do. A cytopenic marrow whose only clonal evidence is ' +
-                    'a karyotypic abnormality is CCUS - unlike CHIP, whose criteria name only the gene list.',
+                'A clonal chromosomal abnormality alone is enough, unlike CHIP.',
                 'Persistent means "usually of 4 months or longer in duration".',
-                'Dysplastic changes, if present, must fall short of the diagnostic criteria for MDS. Blasts ' +
-                    'should not be increased.',
-                'Array-based techniques, flow cytometry and immunohistochemistry are not recommended as sole ' +
-                    'diagnostic modalities. Clonal chromosomal abnormalities may be shown by karyotype, FISH or NGS.'
+                'Any dysplasia must fall short of MDS criteria, and blasts should not be increased.',
+                'Array-based methods, flow cytometry and immunohistochemistry are not recommended as the sole ' +
+                    'diagnostic modality. Clonal chromosomal abnormalities may be shown by karyotype, FISH or NGS.',
+                'About 30% of people with a cytopenia have a myeloid driver mutation or chromosomal abnormality. ' +
+                    'Without one, the case is ' + refJump('icus', 'ICUS') + '.',
+                'Progression risk rises with clone size, the number of alterations, and mutations in <i>TP53</i>, ' +
+                    '<i>PPM1D</i>, <i>JAK2</i>, <i>RUNX1</i>, <i>SF3B1</i>, <i>SRSF2</i>, <i>U2AF1</i>, ' +
+                    '<i>IDH2</i> or <i>IDH1</i> (a different list from CHIP\'s). The number and severity of ' +
+                    'cytopenias may also matter, especially after cytotoxic therapy. An isolated <i>DNMT3A</i> ' +
+                    'mutation appears to carry low risk.'
             ]
         }) +
 
-        refP('About 30% of people with one or more cytopenias have a detectable myeloid driver mutation or ' +
-            'chromosomal abnormality, and so meet the criteria for CCUS. Without one, the case is ' +
-            refJump('icus', 'ICUS') + '.') +
-
-        refH('Risk of progression') +
-        refP('Greater with a larger clone, with more somatic alterations, and with mutations in ' +
-            '<i>TP53</i>, <i>PPM1D</i>, <i>JAK2</i>, <i>RUNX1</i>, <i>SF3B1</i>, <i>SRSF2</i>, <i>U2AF1</i>, ' +
-            '<i>IDH2</i> or <i>IDH1</i>. The number and severity of the cytopenias may also matter, particularly ' +
-            'after cytotoxic therapy. An isolated <i>DNMT3A</i> mutation appears to carry a low risk.') +
-        refNote('This is not the same list the CHIP chapter publishes - CCUS adds <i>PPM1D</i>, <i>JAK2</i> and ' +
-            '<i>RUNX1</i>, and drops <i>ASXL1</i>.') +
-
-        refDiverge(refUL([
-            'ICC states the duration in the definition rather than descriptively: "the cytopenia is persistent ' +
-                '(4 months or longer in duration), idiopathic, and not caused by another comorbid condition, which ' +
-                'must be carefully excluded". WHO says "usually of 4 months or longer" in its clinical features, so ' +
-                'the two agree on the number and differ on how binding it is.',
-            'Same clone threshold: "a threshold VAF of &ge; 2% is recommended for CCUS and other premalignant clonal ' +
-                'cytopenias".',
-            'A non-dysplastic cytopenic marrow with &minus;7/del(7q) or a complex karyotype is not CCUS by ' +
-                'ICC - it is ' + refJump('mds-lb', 'MDS, NOS without dysplasia') + '. By WHO it remains CCUS, since ' +
-                'a clonal chromosomal abnormality is exactly what its first criterion accepts.'
-        ]));
+        refDiverge([
+            'Persistence (4 months or longer) is part of the definition; WHO gives the same duration ' +
+                'descriptively.',
+            'Same VAF &ge; 2% threshold.',
+            'A non-dysplastic cytopenic marrow with &minus;7/del(7q) or a complex karyotype is ' +
+                refJump('mds-lb', 'MDS, NOS without dysplasia') + ', not CCUS.'
+        ]);
     }
 });
 
@@ -2024,36 +2048,32 @@ referenceTopics.push({
     keywords: ['ICUS', 'idiopathic cytopenia', 'undetermined significance', 'unknown significance'],
     related: ['ccus', 'chip', 'cytopenias'],
     body: function () {
-        return refP('Defined by a single sentence of the CCUS chapter: "Some cytopenias will be sustained and ' +
-                'unexplained without meeting diagnostic criteria for CCUS; such cases should be termed ‘idiopathic ' +
-                'cytopenia of unknown significance’." It has no chapter and no criteria box of its own - it is ' +
-                'the residue of CCUS\'s.') +
-
-            refBox({
-                title: 'ICUS - CCUS’s criteria, failed at the clone',
-                groups: [{
-                    label: 'All must hold',
-                    items: [
-                        'One or more otherwise unexplained persistent cytopenias - usually 4 months or longer',
-                        'No qualifying somatic mutation and no clonal chromosomal abnormality',
-                        'Absence of features diagnostic for a defined myeloid neoplasm on bone marrow examination - ' +
-                            'dysplasia falling short of MDS criteria, blasts not increased'
-                    ]
-                }],
-                notes: [
-                    '"No mutation identified" is not "no clone": it depends on what was sequenced and how deeply, and ' +
-                        'no sequencing at all is not evidence. The karyotype matters equally - a clonal ' +
-                        'chromosomal abnormality alone makes the case CCUS.',
-                    'The MDS exclusions still apply: clinical and drug history known, nutritional deficiency ' +
-                        'excluded, no reclassification during growth factor therapy.'
+        return refBox({
+            title: 'WHO-HAEM5',
+            groups: [{
+                label: 'CCUS criteria, without the clone',
+                items: [
+                    'One or more otherwise unexplained persistent cytopenias, usually 4 months or longer',
+                    'No qualifying somatic mutation and no clonal chromosomal abnormality',
+                    'No features diagnostic of a defined myeloid neoplasm on bone marrow examination: ' +
+                        'dysplasia short of MDS criteria, blasts not increased'
                 ]
-            }) +
+            }],
+            notes: [
+                'Defined in one sentence of the CCUS chapter: "Some cytopenias will be sustained and unexplained ' +
+                    'without meeting diagnostic criteria for CCUS; such cases should be termed ‘idiopathic ' +
+                    'cytopenia of unknown significance’." There is no criteria box of its own.',
+                'No mutation found is not the same as no clone; it depends on what was sequenced and how deeply. ' +
+                    'A clonal karyotypic abnormality alone makes the case CCUS.',
+                'The MDS exclusions still apply: known clinical and drug history, nutritional deficiency excluded, ' +
+                    'no reclassification during growth factor therapy.',
+                'WHO writes "unknown significance"; the literature uses "undetermined".'
+            ]
+        }) +
 
-            refNote('WHO spells it "unknown" significance; the literature and this app use ' +
-                '"undetermined".') +
-
-            refDiverge('ICC does not use the term at all. ICC defines CHIP and CCUS and stops there, so a ' +
-                'cytopenia with no clone and no dysplasia has no ICC name. Reporting ICUS is a WHO-side statement.');
+        refDiverge([
+            'No equivalent term. A cytopenia with no clone and no dysplasia has no ICC name.'
+        ]);
     }
 });
 
@@ -2074,13 +2094,8 @@ referenceTopics.push({
         'alkylating', 'topoisomerase', 'PARP1', 'radiation', 'PPM1D', 'TP53', 'latency'],
     related: ['aml-overview', 'aml-mr', 'aml-diff', 'mds-bitp53', 'chip'],
     body: function () {
-        return refP('The category over MDS, MDS/MPN and AML arising after DNA-damaging cytotoxic ' +
-                'chemotherapy and/or large-field radiation therapy - an entity in WHO-HAEM5, replacing ' +
-                '"therapy-related" naming. The underlying neoplasm is worked up exactly as its de novo ' +
-                'counterpart; the history then moves the case here.') +
-
-            refBox({
-                title: 'MN-pCT - WHO-HAEM5',
+        return refBox({
+                title: 'WHO-HAEM5',
                 groups: [{
                     label: 'Essential',
                     items: [
@@ -2094,31 +2109,30 @@ referenceTopics.push({
                     items: ['Detection of clonal molecular and/or chromosomal alterations']
                 }],
                 notes: [
-                    'MPN is excluded - an MPN arising after therapy is simply MPN. At the other ' +
-                        'boundary, MN-pCT takes precedence over mixed-phenotype and undifferentiated ' +
-                        'acute leukaemia when their immunophenotypes appear.',
-                    'Latency is generally within 10 years of last exposure; the chapter cautions that ' +
-                        'very long latencies may be unrelated to therapy. The classic alkylator/radiation ' +
-                        '(type 1) vs topoisomerase-II-inhibitor (type 2) split blurs under multi-agent ' +
-                        'therapy; PARP1 inhibitors are newly implicated, and the role of hydroxyurea, ' +
+                    'An entity (ICD-O 9920/3) replacing "therapy-related" naming. The underlying neoplasm is ' +
+                        'worked up as for de novo disease, and "post cytotoxic therapy" is appended to its name.',
+                    'An MPN arising after therapy remains an MPN. MN-pCT takes precedence over mixed-phenotype ' +
+                        'and undifferentiated acute leukaemia.',
+                    'Latency is usually within 10 years of last exposure; much longer latencies may be unrelated. ' +
+                        'The alkylator/radiation (type 1) and topoisomerase II inhibitor (type 2) split blurs with ' +
+                        'multi-agent therapy. PARP1 inhibitors are newly implicated; the role of hydroxyurea, ' +
                         'radioisotopes, purine analogues, L-asparaginase, mycophenolate and limited-field ' +
                         'radiation is unclear.',
-                    '<i>TP53</i> mutations are characteristic and usually multi-hit, riding complex ' +
-                        'karyotypes with loss of 5q, 7q and 17p; aberrant karyotypes run 70-90% against ' +
-                        '40-60% in de novo disease, and <i>PPM1D</i> truncations (~15%) follow platinum ' +
-                        'exposure. Chromosome 5 and/or 7 aberrations, <i>TP53</i> mutation or a complex ' +
-                        'karyotype carry a median survival under 1 year irrespective of blast count.',
-                    'Clonal haematopoiesis in <i>TP53</i>, <i>PPM1D</i>, <i>DNMT3A</i>, <i>ASXL1</i> or ' +
-                        '<i>TET2</i> predisposes - MN-pCT is the selective expansion of a pre-existing clone ' +
-                        'under therapy, not a de novo event; germline DNA-damage-response and Fanconi ' +
-                        'pathway variants matter for transplant donor selection.'
+                    '<i>TP53</i> mutations are characteristic and usually multi-hit, with complex karyotypes and ' +
+                        'loss of 5q, 7q and 17p. Karyotypes are abnormal in 70-90% (vs 40-60% de novo). ' +
+                        '<i>PPM1D</i> truncations (~15%) follow platinum exposure. Chromosome 5 and/or 7 ' +
+                        'abnormalities, <i>TP53</i> mutation or a complex karyotype carry a median survival under ' +
+                        '1 year regardless of blast count.',
+                    'Pre-existing clonal haematopoiesis (<i>TP53</i>, <i>PPM1D</i>, <i>DNMT3A</i>, <i>ASXL1</i>, ' +
+                        '<i>TET2</i>) is selected by therapy. Germline DNA damage response and Fanconi pathway ' +
+                        'variants matter for donor selection.'
                 ]
             }) +
 
-        refDiverge('WHO-HAEM5 keeps this as an entity (ICD-O 9920/3) with three named subtypes, the WHO ' +
-            'diagnosis appending "post cytotoxic therapy" to the underlying type\'s name; ICC has no such ' +
-            'entity - ", therapy-related" is a comma-separated qualifier that never changes which ' +
-            'category the case is in.');
+            refDiverge([
+                'No entity. "Therapy-related" is a qualifier appended to the diagnosis and does not change the ' +
+                    'category.'
+            ]);
     }
 });
 
@@ -2130,99 +2144,75 @@ referenceTopics.push({
 // WHO's half is docs/who/mds-introduction.md for the boundary and
 // docs/who/aml-introduction.md - the chapter introduction, pasted - for the
 // per-type blast requirements and the AML-MR definition. ICC's half is Table 25
-// of docs/who/icc-2022-arber-blood.md, read against it row by row. The
-// per-entity WHO criteria boxes (essential/desirable) remain unpasted; nothing
-// below reproduces one.
+// of docs/who/icc-2022-arber-blood.md, read against it row by row (Arber DA et
+// al., Blood 2022;140(11):1200-1228).
 referenceTopics.push({
     id: 'aml-overview',
     section: 'aml',
-    title: 'AML - the blast boundary',
+    title: 'AML overview',
     keywords: ['AML', 'acute myeloid leukemia', 'blast', '20%', '10%', 'NPM1', 'CEBPA', 'myelodysplasia-related',
-        'BCR::ABL1', 'MDS/AML', 'erythroid leukemia', 'KMT2A', 'NUP98', 'MECOM'],
+        'BCR::ABL1', 'MDS/AML', 'erythroid leukemia', 'KMT2A', 'NUP98', 'MECOM', 'overview'],
     related: ['blasts', 'mds-ib', 'mds-bitp53'],
     body: function () {
         return refBox({
-            title: 'The MDS/AML boundary',
-            groups: [{
-                label: 'WHO-HAEM5',
-                items: [
-                    '20% blasts delineates MDS from AML.',
-                    'Blast cut-offs are eliminated for AML types with defining genetic abnormalities, with ' +
-                        'two named exceptions: AML with <i>BCR::ABL1</i> (to avoid overlap with CML) and AML with ' +
-                        '<i>CEBPA</i> mutation keep &ge; 20%.'
-                ]
-            }],
+            title: 'WHO-HAEM5',
+            groups: [
+                {
+                    label: 'Blast threshold',
+                    items: [
+                        '20% separates MDS from AML.',
+                        'No blast cut-off for AML with defining genetic abnormalities, except <i>BCR::ABL1</i> ' +
+                            'and <i>CEBPA</i> (&ge; 20%).',
+                        '<i>KMT2A</i>, <i>MECOM</i> and <i>NUP98</i> rearrangements and <i>NPM1</i> mutation ' +
+                            'define AML at any blast count.'
+                    ]
+                },
+                {
+                    label: 'Classification',
+                    items: [
+                        'Two families: AML with defining genetic abnormalities, and AML defined by ' +
+                            'differentiation (replacing AML, NOS). AML with other defined genetic alterations ' +
+                            'holds new and rare subtypes.',
+                        'AML-MR: &ge; 20% blasts with a history of MDS or MDS/MPN, a defining cytogenetic ' +
+                            'abnormality, or a mutation in <i>SRSF2</i>, <i>SF3B1</i>, <i>U2AF1</i>, <i>ZRSR2</i>, ' +
+                            '<i>ASXL1</i>, <i>EZH2</i>, <i>BCOR</i> or <i>STAG2</i>. Morphology alone no longer ' +
+                            'qualifies.',
+                        '<i>CEBPA</i>: biallelic or single in-frame bZIP mutation. <i>RUNX1</i>-mutated AML is no ' +
+                            'longer a type.',
+                        'Acute erythroid leukaemia (formerly pure erythroid): usually &ge; 80% erythroid with ' +
+                            '&ge; 30% proerythroblasts and biallelic <i>TP53</i>; takes precedence over AML-MR.'
+                    ]
+                }
+            ],
             notes: [
-                'Lowering the line to 10% was explored and declined: any cut-off is arbitrary, blast enumeration is ' +
-                    'subject to sampling error and subjective evaluation, no gold standard exists, and 10% "carries a ' +
-                    'risk of overtreatment".',
-                'MDS-IB2 may be regarded as AML-equivalent for therapeutic decisions and clinical trial design.',
-                'Removing the cut-off makes clone size part of the correlation: VAF or fusion-transcript ' +
-                    'quantitation is read beside the morphology, and defining rearrangements - <i>NUP98</i> ' +
-                    'especially - may be cryptic on conventional karyotype.'
+                'Lowering the MDS/AML line to 10% was considered and declined: any cut-off is arbitrary, blast ' +
+                    'counts are subject to sampling error, and 10% "carries a risk of overtreatment".',
+                'MDS-IB2 may be treated as AML-equivalent for therapy and trial design.',
+                'Without a blast cut-off, clone size matters: read VAF or fusion transcript levels with the ' +
+                    'morphology. <i>NUP98</i> and other rearrangements may be cryptic on karyotype.'
             ]
         }) +
 
-        refH('WHO - the restructured chapter') +
-        refUL([
-            'Two families: AML with defining genetic abnormalities and AML defined by ' +
-                'differentiation - the latter replaces "AML-NOS". A third section, <i>AML with other defined ' +
-                'genetic alterations</i>, is the landing spot for new and uncommon subtypes.',
-            '<i>KMT2A</i>, <i>MECOM</i> and <i>NUP98</i> rearrangements are recognised at any blast count - ' +
-                'a case under 20% with one of these behaves like its higher-count counterpart. "AML with ' +
-                '<i>KMT2A</i> rearrangement" replaces the old t(9;11) naming; the partner (<i>MLLT3</i>, ' +
-                '<i>AFDN</i>, <i>ELL</i>, <i>MLLT10</i> are commonest of &gt; 80) is desirable, not required.',
-            '<i>NPM1</i> defines AML irrespective of blast count - MDS and MDS/MPN with <i>NPM1</i> ' +
-                'progressed to AML in short order.',
-            '<i>CEBPA</i> now means biallelic mutations or a single in-frame bZIP mutation ' +
-                '(smbZIP-<i>CEBPA</i>) - and keeps its 20%. <i>RUNX1</i> is dropped as a standalone type.',
-            'AML, myelodysplasia-related: &ge; 20% blasts with defining cytogenetic abnormalities or a ' +
-                'mutation in one of eight genes (<i>SRSF2</i>, <i>SF3B1</i>, <i>U2AF1</i>, <i>ZRSR2</i>, ' +
-                '<i>ASXL1</i>, <i>EZH2</i>, <i>BCOR</i>, <i>STAG2</i>), de novo or after MDS or MDS/MPN. ' +
-                'Morphology alone no longer qualifies.',
-            'Acute erythroid leukaemia (previously pure erythroid leukaemia): erythroid predominance, ' +
-                'usually &ge; 80% of marrow elements with &ge; 30% proerythroblasts, biallelic <i>TP53</i> ' +
-                'alterations prevalent - and it supersedes AML, myelodysplasia-related.'
-        ]) +
-
-        refDiverge('ICC has no single blast line. Ten per cent is enough for almost every genetically defined ' +
-            'AML; 10-19% without such a lesion is MDS/AML; 20% is required only for the residual categories ' +
-            'and for one recurrent abnormality.') +
-
-        /* BLASTS IN THE FIRST COLUMN, categories in the second, and that is the
-           way round the question is actually asked: a reader at the scope has a
-           count and wants to know what it is enough for. It also keeps the key
-           column short, which is what stops a wide table - see .refTable in
-           Template.css. */
-        refH('ICC - blasts required, by category') +
-        refTable(['Blasts', 'Category'], [
+        refDiverge([
+            'No single blast threshold: &ge; 10% for most genetically defined AML, 10-19% without a defining ' +
+                'lesion is MDS/AML, and &ge; 20% for AML, NOS and <i>BCR::ABL1</i>.',
+            'The myelodysplasia-related gene list adds <i>RUNX1</i> to WHO\'s eight, so <i>RUNX1</i>-mutated AML ' +
+                'is myelodysplasia-related by ICC but not by WHO.',
+            'History is a qualifier, not an entity: therapy-related, progressed from MDS or MDS/MPN, or germline ' +
+                'predisposition (e.g. "AML with myelodysplasia-related gene mutation, germline <i>RUNX1</i> ' +
+                'mutation").'
+        ], refTable(['Blasts', 'Category'], [
             ['&ge; 10%',
                 'APL with <i>PML::RARA</i> or other <i>RARA</i> rearrangements &middot; <i>RUNX1::RUNX1T1</i> ' +
                     '&middot; <i>CBFB::MYH11</i> &middot; <i>MLLT3::KMT2A</i> or other <i>KMT2A</i> &middot; ' +
                     '<i>DEK::NUP214</i> &middot; <i>GATA2</i>;<i>MECOM</i> or other <i>MECOM</i> &middot; other rare ' +
                     'recurring translocations &middot; mutated <i>NPM1</i> &middot; in-frame bZIP <i>CEBPA</i>'],
-            ['&ge; 20%', '<i>BCR::ABL1</i> - the single recurrent abnormality still requiring 20%'],
+            ['&ge; 20%', '<i>BCR::ABL1</i>'],
             ['10-19%',
-                'MDS/AML: with mutated <i>TP53</i>, with myelodysplasia-related gene mutations, with ' +
+                'MDS/AML with mutated <i>TP53</i>, with myelodysplasia-related gene mutations, with ' +
                     'myelodysplasia-related cytogenetic abnormalities, or NOS'],
-            ['&ge; 20%', 'The same four as AML rather than MDS/AML']
-        ]) +
-
-        refP('ICC\'s myelodysplasia-related gene mutations are <i>ASXL1</i>, <i>BCOR</i>, <i>EZH2</i>, ' +
-            '<i>RUNX1</i>, <i>SF3B1</i>, <i>SRSF2</i>, <i>STAG2</i>, <i>U2AF1</i>, <i>ZRSR2</i> - the eight WHO ' +
-            'shares, plus <i>RUNX1</i>, which WHO dropped as a defining lesion. A <i>RUNX1</i>-mutated AML is ' +
-            'therefore myelodysplasia-related by ICC and not by WHO.') +
-
-        refH('The ICC qualifiers') +
-        refP('ICC appends qualifiers to a diagnosis rather than making them separate entities, so the name carries ' +
-            'the history: therapy-related (prior chemotherapy, radiotherapy or immune intervention), ' +
-            'progressing from MDS or from MDS/MPN (each to be confirmed by standard diagnostics), and ' +
-            'germline predisposition. The paper\'s own example: "AML with myelodysplasia-related gene ' +
-            'mutation, germline <i>RUNX1</i> mutation".') +
-
-        refCite('Arber DA, Orazi A, Hasserjian RP, et al. International Consensus Classification of Myeloid ' +
-            'Neoplasms and Acute Leukemias: integrating morphologic, clinical, and genomic data. <i>Blood</i>. ' +
-            '2022;140(11):1200-1228. doi:10.1182/blood.2022015850');
+            ['&ge; 20%', 'AML with the same four']
+        ]));
     }
 });
 
@@ -2241,7 +2231,7 @@ referenceTopics.push({
     related: ['aml-overview', 'blasts'],
     body: function () {
         return refBox({
-            title: 'APL with PML::RARA - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2259,27 +2249,23 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'Abnormal promyelocytes are counted as blasts for enumeration - which is what lets the ' +
-                    'first criterion say "may be &lt; 20%" and still describe an acute leukaemia.',
-                'The therapy-history criterion routes prior-cytotoxic-therapy cases to myeloid neoplasm post ' +
-                    'cytotoxic therapy rather than this entity; ICC keeps the APL diagnosis and appends a ' +
-                    '"therapy-related" qualifier instead.',
-                'The microgranular variant mimics acute myelomonocytic or monocytic leukaemia and presents ' +
-                    'with a high, fast-doubling white count; a minority of cells with visible granules and/or ' +
-                    'faggot cells (bundled Auer rods) betray it, and myeloperoxidase is uniformly strong. ' +
-                    'CD34 and HLA-DR are characteristically negative.'
+                'Abnormal promyelocytes count as blasts.',
+                'Microgranular variant: mimics acute myelomonocytic or monocytic leukaemia, with a high, rapidly ' +
+                    'rising WBC. A few granulated cells or faggot cells give it away; MPO is uniformly strong, and ' +
+                    'CD34 and HLA-DR are typically negative.',
+                'Variant <i>RARA</i> translocations (~5%) include <i>ZBTB16</i>, <i>NPM1</i>, <i>NUMA1</i> and ' +
+                    '<i>STAT5B</i> partners. <i>ZBTB16</i> and <i>STAT5B</i> fusions respond poorly to ATRA and ' +
+                    'arsenic trioxide.',
+                'DIC is the main cause of early death.'
             ]
         }) +
 
-        refDiverge('ICC requires &ge; 10% blasts for APL with t(15;17)(q24.1;q21.2)/<i>PML</i>::' +
-            '<i>RARA</i>, where WHO sets no floor. ICC also lists APL with other <i>RARA</i> ' +
-            'rearrangements as its own &ge; 10% category, naming the same variant partners.') +
-
-        refP('WHO\'s subtype APL with a variant <i>RARA</i> translocation (~5% of cases) covers the ' +
-            'non-<i>PML</i> partners (<i>ZBTB16</i>, <i>NPM1</i>, <i>NUMA1</i>, <i>STAT5B</i> and others); ' +
-            '<i>ZBTB16</i> and <i>STAT5B</i> fusions respond poorly to ATRA and arsenic trioxide, which is the ' +
-            'clinical reason the subtype is named. APL is the emergency of this table: coagulopathy with ' +
-            'disseminated intravascular coagulation drives early death and demands immediate recognition.');
+        refDiverge([
+            'Named APL with t(15;17)(q24.1;q21.2)/<i>PML</i>::<i>RARA</i>; requires &ge; 10% blasts. WHO sets ' +
+                'no minimum.',
+            'APL with other <i>RARA</i> rearrangements is a separate &ge; 10% category.',
+            REF_ICC_THERAPY
+        ]);
     }
 });
 
@@ -2296,7 +2282,7 @@ referenceTopics.push({
     related: ['aml-overview', 'aml-apl', 'blasts'],
     body: function () {
         return refBox({
-            title: 'AML with RUNX1::RUNX1T1 - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2313,25 +2299,22 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'A presentation as myeloid sarcoma may carry low blood and marrow blast counts - one of ' +
-                    'the cases the "may be &lt; 20%" clause exists for.',
-                'The morphology is distinctive: large blasts with abundant basophilic cytoplasm, ' +
-                    'azurophilic granules and perinuclear clearing (hof); Auer rods as a single long rod with ' +
-                    'tapered ends; dysplasia largely confined to the granulocytic lineage (pseudo-Pelger-Huët ' +
-                    'nuclei, homogeneous pink neutrophil cytoplasm); monocytes few or absent. Eosinophil ' +
-                    'precursors are often increased but cytologically normal - the abnormal eosinophils ' +
-                    'belong to ' + refJump('aml-cbfb', 'CBFB::MYH11') + '.',
-                'Flow carries a signature worth knowing: bright CD34 with aberrant CD19 and cCD79a ' +
-                    '(PAX5 usually positive), CD33 weak or negative - lymphoid markers on a myeloid leukaemia, ' +
-                    'not a mixed phenotype.',
-                '<i>KIT</i> p.D816 in adults is the adverse marker the introduction kept: lower relapse-free ' +
-                    'survival.'
+                'Myeloid sarcoma may present with low blood and marrow blast counts.',
+                'Large blasts with abundant basophilic cytoplasm, azurophilic granules and perinuclear hofs; ' +
+                    'single long, tapered Auer rods. Dysplasia is mostly granulocytic (pseudo-Pelger-Huët nuclei, ' +
+                    'homogeneous pink neutrophil cytoplasm); monocytes few or absent. Eosinophil precursors are ' +
+                    'often increased but cytologically normal, unlike ' + refJump('aml-cbfb', 'CBFB::MYH11') + '.',
+                'Flow: bright CD34 with aberrant CD19 and cCD79a (PAX5 usually positive), CD33 weak or negative. ' +
+                    'This is not mixed phenotype.',
+                '<i>KIT</i> p.D816 in adults is associated with shorter relapse-free survival.'
             ]
         }) +
 
-        refDiverge('ICC requires &ge; 10% blasts for AML with t(8;21)(q22;q22.1)/<i>RUNX1</i>::' +
-            '<i>RUNX1T1</i>, where WHO sets no floor; and ICC handles prior therapy as a "therapy-related" ' +
-            'qualifier where WHO routes such cases to myeloid neoplasm post cytotoxic therapy.');
+        refDiverge([
+            'Named AML with t(8;21)(q22;q22.1)/<i>RUNX1</i>::<i>RUNX1T1</i>; requires &ge; 10% blasts. WHO sets ' +
+                'no minimum.',
+            REF_ICC_THERAPY
+        ]);
     }
 });
 
@@ -2347,7 +2330,7 @@ referenceTopics.push({
     related: ['aml-overview', 'aml-runx1t1', 'blasts'],
     body: function () {
         return refBox({
-            title: 'AML with CBFB::MYH11 - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2364,28 +2347,23 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'The abnormal eosinophils are the morphological signature, present in the majority of ' +
-                    'cases: marrow eosinophilia whose immature granules are abnormally large and distinctly dark ' +
-                    'purple-violet, faintly positive on naphthol AS-D CAE (normally negative in eosinophils). ' +
-                    'Blood eosinophilia may occur but abnormal circulating forms are rare - this is a marrow ' +
-                    'finding. The blasts usually show myelomonocytic differentiation.',
-                'inv(16) can be cryptic on conventional karyotype; a suspicious morphology without it ' +
-                    'warrants FISH or molecular testing, and a <i>CBFB</i> break-apart probe suffices in the ' +
-                    'right morphological context.',
-                'Flow usually shows two aberrant populations: a CD45-dim immature blast population ' +
-                    '(CD34+, CD13, CD117, MPO) and a CD45-bright monocytic one (CD14, CD64, lysozyme; CD34−).'
+                'Abnormal eosinophils in most cases: immature granules that are large and dark purple-violet, ' +
+                    'faintly positive for naphthol AS-D CAE (normally negative in eosinophils). Abnormal forms are ' +
+                    'rare in blood. Blasts are usually myelomonocytic.',
+                'Eosinophils in ' + refJump('aml-runx1t1', 'RUNX1::RUNX1T1') + ' AML may be increased but are ' +
+                    'cytologically normal.',
+                'inv(16) can be cryptic on karyotype. With suggestive morphology, do FISH or molecular testing; a ' +
+                    '<i>CBFB</i> break-apart probe is sufficient.',
+                'Flow usually shows two populations: CD45-dim blasts (CD34, CD13, CD117, MPO) and CD45-bright ' +
+                    'monocytes (CD14, CD64, lysozyme; CD34−).'
             ]
         }) +
 
-        refDiverge('ICC requires &ge; 10% blasts for AML with inv(16)(p13.1q22) or ' +
-            't(16;16)(p13.1;q22)/<i>CBFB</i>::<i>MYH11</i>, where WHO sets no floor; prior therapy is a ' +
-            '"therapy-related" qualifier in ICC where WHO routes such cases to myeloid neoplasm post cytotoxic ' +
-            'therapy.') +
-
-        refP('The core-binding factor counterpart of ' + refJump('aml-runx1t1', 'AML with RUNX1::RUNX1T1') +
-            ' - and the two split the eosinophil question between them: <i>CBFB</i>::<i>MYH11</i>\'s ' +
-            'eosinophils are increased and abnormal, <i>RUNX1</i>::<i>RUNX1T1</i>\'s are increased and ' +
-            'cytologically normal.');
+        refDiverge([
+            'Named AML with inv(16)(p13.1q22) or t(16;16)(p13.1;q22)/<i>CBFB</i>::<i>MYH11</i>; requires ' +
+                '&ge; 10% blasts. WHO sets no minimum.',
+            REF_ICC_THERAPY
+        ]);
     }
 });
 
@@ -2401,7 +2379,7 @@ referenceTopics.push({
     related: ['aml-overview', 'aml-mr', 'mds-ib'],
     body: function () {
         return refBox({
-            title: 'AML with DEK::NUP214 - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2418,22 +2396,21 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'The MDS mimic among the fusion AMLs. Multilineage dysplasia is common - abnormal nuclear ' +
-                    'lobulation, ring sideroblasts, hypogranular myelopoiesis, micromegakaryocytes - and some ' +
-                    'cases present pancytopenic with the morphology of MDS with increased blasts. That is exactly ' +
-                    'why the fusion defines AML at any blast count: 61% of the MDS-labelled cases progressed, ' +
-                    'with the same survival and co-mutations as those called AML outright.',
-                'Basophilia is the classic teaching and a minority finding - the chapter says "may be ' +
-                    'increased in a minority of cases". Its absence argues nothing.',
-                '<i>FLT3</i>-ITD co-occurs in 50-88% (TKD mutations are generally absent); t(6;9) is often the ' +
-                    'sole karyotype abnormality. Prognosis is poor, and transplantation appears to be what ' +
-                    'changes it.'
+                'Multilineage dysplasia is common (abnormal nuclear lobation, ring sideroblasts, hypogranular ' +
+                    'myelopoiesis, micromegakaryocytes), and some cases present with pancytopenia and MDS-IB ' +
+                    'morphology. The fusion defines AML at any blast count: 61% of cases labelled MDS progressed, ' +
+                    'with the same survival and co-mutations.',
+                'Basophilia is present only "in a minority of cases".',
+                '<i>FLT3</i>-ITD in 50-88% (TKD mutations generally absent); t(6;9) is often the sole ' +
+                    'abnormality. Prognosis is poor; transplantation appears to improve it.'
             ]
         }) +
 
-        refDiverge('ICC requires &ge; 10% blasts for AML with t(6;9)(p22.3;q34.1)/<i>DEK</i>::' +
-            '<i>NUP214</i>, where WHO sets no floor; prior therapy is a "therapy-related" qualifier in ICC ' +
-            'where WHO routes such cases to myeloid neoplasm post cytotoxic therapy.');
+        refDiverge([
+            'Named AML with t(6;9)(p22.3;q34.1)/<i>DEK</i>::<i>NUP214</i>; requires &ge; 10% blasts. WHO sets ' +
+                'no minimum.',
+            REF_ICC_THERAPY
+        ]);
     }
 });
 
@@ -2451,7 +2428,7 @@ referenceTopics.push({
     related: ['aml-overview', 'fibrosis', 'megakaryocytes'],
     body: function () {
         return refBox({
-            title: 'AML with RBM15::MRTFA - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2471,24 +2448,20 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'The megakaryocytic differentiation that defines the entity is only desirable to ' +
-                    'diagnose it - the fusion carries the case - and this box, alone among the AML boxes so far, ' +
-                    'states no post-cytotoxic-therapy exclusion.',
-                'An infant disease: most cases in the first three years, female predominance, and ' +
-                    'without Down syndrome - the Down-syndrome megakaryoblastic proliferations are their ' +
-                    'own category. Marked hepatosplenomegaly is usual, and fibrotic liver involvement can ' +
-                    'present as Budd-Chiari syndrome.',
-                'Fibrosis works against every count: reticulin and collagen fibrosis limit the aspirate ' +
-                    'and can produce a falsely low blast percentage - the trephine is required, and the fusion ' +
-                    'may need FISH when the karyotype fails. Megakaryoblasts show blebs and may mimic ' +
-                    'lymphoblasts; cytoplasmic CD41/CD61 beats surface staining, with CD34, CD45, HLA-DR ' +
-                    'and MPO negative.'
+                'Megakaryocytic differentiation is desirable, not essential. There is no post-cytotoxic-therapy ' +
+                    'exclusion.',
+                'Infants: most cases in the first three years, female predominance, without Down syndrome (Down ' +
+                    'syndrome-associated proliferations are classified separately). Marked hepatosplenomegaly is ' +
+                    'usual; fibrotic liver involvement can present as Budd-Chiari syndrome.',
+                'Fibrosis limits the aspirate and can falsely lower the blast percentage; the trephine is needed, ' +
+                    'and FISH if the karyotype fails. Megakaryoblasts show blebs and can mimic lymphoblasts. ' +
+                    'Cytoplasmic CD41/CD61 is better than surface staining; CD34, CD45, HLA-DR and MPO are negative.'
             ]
         }) +
 
-        refDiverge('<i>RBM15</i>::<i>MRTFA</i> is not in ICC\'s Table 25; ICC reaches such cases only ' +
-            'through "AML with other rare recurring translocations" (&ge; 10% blasts) via its supplement, ' +
-            'which is also why the Dx rule prints the catch-all rather than an ICC name ICC does not publish.');
+        refDiverge([
+            'Not in Table 25. Falls under AML with other rare recurring translocations (&ge; 10% blasts).'
+        ]);
     }
 });
 
@@ -2505,7 +2478,7 @@ referenceTopics.push({
     related: ['cml', 'aml-overview', 'blasts'],
     body: function () {
         return refBox({
-            title: 'AML with BCR::ABL1 - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2526,24 +2499,23 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'The one fusion AML that keeps a hard blast threshold - to avoid overlap with CML. (The ' +
-                    'chapter\'s box writes "&gt; 20%" where the AML introduction wrote "&ge; 20%"; both are ' +
-                    'WHO\'s words.)',
-                'Against CML myeloid blast phase, the chapter\'s own numbers: blasts median 47% vs 13%, ' +
-                    'basophils median 0% vs 2.5%, splenomegaly 25% vs 65%, marrow M:E 2.0 vs 4.8, and marrow ' +
-                    'basophils &gt; 2% in 13% vs 53%. Cryptic IG/TR deletions with IKZF1 and/or CDKN2A/B ' +
-                    'loss are nearly universal here and absent in myeloid blast phase (they mark lymphoid ' +
-                    'blast phase and MPAL instead). The distinction is nonetheless "often challenging".',
-                'Secondarily acquired BCR::ABL1 is excluded - post-MDS AML or relapsed AML gaining the ' +
-                    'fusion does not enter this category - and a co-occurring abnormality defining another AML ' +
-                    'type takes precedence. Aberrant lymphoid antigens (CD7, CD19, TdT) are common, so MPAL ' +
-                    'with BCR::ABL1 sits in the differential.'
+                'The one fusion-defined AML with a blast threshold, to avoid overlap with CML. The box writes ' +
+                    '"&gt; 20%"; the AML introduction writes "&ge; 20%".',
+                'Versus CML myeloid blast phase: median blasts 47% vs 13%, median blood basophils 0% vs 2.5%, ' +
+                    'splenomegaly 25% vs 65%, M:E 2.0 vs 4.8, marrow basophils &gt; 2% in 13% vs 53%. Cryptic ' +
+                    'IG/TR deletions with <i>IKZF1</i> and/or <i>CDKN2A/B</i> loss are nearly universal here and ' +
+                    'absent in myeloid blast phase (they occur in lymphoid blast phase and MPAL). The distinction ' +
+                    'is "often challenging".',
+                'Secondarily acquired <i>BCR::ABL1</i> (post-MDS or relapsed AML) does not qualify, and an ' +
+                    'abnormality defining another AML type takes precedence. Aberrant CD7, CD19 and TdT are ' +
+                    'common; consider MPAL with <i>BCR::ABL1</i>.'
             ]
         }) +
 
-        refDiverge('The classifications agree on the threshold for once: ICC also requires 20% - its ' +
-            'Table 25\'s single &ge; 20% recurrent abnormality - and its footnote bars the MDS/AML category ' +
-            'for BCR::ABL1 outright, for the same reason WHO keeps the cut-off: overlap with CML progression.');
+        refDiverge([
+            'Also requires &ge; 20% blasts, the only recurrent abnormality in Table 25 that does.',
+            'MDS/AML is not allowed with <i>BCR::ABL1</i>, to avoid overlap with CML progression.'
+        ]);
     }
 });
 
@@ -2559,7 +2531,7 @@ referenceTopics.push({
     related: ['aml-overview', 'aml-rbm15', 'blasts'],
     body: function () {
         return refBox({
-            title: 'AML with KMT2A rearrangement - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2578,27 +2550,24 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                '<i>KMT2A</i> partial tandem duplication does not qualify - a PTD on an NGS report is not ' +
-                    'a rearrangement, and calling it one is the trap this criterion exists to name. Conversely ' +
-                    'real rearrangements can be cryptic on karyotype, and some (<i>KMT2A</i>::<i>USP2</i>) ' +
-                    'even by FISH.',
-                't(11;16)/<i>KMT2A</i>::<i>CREBBP</i> is presumptive evidence of a post-cytotoxic-therapy ' +
-                    'origin (topoisomerase II inhibitors) and should prompt a history search - such cases are ' +
-                    'myeloid neoplasm post cytotoxic therapy, not this entity.',
-                'Most cases are monocytic, monoblastic or myelomonocytic, often with many promonocytes ' +
-                    'and NG2 (CSPG4) expression; extramedullary disease - gingival hypertrophy, skin - is ' +
-                    'common. In children, <i>KMT2A</i>::<i>MLLT3</i> and ::<i>MLLT10</i> can present ' +
-                    'megakaryoblastic with aspirate blasts below 20%, where trephine immunohistochemistry does ' +
-                    'the counting. The commonest partners are <i>MLLT3</i>, <i>AFDN</i>, <i>ELL</i> and ' +
-                    '<i>MLLT10</i>, of more than 80 described - and the partner carries the prognosis, which is ' +
-                    'why identifying it is the one desirable criterion.'
+                '<i>KMT2A</i> partial tandem duplication is not a rearrangement and does not qualify. True ' +
+                    'rearrangements can be cryptic on karyotype, and some (<i>KMT2A</i>::<i>USP2</i>) on FISH.',
+                't(11;16)/<i>KMT2A</i>::<i>CREBBP</i> is presumptive evidence of prior topoisomerase II inhibitor ' +
+                    'therapy; such cases are MN-pCT.',
+                'Usually monocytic, monoblastic or myelomonocytic, often with many promonocytes and NG2 (CSPG4) ' +
+                    'expression. Extramedullary disease (gingiva, skin) is common. In children, ' +
+                    '<i>KMT2A</i>::<i>MLLT3</i> and ::<i>MLLT10</i> can be megakaryoblastic with aspirate blasts ' +
+                    'below 20%; count on trephine immunohistochemistry.',
+                'The commonest of more than 80 partners are <i>MLLT3</i>, <i>AFDN</i>, <i>ELL</i> and ' +
+                    '<i>MLLT10</i>. The partner affects prognosis.'
             ]
         }) +
 
-        refDiverge('ICC lists two rows at &ge; 10% blasts - AML with t(9;11)(p21.3;q23.3)/' +
-            '<i>MLLT3</i>::<i>KMT2A</i> and AML with other <i>KMT2A</i> rearrangements - where WHO names one ' +
-            'entity at any count; prior therapy is a "therapy-related" qualifier in ICC where WHO routes such ' +
-            'cases to myeloid neoplasm post cytotoxic therapy.');
+        refDiverge([
+            'Two categories at &ge; 10% blasts: AML with t(9;11)(p21.3;q23.3)/<i>MLLT3</i>::<i>KMT2A</i>, and ' +
+                'AML with other <i>KMT2A</i> rearrangements. WHO has one entity at any count.',
+            REF_ICC_THERAPY
+        ]);
     }
 });
 
@@ -2615,7 +2584,7 @@ referenceTopics.push({
     related: ['aml-overview', 'aml-mr', 'cml', 'megakaryocytes'],
     body: function () {
         return refBox({
-            title: 'AML with MECOM rearrangement - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2634,24 +2603,25 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'The MPN clause is this box\'s own, alone among the fusion entities: <i>MECOM</i> ' +
-                    'acquired in CML defines blast phase regardless of the blast count, and even a ' +
-                    'concurrent <i>BCR</i>::<i>ABL1</i> at presentation is best regarded as blast-phase CML.',
-                'About one third present with a low blast count - the any-count rule earns its keep here, ' +
-                    'and cases above and below 20% share the same mutations and expression profiles.',
-                'Megakaryocytic dysplasia is the morphological hallmark: small megakaryocytes with ' +
-                    'non-lobated or bilobed nuclei, with giant/hypogranular platelets and bare megakaryocyte ' +
-                    'nuclei in the blood. inv(3)/t(3;3) hijacks the <i>GATA2</i> enhancer - <i>EVI1</i> ' +
-                    'overexpressed, <i>GATA2</i> functionally haploinsufficient - and a subset of the &gt; 30 ' +
-                    'described rearrangements are cryptic, so guidelines recommend a <i>MECOM</i> ' +
-                    'break-apart FISH probe. RAS-pathway mutations occur in nearly all cases.'
+                'The only fusion entity that excludes an MPN history. <i>MECOM</i> rearrangement acquired in CML ' +
+                    'is blast phase at any blast count, and so is a concurrent <i>BCR</i>::<i>ABL1</i> at ' +
+                    'presentation.',
+                'About a third present with a low blast count; cases above and below 20% share mutations and ' +
+                    'expression profiles.',
+                'Megakaryocytic dysplasia is the hallmark: small megakaryocytes with non-lobated or bilobed ' +
+                    'nuclei, and giant or hypogranular platelets and bare megakaryocyte nuclei in the blood.',
+                'inv(3)/t(3;3) repositions the <i>GATA2</i> enhancer, overexpressing <i>EVI1</i> with ' +
+                    '<i>GATA2</i> haploinsufficiency. Some of the &gt; 30 rearrangements are cryptic, so a ' +
+                    '<i>MECOM</i> break-apart FISH probe is recommended. RAS pathway mutations are nearly universal.'
             ]
         }) +
 
-        refDiverge('ICC lists two rows at &ge; 10% blasts - AML with inv(3)(q21.3q26.2) or ' +
-            't(3;3)(q21.3;q26.2)/<i>GATA2</i>; <i>MECOM</i>(<i>EVI1</i>), and AML with other <i>MECOM</i> ' +
-            'rearrangements - where WHO names one entity at any count; prior therapy is a "therapy-related" ' +
-            'qualifier in ICC where WHO routes such cases to myeloid neoplasm post cytotoxic therapy.');
+        refDiverge([
+            'Two categories at &ge; 10% blasts: AML with inv(3)(q21.3q26.2) or t(3;3)(q21.3;q26.2)/' +
+                '<i>GATA2</i>; <i>MECOM</i>(<i>EVI1</i>), and AML with other <i>MECOM</i> rearrangements. WHO ' +
+                'has one entity at any count.',
+            REF_ICC_THERAPY
+        ]);
     }
 });
 
@@ -2667,7 +2637,7 @@ referenceTopics.push({
     related: ['aml-overview', 'aml-apl', 'aml-rbm15'],
     body: function () {
         return refBox({
-            title: 'AML with NUP98 rearrangement - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2685,25 +2655,21 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'The fusion hides from the karyotype. <i>NUP98</i> sits at the terminus of 11p15.4, so ' +
-                    'the rearrangements are often cryptic and most patients have a normal karyotype - the ' +
-                    'chapter\'s proposed trigger to go looking is exactly what an NGS panel already shows: a ' +
-                    'normal karyotype with <i>FLT3</i>-ITD and/or <i>WT1</i> mutation ' +
-                    '(<i>NUP98</i>::<i>NSD1</i> carries the ITD in 67-91%). Break-apart FISH, RT-PCR or RNA ' +
-                    'sequencing do the finding.',
-                'In children: megakaryoblastic differentiation in up to a third of patients under 3 ' +
-                    '(<i>KDM5A</i> especially), erythroid-differentiated acute leukaemias commonly ' +
-                    '<i>NUP98</i>-rearranged, and a <i>NUP98</i>::<i>RARG</i> fusion that mimics APL ' +
-                    'morphologically without a <i>RARA</i> lesion.',
-                'Prognosis is poor, worse still with <i>FLT3</i>-ITD; up to half of refractory paediatric AML ' +
-                    'carries a <i>NUP98</i> rearrangement. Like the <i>RBM15</i> box - and unlike every other ' +
-                    'sibling - the essential criteria state no post-cytotoxic-therapy exclusion.'
+                '<i>NUP98</i> lies at the 11p15.4 terminus, so rearrangements are often cryptic and most ' +
+                    'karyotypes are normal. A normal karyotype with <i>FLT3</i>-ITD and/or <i>WT1</i> mutation ' +
+                    'should prompt testing by break-apart FISH, RT-PCR or RNA sequencing (<i>NUP98</i>::<i>NSD1</i> ' +
+                    'carries the ITD in 67-91%).',
+                'Children: megakaryoblastic in up to a third of those under 3 (especially <i>KDM5A</i>); ' +
+                    'erythroid leukaemias are often <i>NUP98</i>-rearranged; <i>NUP98</i>::<i>RARG</i> mimics APL ' +
+                    'without a <i>RARA</i> lesion.',
+                'Poor prognosis, worse with <i>FLT3</i>-ITD; up to half of refractory paediatric AML. There is no ' +
+                    'post-cytotoxic-therapy exclusion.'
             ]
         }) +
 
-        refDiverge('<i>NUP98</i> appears nowhere in ICC\'s main text or Table 25; ICC reaches such cases only ' +
-            'through "AML with other rare recurring translocations" (&ge; 10% blasts), which is what the Dx ' +
-            'rule prints for the ICC name.');
+        refDiverge([
+            'Not in ICC. Falls under AML with other rare recurring translocations (&ge; 10% blasts).'
+        ]);
     }
 });
 
@@ -2723,7 +2689,7 @@ referenceTopics.push({
     related: ['aml-overview', 'aml-apl', 'aml-mr', 'blasts'],
     body: function () {
         return refBox({
-            title: 'AML with NPM1 mutation - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [
                 {
                     label: 'Essential',
@@ -2740,28 +2706,23 @@ referenceTopics.push({
                 }
             ],
             notes: [
-                'The mutation defines AML wherever it is found at presentation - a marrow wearing MDS or ' +
-                    'CMML features with <i>NPM1</i> detected is AML with <i>NPM1</i> mutation, and "MDS with ' +
-                    '<i>NPM1</i> mutation" is on the chapter\'s not-recommended list. The one stated restraint: ' +
-                    'a variant at VAF &lt; 10% with no increase in blasts lacks outcome data and "may not ' +
-                    'be definitively classifiable as AML" - interpret with caution, follow closely, and consider ' +
-                    'a subclonal variant (MDS cases have relapsed <i>without</i> the mutation).',
-                'Cup-like nuclear invaginations in &gt; 10% of blasts are highly specific, associated ' +
-                    'with the <i>NPM1</i>/<i>FLT3</i>-ITD pair. About 80% of cases are CD34-negative, ' +
-                    'and a CD34−/HLA-DR− subset mimics APL by flow - the ' +
-                    'cytoplasmic-NPM1 immunostain (the desirable criterion) is the surrogate that also catches ' +
-                    'the rare non-exon-12 mutations.',
-                'The karyotype is normal in ~85%; multilineage dysplasia in 20-25% changes nothing ' +
-                    'prognostically. <i>FLT3</i>-ITD decides ELN risk (favourable without it or with a low ' +
-                    'allelic ratio; intermediate with a high one), which is why the Dx comment reports the ITD ' +
-                    'either way.'
+                'Defines AML even with MDS or CMML features; "MDS with <i>NPM1</i> mutation" is not recommended. ' +
+                    'The exception: a VAF &lt; 10% without increased blasts "may not be definitively classifiable ' +
+                    'as AML". Interpret with caution, follow closely, and consider a subclonal variant.',
+                'Cup-like nuclei in &gt; 10% of blasts are highly specific and associated with <i>FLT3</i>-ITD. ' +
+                    'About 80% are CD34-negative, and a CD34−/HLA-DR− subset mimics APL by flow. Cytoplasmic NPM1 ' +
+                    'immunohistochemistry also detects the rare non-exon-12 mutations.',
+                'Karyotype is normal in ~85%. Multilineage dysplasia (20-25%) has no prognostic effect. ' +
+                    '<i>FLT3</i>-ITD sets ELN risk: favourable without it or at a low allelic ratio, intermediate ' +
+                    'at a high one.'
             ]
         }) +
 
-        refDiverge('ICC requires &ge; 10% blasts for AML with mutated <i>NPM1</i> - below that, ICC has ' +
-            'no acute leukaemia to name and the Dx card prints the WHO name alone. At 10-19% the mutation ' +
-            'lifts the case out of ICC\'s MDS/AML category to AML outright. Prior therapy is a ' +
-            '"therapy-related" qualifier in ICC where WHO\'s essential criteria exclude it.');
+        refDiverge([
+            'Named AML with mutated <i>NPM1</i>; requires &ge; 10% blasts. At 10-19% the mutation makes the case ' +
+                'AML rather than MDS/AML.',
+            REF_ICC_THERAPY
+        ]);
     }
 });
 
@@ -2778,7 +2739,7 @@ referenceTopics.push({
     related: ['aml-overview', 'aml-npm1', 'blasts'],
     body: function () {
         return refBox({
-            title: 'AML with CEBPA mutation - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [{
                 label: 'Essential',
                 items: [
@@ -2791,23 +2752,21 @@ referenceTopics.push({
                 ]
             }],
             notes: [
-                'The one defining-mutation entity that kept the 20% - below it WHO has no <i>CEBPA</i> ' +
-                    'AML to name, so a low-blast <i>CEBPA</i>-mutated marrow genuinely stays MDS.',
-                'The definition widened from biallelic-only to biallelic or single in-frame bZIP ' +
-                    '(smbZIP-<i>CEBPA</i>), because the favourable prognosis tracks both - in children and ' +
-                    'adults up to 70. A single mutation in the N-terminal TAD does not qualify.',
-                'A biallelic result is a germline question: 5-10% of bi<i>CEBPA</i> cases carry a ' +
-                    'germline N-terminal variant, and the familial form is highly penetrant at a median of ' +
-                    '24.5 years - the chapter asks for suspicion and genetic counselling, which the Dx caution ' +
-                    'now relays. Dysgranulopoiesis and dysmegakaryopoiesis are common and change nothing.'
+                'Keeps the 20% blast requirement; below it, a <i>CEBPA</i>-mutated marrow remains MDS.',
+                'Biallelic or single in-frame bZIP (smbZIP-<i>CEBPA</i>); both carry the favourable prognosis, in ' +
+                    'children and in adults up to 70. A single N-terminal TAD mutation does not qualify.',
+                'A biallelic result raises germline predisposition: 5-10% of bi<i>CEBPA</i> cases carry a germline ' +
+                    'N-terminal variant, and familial disease is highly penetrant (median onset 24.5 years). ' +
+                    'Consider genetic counselling.',
+                'Dysgranulopoiesis and dysmegakaryopoiesis are common and not significant.'
             ]
         }) +
 
-        refDiverge('The one entity where the classifications disagree about which mutations count, not ' +
-            'merely the threshold: ICC accepts only in-frame bZIP mutations (at &ge; 10% blasts), so a ' +
-            'biallelic non-bZIP case is WHO\'s entity and not ICC\'s - and an ICC bZIP case at 10-19% blasts ' +
-            'is AML where WHO still reads MDS. Prior therapy is a "therapy-related" qualifier in ICC where ' +
-            'WHO routes such cases to myeloid neoplasm post cytotoxic therapy.');
+        refDiverge([
+            'Only in-frame bZIP mutations qualify, at &ge; 10% blasts. A biallelic non-bZIP case is AML with ' +
+                '<i>CEBPA</i> by WHO only, and a bZIP case at 10-19% blasts is AML by ICC and MDS by WHO.',
+            REF_ICC_THERAPY
+        ]);
     }
 });
 
@@ -2825,7 +2784,7 @@ referenceTopics.push({
     related: ['aml-overview', 'aml-apl', 'aml-rbm15', 'aml-nup98'],
     body: function () {
         return refBox({
-            title: 'AML with other defined genetic alterations - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [{
                 label: 'Essential',
                 items: [
@@ -2839,25 +2798,26 @@ referenceTopics.push({
                 ]
             }],
             notes: [
-                'The introduction\'s landing spot: emerging subtypes that may or may not become defined ' +
-                    'types in future editions - which is why, unlike the defining-genetic entities, this ' +
-                    'category keeps the &ge; 20% requirement and yields to every named diagnosis above it.',
-                '<i>CBFA2T3</i>::<i>GLIS2</i> - cryptic inv(16)(p13.3q24), exclusively under age 5, ' +
-                    'often megakaryoblastic in non-Down infants, wearing the RAM immunophenotype (strong ' +
-                    'CD56, absent HLA-DR and CD38); adverse outcome. <i>KAT6A</i>::<i>CREBBP</i> - ' +
-                    't(8;16), monocytic with erythrophagocytosis (70%), leukaemia cutis and DIC; ' +
-                    'neonatal cases may remit spontaneously. <i>MNX1</i>::<i>ETV6</i> - cryptic t(7;12) ' +
-                    'of infancy, misread as del(12p) or del(7q) without FISH, usually with trisomy 19.',
-                'Two traps the chapter names: t(16;21) is two different diseases - ' +
-                    '<i>FUS</i>::<i>ERG</i> at p11.2;q22 (dismal) versus <i>RUNX1</i>::<i>CBFA2T3</i> at ' +
-                    'q24;q22 (favourable) - and the <i>RARG</i> fusions (<i>CPSF6</i>, <i>NUP98</i>, ' +
-                    '<i>PML</i>, <i>HNRNPC</i> partners) look like APL and resist ATRA.'
+                'Holds emerging subtypes that may become defined types. Keeps the 20% requirement and yields to ' +
+                    'every defined type.',
+                '<i>CBFA2T3</i>::<i>GLIS2</i>: cryptic inv(16)(p13.3q24), under age 5, often megakaryoblastic in ' +
+                    'non-Down infants, with the RAM immunophenotype (strong CD56, HLA-DR and CD38 negative). ' +
+                    'Adverse.',
+                '<i>KAT6A</i>::<i>CREBBP</i>: t(8;16), monocytic with erythrophagocytosis (70%), leukaemia cutis ' +
+                    'and DIC. Neonatal cases may remit spontaneously.',
+                '<i>MNX1</i>::<i>ETV6</i>: cryptic t(7;12) of infancy, mistaken for del(12p) or del(7q) without ' +
+                    'FISH; usually with trisomy 19.',
+                't(16;21) has two forms: <i>FUS</i>::<i>ERG</i> at p11.2;q22 (dismal) and ' +
+                    '<i>RUNX1</i>::<i>CBFA2T3</i> at q24;q22 (favourable).',
+                '<i>RARG</i> fusions (<i>CPSF6</i>, <i>NUP98</i>, <i>PML</i>, <i>HNRNPC</i> partners) resemble APL ' +
+                    'and resist ATRA.'
             ]
         }) +
 
-        refDiverge('ICC has no equivalent named category; its nearest is "AML with other rare recurring ' +
-            'translocations" (&ge; 10% blasts) via its supplement, which overlaps this list without matching ' +
-            'it.');
+        refDiverge([
+            'No named equivalent. The nearest is AML with other rare recurring translocations (&ge; 10% ' +
+                'blasts), which overlaps this list only in part.'
+        ]);
     }
 });
 
@@ -2884,18 +2844,20 @@ referenceTopics.push({
         'toluidine blue', 'TP53', 'CD41', 'CD61', 'RAM phenotype', 'Down syndrome'],
     related: ['aml-overview', 'aml-mr', 'mn-pct', 'cmml', 'blasts'],
     body: function () {
-        return refP('The family replacing "AML-NOS": cases at &ge; 20% blasts with no defining ' +
-                'genetic abnormality - the residue after every named entity, subtyped by differentiation. ' +
-                'The granulocytic-monocytic subtypes are separated by three numbers: myeloperoxidase ' +
-                'at 3% (below it, minimal differentiation; at or above, the rest), granulocytic ' +
-                'maturation at 10% of marrow cells (below it, without maturation; at or above, with ' +
-                'maturation), and monocytes at 20% of marrow cells (at or above it, myelomonocytic - ' +
-                'and at &ge; 80% monocytic cells, acute monocytic leukaemia). Basophilic, erythroid ' +
-                'and megakaryoblastic leukaemia sit on their own axes, and acute erythroid leukaemia ' +
-                'alone carries no blast requirement. Eight subtype boxes are pasted so far.') +
+        return refTable(['Subtype', 'Defined by'], [
+                ['All', '&ge; 20% blasts (except erythroid), and no defining genetic abnormality, AML-MR or MN-pCT'],
+                ['Minimal differentiation', 'MPO &lt; 3%'],
+                ['Without maturation', 'MPO &ge; 3%; maturing granulocytes &lt; 10%'],
+                ['With maturation', 'Maturing granulocytes &ge; 10%; monocytic cells &lt; 20%'],
+                ['Myelomonocytic', 'Maturing granulocytes &ge; 20% and monocytic cells &ge; 20%'],
+                ['Monocytic', 'Monocytic cells &ge; 80%; maturing granulocytes &lt; 20%'],
+                ['Basophilic', 'Increased basophils, metachromatic on toluidine blue'],
+                ['Erythroid', 'Erythroid &ge; 80%, of which proerythroblasts &ge; 30%; no blast minimum'],
+                ['Megakaryoblastic', 'Megakaryocytic differentiation; CD41, CD61 or CD42b']
+            ]) +
 
             refBox({
-                title: 'AML with minimal differentiation - WHO-HAEM5',
+                title: 'AML with minimal differentiation',
                 groups: [{
                     label: 'Essential',
                     items: [
@@ -2908,21 +2870,19 @@ referenceTopics.push({
                     ]
                 }],
                 notes: [
-                    'The diagnosis lives on the flow cytometer: cytochemistry is negative by definition ' +
-                        '(myeloperoxidase, Sudan Black B and CAE all &lt; 3%), the blasts may resemble ' +
-                        'lymphoblasts, and CD7/TdT appear in ~30% - the differentials are ALL and ' +
-                        'mixed-phenotype acute leukaemia, which the criteria exclude by immunophenotype.',
-                    'Many former-M0 cases are AML-MR now: the chapter\'s own mutation list (<i>RUNX1</i> ' +
-                        '~30%, <i>ASXL1</i> ~30%, <i>SRSF2</i> ~20%, <i>STAG2</i>) largely qualifies for ' +
-                        'myelodysplasia-related AML, which takes precedence - this box names the residue.',
-                    '<i>BCL11B</i> rearrangements (~30%) mark a biological continuum with T/myeloid ' +
-                        'MPAL, early T-precursor ALL and acute undifferentiated leukaemia, usually with ' +
-                        '<i>FLT3</i>-ITD (~85%); their clinical significance is not yet settled.'
+                    'Formerly M0. Cytochemistry is negative by definition (MPO, Sudan Black B and CAE &lt; 3%). ' +
+                        'Blasts may resemble lymphoblasts, and CD7/TdT are expressed in ~30%; ALL and MPAL are ' +
+                        'excluded by immunophenotype.',
+                    'Common mutations (<i>RUNX1</i> ~30%, <i>ASXL1</i> ~30%, <i>SRSF2</i> ~20%, <i>STAG2</i>) ' +
+                        'often make the case AML-MR, which takes precedence.',
+                    '<i>BCL11B</i> rearrangements (~30%), usually with <i>FLT3</i>-ITD (~85%), link this subtype ' +
+                        'to T/myeloid MPAL, early T-precursor ALL and acute undifferentiated leukaemia. Their ' +
+                        'significance is not yet settled.'
                 ]
             }) +
 
             refBox({
-                title: 'AML without maturation - WHO-HAEM5',
+                title: 'AML without maturation',
                 groups: [{
                     label: 'Essential',
                     items: [
@@ -2935,18 +2895,15 @@ referenceTopics.push({
                     ]
                 }],
                 notes: [
-                    'The former M1. Blasts may carry azurophilic granules and Auer rods - or lack both and ' +
-                        'resemble lymphoblasts, where the &ge; 3% myeloperoxidase (or Sudan Black B) is ' +
-                        'what separates this box from minimal differentiation below it, and the &lt; 10% ' +
-                        'maturing granulocytes from "with maturation" above it.',
-                    'About two thirds have a normal karyotype, and the mutation list (<i>DNMT3A</i>, ' +
-                        '<i>RUNX1</i>, <i>ASXL1</i> ~25-30%, <i>IDH1/2</i>) again largely qualifies for ' +
-                        'myelodysplasia-related AML, which takes precedence.'
+                    'Formerly M1. Blasts may have azurophilic granules and Auer rods, or neither and resemble ' +
+                        'lymphoblasts.',
+                    'About two thirds have a normal karyotype. Common mutations (<i>DNMT3A</i>, <i>RUNX1</i>, ' +
+                        '<i>ASXL1</i> ~25-30%, <i>IDH1/2</i>) often make the case AML-MR.'
                 ]
             }) +
 
             refBox({
-                title: 'AML with maturation - WHO-HAEM5',
+                title: 'AML with maturation',
                 groups: [{
                     label: 'Essential',
                     items: [
@@ -2961,19 +2918,15 @@ referenceTopics.push({
                     ]
                 }],
                 notes: [
-                    'The former M2, standing between two walls: &ge; 10% maturing granulocytes ' +
-                        'separates it from "without maturation" and &lt; 20% monocytes from the ' +
-                        'myelomonocytic side. Blasts express maturation markers (CD11b, CD15, CD65), ' +
-                        'neutrophilic dysplasia may be present, and Auer rods may occur.',
-                    'The mutation profile leans hardest of the family toward the MR list - <i>ASXL1</i> ~40%, ' +
-                        '<i>RUNX1</i> and <i>STAG2</i> ~30% - so many of these marrows classify as ' +
-                        'myelodysplasia-related AML first; <i>FLT3</i>-ITD is notably rarer here (5-10%) than ' +
-                        'in "without maturation".'
+                    'Formerly M2. Blasts express CD11b, CD15 and CD65; neutrophilic dysplasia and Auer rods may ' +
+                        'be present.',
+                    '<i>ASXL1</i> (~40%), <i>RUNX1</i> and <i>STAG2</i> (~30%) are common, so many cases are ' +
+                        'AML-MR. <i>FLT3</i>-ITD is less frequent (5-10%) than in AML without maturation.'
                 ]
             }) +
 
             refBox({
-                title: 'Acute myelomonocytic leukaemia - WHO-HAEM5',
+                title: 'Acute myelomonocytic leukaemia',
                 groups: [{
                     label: 'Essential',
                     items: [
@@ -2986,17 +2939,14 @@ referenceTopics.push({
                     ]
                 }],
                 notes: [
-                    'The former M4: both lineages at &ge; 20%, with promonocytes counted as blast ' +
-                        'equivalents (as in CMML). Blasts are myeloperoxidase-positive (&ge; 3%); the ' +
-                        'monocytic cells are nonspecific esterase-positive, and often more mature in the ' +
-                        'blood than in the marrow.',
-                    'Stated differentials: microgranular APL and <i>NPM1</i>-mutated AML. <i>FLT3</i>-ITD ' +
-                        'reaches 25% here - the family\'s highest.'
+                    'Formerly M4. Blasts are MPO-positive (&ge; 3%); monocytic cells are nonspecific ' +
+                        'esterase-positive and often more mature in blood than in marrow.',
+                    'Differentials: microgranular APL, <i>NPM1</i>-mutated AML. <i>FLT3</i>-ITD in 25%.'
                 ]
             }) +
 
             refBox({
-                title: 'Acute monocytic leukaemia - WHO-HAEM5',
+                title: 'Acute monocytic leukaemia',
                 groups: [{
                     label: 'Essential',
                     items: [
@@ -3009,22 +2959,19 @@ referenceTopics.push({
                     ]
                 }],
                 notes: [
-                    'The former M5. "Acute monoblastic leukaemia" (&ge; 80% monoblasts) remains an acceptable ' +
-                        'distinction but is not required. Extramedullary disease is common - gingiva, ' +
-                        'skin, CNS.',
-                    'The hard boundary is CMML, and it turns on recognising promonocytes as blast ' +
-                        'equivalents - poorly reproducible on smears. Flow cytometry helps: promonocytes run ' +
-                        'CD14 weak/negative, CD36 weak, CD64 and HLA-DR strong; and the monocytic:granulocytic ' +
-                        'ratio runs high in acute monocytic leukaemia, low in CMML.',
-                    'Nonspecific esterase is typically strong but may be weak or absent - ' +
-                        'immunophenotypic monocytic markers then carry the diagnosis. Other stated ' +
-                        'differentials: microgranular APL, <i>NPM1</i>-mutated and <i>KMT2A</i>-rearranged ' +
-                        'AML, plasmablastic myeloma.'
+                    'Formerly M5. Acute monoblastic leukaemia (&ge; 80% monoblasts) is an optional distinction. ' +
+                        'Extramedullary disease (gingiva, skin, CNS) is common.',
+                    'Separation from CMML depends on recognising promonocytes, which is poorly reproducible on ' +
+                        'smears. By flow, promonocytes are CD14 weak or negative, CD36 weak, CD64 and HLA-DR strong, ' +
+                        'and the monocytic:granulocytic ratio is higher than in CMML.',
+                    'Nonspecific esterase may be weak or absent; the monocytic immunophenotype then carries the ' +
+                        'diagnosis. Other differentials: microgranular APL, <i>NPM1</i>-mutated and ' +
+                        '<i>KMT2A</i>-rearranged AML, plasmablastic myeloma.'
                 ]
             }) +
 
             refBox({
-                title: 'Acute basophilic leukaemia - WHO-HAEM5',
+                title: 'Acute basophilic leukaemia',
                 groups: [{
                     label: 'Essential',
                     items: [
@@ -3041,17 +2988,16 @@ referenceTopics.push({
                     items: ['Blasts positive for CD9 and/or CD203c, and negative for HLA-DR']
                 }],
                 notes: [
-                    'Very rare. Immature basophils make up 20-80% of marrow cells, mature basophils are ' +
-                        'sparse, and Auer rods are absent.',
-                    'The differentials are CML in blast phase, the other AMLs with basophilia ' +
-                        '(<i>DEK::NUP214</i>, <i>BCR::ABL1</i>) and mast cell leukaemia - strong CD117 ' +
-                        'marks the mast cells, CAE-negativity the basophils. A rare infant-boy subtype ' +
-                        'carries t(X;6)(p11;q23) / <i>MYB::GATA1</i>.'
+                    'Very rare. Immature basophils are 20-80% of marrow cells; mature basophils are sparse; no ' +
+                        'Auer rods.',
+                    'Differentials: CML in blast phase, other AML with basophilia (<i>DEK::NUP214</i>, ' +
+                        '<i>BCR::ABL1</i>), and mast cell leukaemia (strong CD117; basophils are CAE-negative). A ' +
+                        'rare subtype in infant boys carries t(X;6)(p11;q23)/<i>MYB::GATA1</i>.'
                 ]
             }) +
 
             refBox({
-                title: 'Acute erythroid leukaemia - WHO-HAEM5',
+                title: 'Acute erythroid leukaemia',
                 groups: [{
                     label: 'Essential',
                     items: [
@@ -3063,20 +3009,17 @@ referenceTopics.push({
                     items: ['Evidence of <i>TP53</i> mutation']
                 }],
                 notes: [
-                    'The family\'s exception: no &ge; 20% blast requirement. CD34-positive myeloblasts ' +
-                        'are not increased - the arrest is erythroid, and the count that matters is ' +
-                        'proerythroblasts. AEL supersedes AML-MR despite sharing its complex karyotype.',
-                    'Biallelic (multi-hit) <i>TP53</i> alteration is characteristic, with complex ' +
-                        'karyotypes and losses of 17/17p, 5/5q and 7/7q; p53 immunohistochemistry ' +
-                        '(overexpression or complete loss) is a useful adjunct.',
-                    'Reactive proerythroblast proliferations (B12/folate deficiency, haemolysis) show ' +
-                        'no <i>TP53</i> mutation and a normal karyotype. Prognosis is dismal - median ' +
-                        'survival 2-4 months.'
+                    'No 20% blast requirement. Myeloblasts are not increased; the proerythroblast count is what ' +
+                        'matters. Takes precedence over AML-MR.',
+                    'Multi-hit <i>TP53</i> is characteristic, with complex karyotypes and loss of 17/17p, 5/5q ' +
+                        'and 7/7q. p53 immunohistochemistry (overexpression or complete loss) is a useful adjunct.',
+                    'Reactive proerythroblast proliferations (B12 or folate deficiency, haemolysis) lack ' +
+                        '<i>TP53</i> mutation and have a normal karyotype. Median survival is 2-4 months.'
                 ]
             }) +
 
             refBox({
-                title: 'Acute megakaryoblastic leukaemia - WHO-HAEM5',
+                title: 'Acute megakaryoblastic leukaemia',
                 groups: [{
                     label: 'Essential',
                     items: [
@@ -3091,31 +3034,27 @@ referenceTopics.push({
                     items: ['Evaluation for possible Down syndrome']
                 }],
                 notes: [
-                    'The one family box excluding an MPN history by name: a transformed CML or other ' +
-                        'MPN is MPN in blast phase, and megakaryoblastic morphology is where that ' +
-                        'transformation shows up. The stated genetic differentials are AML with ' +
-                        '<i>RBM15::MRTFA</i> and AML with <i>MECOM</i> rearrangement.',
-                    'Cytoplasmic CD41/CD61 is more specific than surface staining - adherent platelets ' +
-                        'give false positives. Myeloperoxidase is consistently negative, CD13/CD117 often ' +
-                        'absent and CD45 weak, so small-blast cases mimic acute undifferentiated leukaemia, ' +
-                        'minimal differentiation or ALL. Micromegakaryocytes are not counted as blasts, ' +
-                        'and reticulin fibrosis is typical.',
-                    'Three clinical groups: Down syndrome (its own entity, excellent prognosis), other ' +
-                        'children (&gt; 75% fusion-driven - <i>CBFA2T3::GLIS2</i>, <i>RBM15::MRTFA</i>, ' +
-                        '<i>NUP98::KDM5A</i>, <i>KMT2A</i>), and adults (<i>TP53</i>, <i>RB1</i>; extremely ' +
-                        'poor prognosis). The RAM phenotype - strong CD56 with negative CD7, CD13, ' +
-                        'CD36, CD45, CD38 and HLA-DR - marks the cytogenetically cryptic ' +
-                        '<i>CBFA2T3::GLIS2</i> fusion and a very high induction-failure rate.'
+                    'The only subtype that excludes an MPN history: transformed CML or other MPN is blast phase. ' +
+                        'Genetic differentials are AML with <i>RBM15::MRTFA</i> and AML with <i>MECOM</i> ' +
+                        'rearrangement.',
+                    'Cytoplasmic CD41/CD61 is more specific than surface staining, where adherent platelets give ' +
+                        'false positives. MPO is negative, CD13/CD117 often absent and CD45 weak, so small-blast ' +
+                        'cases mimic acute undifferentiated leukaemia, minimal differentiation or ALL. ' +
+                        'Micromegakaryocytes are not counted as blasts. Reticulin fibrosis is typical.',
+                    'Three groups: Down syndrome (a separate entity, excellent prognosis); other children ' +
+                        '(&gt; 75% fusion-driven: <i>CBFA2T3::GLIS2</i>, <i>RBM15::MRTFA</i>, <i>NUP98::KDM5A</i>, ' +
+                        '<i>KMT2A</i>); and adults (<i>TP53</i>, <i>RB1</i>; very poor prognosis). The RAM ' +
+                        'phenotype (strong CD56; CD7, CD13, CD36, CD45, CD38 and HLA-DR negative) marks cryptic ' +
+                        '<i>CBFA2T3::GLIS2</i> and a very high induction failure rate.'
                 ]
             }) +
 
-        refDiverge('WHO subtypes the family by differentiation ("AML with minimal differentiation", "…without ' +
-            'maturation", and so on); ICC keeps a single residual AML, NOS with no subtype list, at ' +
-            '10-19% blasts as MDS/AML, NOS and &ge; 20% as AML, NOS. Prior therapy is a "therapy-related" ' +
-            'qualifier in ICC where WHO routes such cases to myeloid neoplasm post cytotoxic therapy. Pure ' +
-            'erythroid leukaemia diverges hardest: WHO keeps it here with no blast floor, where ICC classifies ' +
-            'it within AML with mutated <i>TP53</i> - its Table 21 admits "&ge; 20% blasts or meets ' +
-            'criteria for pure erythroid leukemia".');
+            refDiverge([
+                'No subtypes: AML, NOS at &ge; 20% blasts and MDS/AML, NOS at 10-19%.',
+                'Acute erythroid leukaemia is classified as AML with mutated <i>TP53</i> (Table 21: "&ge; 20% ' +
+                    'blasts or meets criteria for pure erythroid leukemia").',
+                REF_ICC_THERAPY
+            ]);
     }
 });
 
@@ -3133,7 +3072,7 @@ referenceTopics.push({
     related: ['aml-overview', 'mds-ib', 'mn-pct', 'blasts', 'fibrosis'],
     body: function () {
         return refBox({
-            title: 'AML-MR - WHO-HAEM5',
+            title: 'WHO-HAEM5',
             groups: [{
                 label: 'Essential',
                 items: [
@@ -3146,21 +3085,22 @@ referenceTopics.push({
                 ]
             }],
             notes: [
-                'The history is its own route. A marrow at &ge; 20% blasts after documented MDS is AML-MR ' +
-                    'with no qualifying abnormality needed - and conversely, the abnormality carries a de novo ' +
-                    'case with no history. Morphological multilineage dysplasia, though present in most cases, ' +
-                    'is not sufficient for the diagnosis.',
-                'Acute erythroid leukaemia supersedes AML-MR, its biallelic <i>TP53</i> biology being its ' +
-                    'own entity.',
-                'Oligoblastic AML-MR - prior MDS with &lt; 30% marrow blasts and a stable course for ' +
-                    '&ge; 2 months - may be managed akin to high-risk MDS: trial responses, survival and genetics ' +
-                    'all track MDS with increased blasts.'
+                'A history of MDS or MDS/MPN is sufficient on its own, and a qualifying abnormality is sufficient ' +
+                    'without one. Multilineage dysplasia alone does not qualify.',
+                'Acute erythroid leukaemia takes precedence.',
+                'Oligoblastic AML-MR (prior MDS, &lt; 30% marrow blasts, stable for &ge; 2 months) may be managed ' +
+                    'like high-risk MDS.',
+                'Complex karyotype (Box 2.25, footnote a): only clonal abnormalities count, and a single ' +
+                    'metaphase is ignored. Numerical gains and losses, balanced translocations and ' +
+                    'one-chromosome unbalanced aberrations count as one; unbalanced aberrations of two or more ' +
+                    'chromosomes, tetrasomy, triplication/quadruplication and isoderivative chromosomes count as ' +
+                    'two. Constitutional abnormalities are not counted. With multiple clones or a composite ' +
+                    'karyotype, count the clone (or metaphases) with the most abnormalities.'
             ]
         }) +
 
-        refH('Box 2.25 - the defining abnormalities') +
-        refTable(['Cytogenetic', 'Somatic mutations'], [
-            ['Complex karyotype (at least three abnormalities)<sup>a</sup>', '<i>ASXL1</i>'],
+        refTable(['Cytogenetic', 'Mutation'], [
+            ['Complex karyotype (at least three abnormalities)', '<i>ASXL1</i>'],
             ['del(5q) or loss of 5q due to unbalanced translocation', '<i>BCOR</i>'],
             ['Monosomy 7, del(7q), or loss of 7q due to unbalanced translocation', '<i>EZH2</i>'],
             ['del(11q)', '<i>SF3B1</i>'],
@@ -3171,23 +3111,14 @@ referenceTopics.push({
             ['idic(X)(q13)', '']
         ]) +
 
-        refP('<sup>a</sup> Footnote a is the ISCN counting rulebook for "complex": only clonal ' +
-            'abnormalities count (one metaphase is ignored); numerical gains and losses, balanced ' +
-            'translocations and one-chromosome unbalanced aberrations count as one; two-or-more-chromosome ' +
-            'unbalanced aberrations, tetrasomy, triplication/quadruplication and isoderivative chromosomes count ' +
-            'as two; constitutional abnormalities are not counted; with multiple clones or a composite ' +
-            'karyotype, the count is taken from the clone (or metaphases) with the most abnormalities.') +
-
-        refDiverge(refUL([
-            'ICC splits WHO\'s one entity in two - with myelodysplasia-related gene mutations and ' +
-                'with myelodysplasia-related cytogenetic abnormalities, the gene category taking ' +
-                'precedence - each existing at 10-19% blasts as MDS/AML and at &ge; 20% as AML.',
-            'ICC\'s gene list adds <i>RUNX1</i>; the cytogenetic lists differ in both directions (ICC ' +
-                'adds +8 and del(20q); WHO adds del(11q) and −13/del(13q)).',
-            'A history of MDS or MDS/MPN is a qualifier in ICC ("progressing from MDS"), never a route ' +
-                'in; and prior cytotoxic therapy is likewise a qualifier where WHO routes such cases to myeloid ' +
-                'neoplasm post cytotoxic therapy.'
-        ]));
+        refDiverge([
+            'Split in two: AML with myelodysplasia-related gene mutations and AML with myelodysplasia-related ' +
+                'cytogenetic abnormalities, the gene category taking precedence. Each is MDS/AML at 10-19% blasts.',
+            'The gene list adds <i>RUNX1</i>. The cytogenetic lists differ both ways: ICC adds +8 and del(20q); ' +
+                'WHO adds del(11q) and −13/del(13q).',
+            'A history of MDS or MDS/MPN is a qualifier ("progressing from MDS"), not a route in. Prior therapy ' +
+                'is also a qualifier.'
+        ]);
     }
 });
 

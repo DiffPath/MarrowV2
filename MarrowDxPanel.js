@@ -206,10 +206,7 @@ function dxSign(n) {
    prefibrotic PMF comparison, which is the most consequential one in the table. */
 function dxCommentCardHTML(result, f, mode, index) {
     const prose = dxComment(result, f, mode);
-    const texts = function (test) {
-        return result.evidence.filter(function (e) { return test(e.points); })
-            .map(function (e) { return e.text; }).join('; ');
-    };
+    const texts = function (test) { return dxCaseEvidence(result, test); };
     const because = texts(function (p) { return p > 0; });
     const against = texts(function (p) { return p < 0; });
     const line = function (label, text, cls) {
@@ -223,6 +220,12 @@ function dxCommentCardHTML(result, f, mode, index) {
         <div class="dxCommentPreview">${prose}</div>
         ${line('Because', because)}
         ${line('Against', against, 'dxWhy--failed')}
+        ${/* NOT IN THE COMMENT, and that is the point of both lines: what the
+              pathologist should check on the slide or in the other reports, and how
+              the two classifications differ here. The report carries both names;
+              the reasoning stays on the card. */''}
+        ${line('Check', result.check, 'dxWhy--missing')}
+        ${line('WHO vs ICC', result.divergence)}
         <button type="button" class="dxUse" data-index="${index}">Use this comment</button>${refRuleLinkHTML(result.rule)}
     </div>`;
 }
@@ -311,8 +314,15 @@ function renderDxPanel() {
     refreshDx();
 }
 
+/* THREE VIEWS, AND THE ORDER IS THE ORDER OF THE QUESTIONS. Comments is what
+   would I write, Differential is what do I do next, Scoring is why did it rank
+   there — working surface, plan, audit. Differential sits in the middle because
+   it is the one you move to FROM the comment ("this is the answer, what else
+   could it be?") and back from; Scoring stays at the far end, where a debugging
+   surface belongs. */
 const dxViews = [
     { label: 'Comments', value: 'comments' },
+    { label: 'Differential', value: 'differential' },
     { label: 'Scoring', value: 'scoring' }
 ];
 
@@ -389,6 +399,16 @@ function refreshDx() {
 function dxRenderView() {
     const list = document.getElementById('dxList');
     if (!list) return;
+
+    /* NO TRIM AND NO PAGER, unlike the Comments view. That view pages because a
+       comment is prose and two of them fill a screen; this one is capped at
+       DX_DIFFERENTIAL_MAX compact cards by the threshold itself, and a
+       differential split across two screens is not a differential. It scrolls if
+       it has to, which is what the Scoring view already does. */
+    if (dxView() === 'differential') {
+        list.innerHTML = dxDifferentialHTML(dxFindings);
+        return;
+    }
 
     if (dxView() === 'scoring') {
         /* The summary lives HERE, not above the views: "what the case says" is the

@@ -32,10 +32,17 @@
 function dxChCloneText(f) {
     const variants = f.genetics.variants;
     if (!variants.length) return '';
-    return addCommas(variants.map(function (v) {
-        return v.gene + (v.variant ? ' ' + v.variant : '') +
-            (v.vaf ? ` (VAF ${v.vaf}%)` : '');
-    }));
+    const detail = function (v) {
+        const bits = [];
+        if (v.variant) bits.push(v.variant);
+        if (v.vaf) bits.push(`VAF ${v.vaf}%`);
+        return bits.length ? ` (${bits.join(', ')})` : '';
+    };
+    if (variants.length === 1) {
+        const v = variants[0];
+        return `${/^[AEFHILMNORSX]/.test(v.gene) ? 'an' : 'a'} ${v.gene} mutation${detail(v)}`;
+    }
+    return addCommas(variants.map(function (v) { return v.gene + detail(v); })) + ' mutations';
 }
 
 /* THE CHAPTER'S WAIVER CLAUSE, which is the reason a region mismatch is not a
@@ -65,6 +72,8 @@ function dxChRegionText(f) {
     return parts.join(' ');
 }
 
+/* THE REGION QUESTION IS THE PATHOLOGIST'S, so dxChRegionText is card text
+   (`check`), never report text. */
 /* WHAT MOVES THE RISK OF PROGRESSION, general statement first and then this case's
    own features — in that order, because the general figure is what makes the
    case-specific clause mean anything.
@@ -97,41 +106,39 @@ function dxChRegionText(f) {
 function dxChRiskText(f, which) {
     const ccus = which === 'ccus';
     const readout = ccus ? f.genetics.ccusHighRisk : f.genetics.chHighRisk;
-    const genes = ccus
-        ? 'TP53, PPM1D, JAK2, RUNX1, SF3B1, SRSF2, U2AF1, IDH2 and IDH1'
-        : 'TP53, U2AF1, SRSF2, IDH2, IDH1, SF3B1 and ASXL1';
 
+    /* THE REPORT SAYS ONLY WHAT APPLIES TO THIS CASE. The chapter's general
+       list is on the card (dxChRiskList). */
     const raised = [];
     if (f.genetics.somaticGenes.length > 1) raised.push('more than one mutated gene');
     if (readout.present === true) {
-        raised.push(`a mutation involving ${addCommas(readout.genes)}`);
+        raised.push(`${dxGenePhrase(readout.genes)}`);
     }
-
-    const general = `The risk of progression is greater for a large clone, for more than one ` +
-        `mutated gene, and for mutations in ${genes}.`;
-    /* The CCUS chapter's own extra sentence, and it is worth saying: an isolated
-       DNMT3A clone is the commonest CCUS there is, and the chapter reports it at
-       low risk. Only printed when that is actually the case on the bench. */
     const solitaryDnmt3a = f.genetics.somaticGenes.length === 1 &&
         f.genetics.somaticGenes[0] === 'DNMT3A';
-    const tail = ccus && solitaryDnmt3a
-        ? ' An isolated DNMT3A mutation appears to confer a low risk of progression.'
-        : '';
 
-    if (!raised.length) return general + tail;
-    return general + ` The present case carries ${addCommas(raised)}.` + tail;
+    if (raised.length) {
+        return `${dxCap(addCommas(raised))} ${raised.length > 1 ? 'are' : 'is'} associated with ` +
+            `a higher risk of progression.`;
+    }
+    if (ccus && solitaryDnmt3a) return 'An isolated DNMT3A mutation carries a low risk of progression.';
+    return '';
 }
 
-/* BOTH OF THESE ARE DIAGNOSES OF EXCLUSION, so an outstanding study is not a
-   footnote on them — it is the thing that could take the case out of the category
-   altogether. A del(5q) arriving on a cytopenic marrow with no dysplasia is
-   MDS-5q, not CCUS. Empty when nothing is awaited; the callers filter. */
-function dxChPendingText(f) {
-    const waiting = dxPendingStudies(f);
-    if (!waiting.length) return '';
-    return `The ${addCommas(waiting)} studies are outstanding; an addendum will follow if they ` +
-        `alter the classification.`;
+/* The chapter's general risk list, for the card. The two chapters publish two
+   lists: CHIP's and CCUS's. */
+function dxChRiskList(which) {
+    return which === 'ccus'
+        ? 'Higher-risk CCUS: a large clone, more than one mutated gene, or TP53, PPM1D, JAK2, ' +
+          'RUNX1, SF3B1, SRSF2, U2AF1, IDH2 or IDH1.'
+        : 'Higher-risk CHIP: a large clone, more than one mutated gene, or TP53, U2AF1, SRSF2, ' +
+          'IDH2, IDH1, SF3B1 or ASXL1.';
 }
+
+/* BOTH OF THESE ARE DIAGNOSES OF EXCLUSION, so an outstanding study could take
+   the case out of the category altogether (a del(5q) arriving on a cytopenic
+   marrow with no dysplasia is MDS-5q, not CCUS). The pending line that says so
+   is dxComment's, appended last to every comment. */
 
 /* VEXAS, and the one gene symbol in this app that changes what the comment is
    about rather than what it is called. Every reported case carries a somatic UBA1
@@ -145,15 +152,8 @@ function dxChPendingText(f) {
    not record cytoplasmic vacuolation, so a marrow cannot suggest the sequencing. */
 function dxVexasNote(f) {
     if (f.genetics.uba1 !== true) return '';
-    return 'A somatic UBA1 mutation is present. UBA1 is mutated in all reported cases of VEXAS ' +
-        'syndrome, a progressive systemic autoinflammatory disorder of adults involving the ' +
-        'skin, lungs, blood vessels, joints and cartilage, frequently with cytopenias. ' +
-        'Cytoplasmic vacuolation of myeloid and erythroid precursors is its characteristic ' +
-        'marrow finding, the marrow is usually hypercellular and usually without dysplasia, ' +
-        'and progression to a myelodysplastic neoplasm is common — a marrow meeting the ' +
-        'criteria for MDS should be diagnosed as such. Re-examination of the aspirate for ' +
-        'vacuolated precursors and correlation with the clinical features of the syndrome are ' +
-        'recommended.';
+    return 'The UBA1 mutation raises the possibility of VEXAS syndrome; review of the aspirate ' +
+        'for vacuolated myeloid and erythroid precursors and clinical correlation are recommended.';
 }
 
 /* "Absence of features diagnostic for defined myeloid neoplasms" — the essential
@@ -214,13 +214,12 @@ function dxCytopeniasNamed(f) {
    says which criterion is outstanding. */
 function dxBlandMarrowText(f) {
     const observed = [];
-    if (dxNot(f.dysplasia.any) === true) {
-        observed.push('dysplasia does not meet the diagnostic threshold in any assessed lineage');
+    if (dxNot(f.dysplasia.any) === true) observed.push('there is no significant dysplasia');
+    if (dxBelow(f.blasts.marrow, 5) === true) {
+        observed.push(`blasts are not increased (${dxPct(f.blasts.marrow)}%)`);
     }
-    if (dxBelow(f.blasts.marrow, 5) === true) observed.push('blasts are not increased');
     if (!observed.length) return '';
-    const joined = addCommas(observed);
-    return joined.charAt(0).toUpperCase() + joined.slice(1) + '.';
+    return dxCap(observed.join(', and ')) + '.';
 }
 
 
@@ -336,56 +335,34 @@ dxRules.push(
         comment: function (f, ctx) {
             const parts = [];
             const clone = dxChCloneText(f);
+            if (ctx.mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+            parts.push('The marrow shows no morphologic evidence of a myeloid neoplasm, and there ' +
+                'is no cytopenia.');
 
-            if (ctx.mode === 'addendum') {
-                parts.push('The previously reported findings have been reviewed in conjunction ' +
-                    'with the now-available molecular studies.');
-            } else {
-                parts.push('The marrow shows no morphologic evidence of a myeloid neoplasm and ' +
-                    'the blood counts are not cytopenic.');
-            }
-
-            /* THE FINDING, ONLY WHERE THERE IS ONE. Printed from the case, never
-               from the criterion: a driver-gene mutation is reported when the
-               value is `true`, and an outstanding panel drops this sentence
-               altogether rather than writing the result it is waiting for. */
+            /* THE FINDING, ONLY WHERE THERE IS ONE — never printed from the criterion. */
             if (dxFindingReported(f.genetics.chDrivers.present)) {
-                parts.push(clone
-                    ? `A somatic mutation is present in a clonal hematopoiesis driver gene: ${clone}.`
-                    : 'A somatic mutation is present in a clonal hematopoiesis driver gene.');
+                parts.push(clone ? `Molecular studies show ${clone}.`
+                    : 'Molecular studies show a mutation in a clonal hematopoiesis driver gene.');
             }
-            parts.push(dxChRegionText(f));
 
-            /* THE BOUNDARY FAMILY'S OWN VERB, which is why the kernel's
-               dxClassificationSentence is not called here. It carries two
-               registers, classify and diagnostic, and neither is what these three
-               rules have always said: CHIP is not a classification and not a
-               diagnosis, it is what the findings ARE. Only the mood moves — the
-               prefix is the kernel's, unaltered, and the flat sentence is the one
-               that was already here. */
             const prefix = dxConfirmationPrefix(ctx.rule, f);
             parts.push(prefix
-                ? prefix + 'and in the absence of unexplained cytopenia and of features ' +
-                  'diagnostic of a defined myeloid neoplasm, the findings would be those of ' +
-                  'clonal hematopoiesis of indeterminate potential (CHIP).'
-                : 'In the absence of unexplained cytopenia and of features diagnostic of a ' +
-                  'defined myeloid neoplasm, the findings are those of clonal hematopoiesis of ' +
-                  'indeterminate potential (CHIP).');
+                ? prefix + 'the findings would be consistent with clonal hematopoiesis of ' +
+                  'indeterminate potential (CHIP).'
+                : 'The findings are consistent with clonal hematopoiesis of indeterminate ' +
+                  'potential (CHIP).');
 
-            /* THE SENTENCE THIS COMMENT EXISTS FOR. CHIP is read by clinicians as a
-               pre-leukemic result, and the chapter's own framing is the opposite:
-               a precursor state, distinct from a neoplasm, with a predominantly
-               benign natural history. Naming the rate is what makes that concrete. */
-            parts.push('CHIP is a precursor state rather than a hematological neoplasm and has ' +
-                'a predominantly benign natural history, progressing to an overt myeloid ' +
-                'neoplasm in approximately 0.5–1% of cases per year.');
+            /* CHIP is read as a pre-leukemic result; the chapter frames it as a
+               precursor state with a predominantly benign course, and the rate is
+               what makes that concrete for the reader. */
+            parts.push('CHIP carries a low risk of progression to a myeloid neoplasm (about ' +
+                '0.5–1% per year).');
             parts.push(dxChRiskText(f, 'chip'));
-            parts.push('An increased risk of all-cause mortality has also been reported, ' +
-                'attributed principally to atherosclerotic cardiovascular disease.');
-            parts.push(dxChPendingText(f));
-            parts.push('Correlation with the clinical findings and periodic monitoring of the ' +
-                'blood counts are recommended.');
+            parts.push('Periodic monitoring of the blood counts is recommended.');
             return parts.filter(Boolean).join(' ');
+        },
+        check: function (f) {
+            return [dxChRegionText(f), dxChRiskList('chip')].filter(Boolean).join(' ');
         },
         caution: dxVexasNote
     },
@@ -431,62 +408,28 @@ dxRules.push(
         comment: function (f, ctx) {
             const parts = [];
             const clone = dxChCloneText(f);
-
-            if (ctx.mode === 'addendum') {
-                parts.push('The previously reported findings have been reviewed in conjunction ' +
-                    'with the now-available molecular studies.');
-            } else {
-                const morphology = dxMorphologySentence(f);
-                if (morphology) parts.push(morphology);
-            }
-
-            parts.push('Dysplasia does not meet the diagnostic threshold in any assessed lineage ' +
-                'and blasts are not increased, so the findings do not meet the criteria for a ' +
-                'myelodysplastic neoplasm.');
-            /* The same gate CHIP's clone sentence carries, on this rule's own
-               finding: reported means `true`, and an unsequenced case says
-               nothing here. */
+            if (ctx.mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+            parts.push(dxBlandMarrowText(f));
             if (dxFindingReported(f.genetics.anySomatic)) {
-                parts.push(clone
-                    ? `A somatic mutation is present (${clone}).`
-                    : 'A somatic mutation is present.');
+                parts.push(clone ? `Molecular studies show ${clone}.`
+                    : 'Molecular studies show a somatic mutation.');
             }
-            /* THE DRIVER TABLE IS NOT A GATE ON THIS RULE, and the asymmetry with
-               CHIP is deliberate. Table 2.02 is the published essential criterion
-               for CHIP; the criteria for a clonal cytopenia are their own chapter,
-               which this app has not read, and clonality can be demonstrated by
-               findings the table does not cover at all. Being stricter than the
-               source is worse than being general — so the table informs the
-               sentence and never closes the category. */
-            parts.push(dxChRegionText(f));
 
-            /* THE CLAUSE THAT HAD TO MOVE WITH THE MOOD, and the reason this is
-               not the same edit as CHIP's. "With an unexplained cytopenia and a
-               demonstrated clone" recites the clone as a fact, so it cannot stand
-               in front of a conditional that exists precisely because the clone is
-               not demonstrated — it would read as though the prefix were listing a
-               second, separate requirement. The cytopenia is the half that IS in
+            /* THE CLAUSE THAT MOVES WITH THE MOOD: the cytopenia is the half in
                hand, so it is the half the conditional keeps. */
             const prefix = dxConfirmationPrefix(ctx.rule, f);
             parts.push(prefix
-                ? prefix + 'and with an unexplained cytopenia, the findings would be those of ' +
-                  'clonal cytopenia of undetermined significance (CCUS).'
-                : 'With an unexplained cytopenia and a demonstrated clone, the findings are ' +
-                  'those of clonal cytopenia of undetermined significance (CCUS).');
-
-            /* WHY THIS IS NOT CHIP, said explicitly. The two terms are used
-               interchangeably in requests and in clinical notes, and the cytopenia
-               is the whole of the difference: the essential criteria for CHIP
-               require that unexplained cytopenia be ABSENT. */
-            parts.push('The distinction from clonal hematopoiesis of indeterminate potential is ' +
-                'the cytopenia — the essential criteria for CHIP require that unexplained ' +
-                'cytopenia be absent — and other causes of the cytopenia should be excluded ' +
-                'before the finding is attributed to the clone.');
+                ? prefix + 'the findings would be consistent with clonal cytopenia of ' +
+                  'undetermined significance (CCUS).'
+                : 'With an unexplained cytopenia, the findings are consistent with clonal ' +
+                  'cytopenia of undetermined significance (CCUS).');
+            parts.push('Other causes of the cytopenia should be excluded.');
             parts.push(dxChRiskText(f, 'ccus'));
-            parts.push(dxChPendingText(f));
-            parts.push('Continued observation with repeat evaluation if the blood counts change ' +
-                'is recommended.');
+            parts.push('Follow-up of the blood counts is recommended.');
             return parts.filter(Boolean).join(' ');
+        },
+        check: function (f) {
+            return [dxChRegionText(f), dxChRiskList('ccus')].filter(Boolean).join(' ');
         },
         caution: dxVexasNote
     },
@@ -532,40 +475,25 @@ dxRules.push(
            this category is MADE of rather than evidence against it. */
         comment: function (f, ctx) {
             const parts = [];
-            if (ctx.mode === 'addendum') {
-                parts.push('The previously reported findings have been reviewed in conjunction ' +
-                    'with the now-available studies.');
-            } else {
-                const morphology = dxMorphologySentence(f);
-                if (morphology) parts.push(morphology);
-            }
+            if (ctx.mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
+            parts.push(dxBlandMarrowText(f));
 
-            parts.push('Dysplasia does not meet the diagnostic threshold in any assessed lineage ' +
-                'and blasts are not increased, so the findings do not meet the criteria for a ' +
-                'myelodysplastic neoplasm.');
-
-            /* THE HONEST ANSWER DEPENDS ON WHETHER ANYONE SEQUENCED. ICUS and CCUS
-               are separated by one thing only, and it is not a morphologic one: the
-               diagnosis of a clonal cytopenia is predicated on the detection of a
-               somatic mutation, and the chapter says in terms that flow cytometric
-               and immunohistochemical surrogates are not recommended for it. So an
-               unsequenced cytopenia is not ICUS — it is a cytopenia nobody has
-               tested for clonality, and the comment must say which of the two it
-               is looking at. */
+            /* THE HONEST ANSWER DEPENDS ON WHETHER ANYONE SEQUENCED: an unsequenced
+               cytopenia is not ICUS, it is a cytopenia nobody has tested for
+               clonality, and the comment says which of the two it is. */
             if (f.genetics.anySomatic === false) {
-                parts.push('No somatic mutation has been identified, and the findings are those ' +
-                    'of idiopathic cytopenia of undetermined significance (ICUS).');
+                parts.push('No somatic mutation is identified. The findings are consistent with ' +
+                    'idiopathic cytopenia of undetermined significance (ICUS).');
+            } else if (f.genetics.ngsOutstanding) {
+                parts.push('Pending molecular studies, the findings are provisionally those of ' +
+                    'idiopathic cytopenia of undetermined significance (ICUS).');
             } else {
-                parts.push('Clonality has not been assessed. The distinction from clonal ' +
-                    'cytopenia of undetermined significance rests on sequencing — the diagnosis ' +
-                    'of a clonal cytopenia is predicated on the detection of a somatic mutation, ' +
-                    'and flow cytometric or immunohistochemical surrogates are not recommended ' +
-                    'for this purpose — so the findings are provisionally those of idiopathic ' +
-                    'cytopenia of undetermined significance (ICUS).');
+                parts.push('Molecular studies are recommended to exclude a clonal cytopenia; ' +
+                    'without them, the findings are provisionally those of idiopathic cytopenia ' +
+                    'of undetermined significance (ICUS).');
             }
-            parts.push('Other causes of the cytopenia should be excluded, and repeat evaluation ' +
-                'is recommended if the blood counts change.');
-            return parts.join(' ');
+            parts.push('Other causes of the cytopenia should be excluded.');
+            return parts.filter(Boolean).join(' ');
         }
     },
     {
@@ -696,68 +624,36 @@ dxRules.push(
            findings ARE. */
         comment: function (f, ctx) {
             const parts = [];
-            if (ctx.mode === 'addendum') {
-                parts.push('The previously reported findings have been reviewed in conjunction ' +
-                    'with the now-available studies.');
-            } else {
-                const morphology = dxMorphologySentence(f);
-                if (morphology) parts.push(morphology);
-            }
-
+            if (ctx.mode === 'addendum') parts.push(DX_ADDENDUM_LEAD);
             parts.push(dxBlandMarrowText(f));
-            parts.push('The marrow shows no morphologic evidence of a myeloid neoplasm.');
+            parts.push('There is no morphologic evidence of a myeloid neoplasm.');
 
             /* THE CYTOPENIA IS THE QUESTION THE MARROW WAS ASKED, so a bland marrow
-               has to answer it explicitly rather than by omission. "Not explained by
-               the marrow findings" is the honest form: the morphology excludes a
-               myeloid neoplasm as the cause and says nothing about any other. */
+               answers it explicitly rather than by omission. */
             const cytopenias = dxCytopeniasNamed(f);
             if (cytopenias.length) {
-                parts.push(`The ${addCommas(cytopenias)} ` +
-                    `${cytopenias.length > 1 ? 'are' : 'is'} not explained by the marrow findings. ` +
-                    'Other causes should be excluded, and repeat evaluation is recommended if the ' +
-                    'blood counts change.');
-                /* AND THE LIMIT OF A MORPHOLOGIC STATEMENT, said out loud. A clonal
-                   cytopenia is morphologically indistinguishable from this, so on an
-                   unsequenced case the comment must not be read as having excluded
-                   one. Only where nobody has looked — a negative panel is ICUS and
-                   that rule's own comment covers it. */
+                parts.push(`The ${addCommas(cytopenias)} ${cytopenias.length > 1 ? 'are' : 'is'} ` +
+                    'not explained by the marrow findings; other causes should be excluded.');
+                /* A clonal cytopenia is morphologically indistinguishable from this. */
                 if (f.genetics.anySomatic === null) {
-                    parts.push('Clonality has not been assessed; a clonal cytopenia of ' +
-                        'undetermined significance is not excluded by the morphologic findings.');
+                    parts.push('A clonal cytopenia is not excluded without molecular studies.');
                 }
             }
-
-            parts.push(dxChPendingText(f));
-            parts.push('Correlation with the clinical findings is recommended.');
             return parts.filter(Boolean).join(' ');
         },
-        /* WHERE A SUB-THRESHOLD CLONE LANDS, and the reason this rule needs a
-           caution at all. dxExcludeSubthresholdClone takes a VAF below 2% out of
-           CHIP, so the case arrives here — at which point the report says nothing
-           about a variant the laboratory did report, and a reader would reasonably
-           wonder whether it had been seen. The chapter's own position is that such
-           clones are common by middle age and have not been shown to have
-           consequences, which is a statement worth printing rather than a silence. */
+        /* WHERE A SUB-THRESHOLD OR UNLISTED CLONE LANDS: the laboratory reported a
+           variant, and a report that never mentions it reads as one that missed it. */
         caution: function (f) {
             const notes = [];
             if (f.genetics.chClone === false) {
-                notes.push('A somatic mutation is present at a variant allele fraction below the ' +
-                    '2% threshold required for clonal hematopoiesis of indeterminate potential ' +
-                    '(4% for an X-linked gene in a male patient). Clones of this size are common ' +
-                    'by middle age and have not been demonstrated to have pathological ' +
-                    'consequences.');
+                notes.push('The somatic mutation is below the 2% VAF threshold for CHIP (4% for an ' +
+                    'X-linked gene in a male); clones of this size are common with age and of no ' +
+                    'known significance.');
             }
-            /* THE OTHER WAY A CLONE LANDS HERE: a mutation in a gene the driver
-               table does not list. CHIP is defined on that list, so the case is
-               not CHIP — but a variant was reported, and a comment that never
-               mentions it looks like one that never saw it. */
             if (f.genetics.chDrivers.present === false && f.genetics.chDrivers.unlisted.length) {
-                notes.push(`A somatic ${addCommas(f.genetics.chDrivers.unlisted)} mutation is ` +
-                    'present. It is not among the clonal hematopoiesis driver genes, so the ' +
-                    'findings do not meet the criteria for clonal hematopoiesis of ' +
-                    'indeterminate potential; correlation with the clinical findings is ' +
-                    'recommended.');
+                notes.push(`${dxCap(dxGenePhrase(f.genetics.chDrivers.unlisted))} is present; ` +
+                    `${f.genetics.chDrivers.unlisted.length > 1 ? 'these genes are' : 'the gene is'} ` +
+                    'not a recognized clonal hematopoiesis driver, so the criteria for CHIP are not met.');
             }
             return notes.join(' ');
         }
